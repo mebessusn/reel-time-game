@@ -1,0 +1,34 @@
+{
+  "name": "reel-time",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Reel Time: a cozy multiplayer voxel fishing game to play while Claude works.",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "build:single": "vite build --mode single",
+    "preview": "vite preview --port 4173",
+    "test": "node tests/run-all.mjs && node tests/answer.test.mjs",
+    "test:sql": "node tests/sql.test.mjs",
+    "test:rules": "node tests/rules.test.mjs",
+    "test:e2e": "node tests/e2e.test.mjs && node tests/controls.test.mjs && node tests/social.test.mjs && node tests/valley.test.mjs && node tests/features.e2e.mjs && node tests/sprint.e2e.mjs",
+    "models": "node scripts/gen-models.mjs",
+    "build:artifact": "vite build --mode single && node scripts/make-artifact.mjs",
+    "test:browser": "node tests/run-e2e.mjs"
+  },
+  "dependencies": {
+    "@fontsource/baloo-2": "^5.3.0",
+    "@fontsource/nunito": "^5.3.0",
+    "@fontsource/silkscreen": "^5.3.0",
+    "@supabase/supabase-js": "2.45.4",
+    "lucide": "^1.55.0",
+    "three": "0.169.0"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "0.2.12",
+    "playwright": "^1.56.0",
+    "vite": "5.4.8",
+    "vite-plugin-singlefile": "2.0.2"
+  }
+}

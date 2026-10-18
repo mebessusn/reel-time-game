@@ -1,0 +1,14 @@
+{
+  "name": "reel-time",
+  "owner": {
+    "name": "Megan Bess"
+  },
+  "plugins": [
+    {
+      "name": "reel-time",
+      "source": "./",
+      "description": "Reel Time: /fish opens the cozy fishing game, /reel-time:lake points it at your own lake; when Claude finishes, a bell rings and a golden fish bites. It only sends 'working' and 'done' to your private save; never your prompts or Claude's answers."
+    }
+  ],
+  "description": "Reel Time, the cozy fishing game that runs beside Claude: a golden fish bites when your answer is ready."
+}

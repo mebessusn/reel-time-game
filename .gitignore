@@ -1,0 +1,13 @@
+node_modules/
+dist/
+dist-single/
+.env
+.env.local
+*.log
+.DS_Store
+dist-artifact/
+test-results/
+*.blend1
+.vercel/
+__pycache__/
+art/_build/

@@ -1,0 +1,59 @@
+{
+  "name": "reel-time",
+  "version": "0.7.0",
+  "description": "Reel Time: /fish opens the cozy fishing game, /reel-time:lake points it at your own lake; when Claude finishes, a bell rings and a golden fish bites.",
+  "author": {
+    "name": "Megan Bess"
+  },
+  "types": "./types/index.d.ts",
+  "userConfig": {
+    "gameUrl": {
+      "type": "string",
+      "title": "Game URL",
+      "description": "Where Reel Time opens. /reel-time:lake <link> overrides this with your own lake.",
+      "default": "https://claude.ai/artifact/NeeNLcodQSp3x3RW7MTQn7"
+    },
+    "artifactUrl": {
+      "type": "string",
+      "title": "Artifact URL",
+      "description": "The Reel Time artifact whose private save receives the 'Claude is working / done' signal.",
+      "default": "https://claude.ai/artifact/NeeNLcodQSp3x3RW7MTQn7"
+    },
+    "signalGame": {
+      "type": "boolean",
+      "title": "Signal the game",
+      "description": "Tell the game when Claude starts and finishes, so a golden fish bites when your answer is ready.",
+      "default": true
+    },
+    "alwaysOn": {
+      "type": "boolean",
+      "title": "Always on",
+      "description": "Signal and ring every session, without running /fish first.",
+      "default": true
+    },
+    "notifyAfterSeconds": {
+      "type": "number",
+      "title": "Ring after (seconds)",
+      "description": "Only ring the bell for turns that took at least this long.",
+      "default": 15
+    },
+    "bell": {
+      "type": "boolean",
+      "title": "Ring a bell",
+      "description": "Play a small bell when Claude finishes a turn.",
+      "default": true
+    },
+    "supabaseUrl": {
+      "type": "string",
+      "title": "Supabase URL (web build only)",
+      "description": "For a self-hosted Reel Time with Supabase: the project URL. Leave empty for the artifact.",
+      "default": ""
+    },
+    "supabaseAnonKey": {
+      "type": "string",
+      "title": "Supabase anon public key (web build only)",
+      "description": "The 'anon public' key of that project (never the service_role key).",
+      "default": ""
+    }
+  }
+}
