@@ -9,7 +9,7 @@ with the friends they invite. You're its owner and its admin.
 
 ## Make your own lake (5 minutes, works on any Claude plan)
 
-1. **Download the game:** open [reel-time.html](https://github.com/mebessusn/reel-time-game/blob/main/release/reel-time.html)
+1. **Download the game:** open [release/reel-time.html](https://github.com/mebessusn/reel-time-game/blob/main/release/reel-time.html)
    and click the **download** button (the arrow at the top right of the file). It's about 10 MB.
 2. **Start a new chat at [claude.ai](https://claude.ai)**, attach `reel-time.html`, and send this message:
 
@@ -48,7 +48,7 @@ answer is ready a bell rings and your next cast hooks a golden fish. It needs Cl
 1. In Claude Code, run:
 
    ```
-   /plugin install reel-time --marketplace mebessusn/reel-time-plugin
+   /plugin install reel-time --marketplace mebessusn/reel-time-game
    ```
 
    Choose your **user** scope so it works in every session.
@@ -83,12 +83,12 @@ Full privacy notice: https://playreeltime.com/privacy. Questions about the game:
 
 ## Bugs and ideas
 
-Open an issue: https://github.com/mebessusn/reel-time-plugin/issues
+Open an issue: https://github.com/mebessusn/reel-time-game/issues
 
 ## License
 
 Reel Time is © 2026 Megan Bess, released under the [PolyForm Noncommercial License 1.0.0](LICENSE): free to play,
-share, study and modify for any noncommercial purpose. The source code is at
+share, study and modify for any noncommercial purpose. Everything (the game, its source and this plugin) lives at
 https://github.com/mebessusn/reel-time-game.
 
 Reel Time is an independent game. It isn't made or endorsed by Anthropic.

@@ -786,7 +786,7 @@ export class UI {
   claudeHelp() {
     this.claudeHelpEl?.remove();
     const g = this.game;
-    const CMD = '/plugin install reel-time --marketplace mebessusn/reel-time-plugin';
+    const CMD = '/plugin install reel-time --marketplace mebessusn/reel-time-game';
     const close = () => { el.remove(); if (this.claudeHelpEl === el) this.claudeHelpEl = null; };
     const code = h('code.ch-cmd', CMD);
     const copy = h('button.btn.green.small', { on: { click: async () => {

@@ -13,10 +13,18 @@ export const CHANGE_KINDS = {
 
 export const CHANGELOG = [
   {
+    version: 'v1.14.1', date: 'Oct 18 2026', title: 'One Place',
+    changes: {
+      ui: [
+        'Everything lives in one place now: the game, the make-your-own-lake guide, the source and the Claude Code plugin are all at github.com/mebessusn/reel-time-game. The Link Claude card installs the plugin from there.',
+      ],
+    },
+  },
+  {
     version: 'v1.14.0', date: 'Oct 18 2026', title: 'Your Own Lake',
     changes: {
       new: [
-        'Reel Time is free for every Claude user: anyone can make their own lake (a private copy of the game on their own Claude account), invite friends and be its admin. The how-to is at github.com/mebessusn/reel-time-plugin.',
+        'Reel Time is free for every Claude user: anyone can make their own lake (a private copy of the game on their own Claude account), invite friends and be its admin. The how-to is at github.com/mebessusn/reel-time-game.',
         'Plugin 0.7.0: /reel-time:lake points the golden-fish signal at your own lake. Paste your lake\'s link once and it remembers it.',
       ],
       ui: [

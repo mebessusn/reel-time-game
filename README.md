@@ -1,16 +1,90 @@
 # Reel Time
 
 A cozy multiplayer fishing game that lives beside your chat in Claude. Fish, cook, decorate your cottage and hang out
-with friends while Claude works; with the Claude Code plugin, a golden fish bites the moment your answer is ready.
+with friends while Claude works. With the Claude Code plugin, a bell rings and a golden fish bites the moment your
+answer is ready.
 
-## Play it
+Reel Time is free. Everyone runs their **own lake**: a private copy of the game on their own Claude account, shared only
+with the friends they invite. You're its owner and its admin.
 
-You don't need to build anything. Everyone runs their own lake, a private copy of the game on their own Claude account:
+## Make your own lake (5 minutes, works on any Claude plan)
 
-1. Download [`release/reel-time.html`](release/reel-time.html) (open it, then use the download button at the top right).
-2. Follow **[Make your own lake](https://github.com/mebessusn/reel-time-plugin#make-your-own-lake-5-minutes-works-on-any-claude-plan)**:
-   attach it in a claude.ai chat, paste the publish message, invite friends by email as Editors.
-3. Optional: the [Claude Code plugin](https://github.com/mebessusn/reel-time-plugin) so you see your prompts cooking while you fish. Rewards are gained for longer prompts! (This is the fun part!)
+1. **Download the game:** open [release/reel-time.html](release/reel-time.html)
+   and click the **download** button (the arrow at the top right of the file). It's about 10 MB.
+2. **Start a new chat at [claude.ai](https://claude.ai)**, attach `reel-time.html`, and send this message:
+
+   ```
+   Publish the attached reel-time.html exactly as it is, as a new artifact. Don't change or rewrite it. Declare these capabilities: db with rules [bans: read view, write admin] [staff: read view, write owner] [reports: read admin, write admin] [reports/{self}: read interact, write interact] [bugs: read admin, write admin] [bugs/{self}: read interact, write interact]; room; user with scopes ["profile"]; downloads.
+   ```
+
+3. **Open the artifact Claude made.** That's your lake. Make your angler and cast a line. Your progress saves to your
+   lake automatically.
+
+## Invite friends
+
+1. In your lake, open Claude's **Share** menu.
+2. Add each friend **by their Claude email** and set them to **Editor**. (Public links and the Viewer/Commenter levels
+   don't let players save or play together. That's how Claude artifacts work, not a game setting.)
+3. Send them the lake's link. Everyone you invite fishes in the same lake, sees each other, chats and visits cottages.
+
+Editors can also publish new versions of your artifact in Claude, so only invite people you trust. Only you, the
+owner, can add admins; use the in-game Admin panel to manage your lake.
+
+## Update your lake
+
+When a new version comes out, download the new `reel-time.html`, attach it in a Claude chat and send:
+
+```
+Update my Reel Time artifact (paste your lake's link here) with the attached reel-time.html, exactly as it is. Publish it to the same artifact so the link stays the same, and keep the capabilities it already has.
+```
+
+Everyone's progress stays, and everyone in your lake gets the new version at once.
+
+## Golden fish: the Claude Code plugin (optional)
+
+The plugin lets you see your prompts cooking while you fish. It tells your lake when Claude is working and when it's
+done: a timer shows in the game, and when the answer is ready a bell rings and your next cast hooks a golden fish.
+Rewards are bigger for longer prompts! (This is the fun part.) It needs Claude Code.
+
+1. In Claude Code, run:
+
+   ```
+   /plugin install reel-time --marketplace mebessusn/reel-time-game
+   ```
+
+   Choose your **user** scope so it works in every session.
+2. Point it at your lake (paste your lake's link):
+
+   ```
+   /reel-time:lake https://claude.ai/artifact/YOUR-LAKE-ID
+   ```
+
+3. Run `/fish` to open the game. That's it; it works in every session from now on.
+
+`/reel-time:lake` on its own shows which lake the plugin uses; `/reel-time:lake reset` goes back to the default.
+
+### Plugin settings (`/config`, then reel-time)
+
+- **Signal the game** (on): tell the game when Claude starts and finishes.
+- **Always on** (on): signal every session without running `/fish` first.
+- **Ring a bell** (on) and **Ring after (seconds)** (15): the bell when a long turn finishes.
+
+## Privacy
+
+- Your lake lives on **your** Claude account. The game's maker can't see inside it, and nothing is sold or tracked.
+- Each player's save is private to their own Claude account. Other players in the lake see your angler name, look,
+  level and position, plus chat, mail and record catches.
+- The plugin writes one small status note to your private save in your lake: "working" or "done", when it happened,
+  how long the turn took and how many steps Claude took. It reads back one note: how many fish you caught while you
+  waited. It **never** sends your prompts, Claude's answers, your files or anything else from your session, and it
+  talks to nothing but your lake on claude.ai.
+- Turn the plugin off with the **Signal the game** setting, or remove it with `/plugin uninstall reel-time`.
+
+Full privacy notice: https://playreeltime.com/privacy. Questions about the game: meganbess+reeltime@mail.grokbot.com.
+
+## Bugs and ideas
+
+Open an issue: https://github.com/mebessusn/reel-time-game/issues
 
 ## Build it yourself
 
@@ -21,74 +95,14 @@ npm test                 # unit tests
 npm run build:artifact   # the single-file game: dist-artifact/reel-time.html
 ```
 
-Meshes are built in Blender from `art/src/*.py` (`pip install bpy`, then `python3 art/src/<name>.py`) and turned into
-plain JS modules with `node scripts/glb-to-js.mjs`, so the game file embeds no binary blobs.
+The plugin lives in [`claude-plugin/`](claude-plugin) (tests: `claude plugin test claude-plugin`). Meshes are built in
+Blender from `art/src/*.py` (`pip install bpy`, then `python3 art/src/<name>.py`) and turned into plain JS modules with
+`node scripts/glb-to-js.mjs`, so the game file embeds no binary blobs. More detail: [SETUP.md](SETUP.md).
 
 ## License
 
-© 2026 Megan Bess. [PolyForm Noncommercial 1.0.0](LICENSE): free to play, share, study and modify for any
-noncommercial purpose. Reel Time is an independent game; it isn't made or endorsed by Anthropic.
+Reel Time is © 2026 Megan Bess, released under the [PolyForm Noncommercial License 1.0.0](LICENSE): free to play,
+share, study and modify for any noncommercial purpose. Everything (the game, its source and this plugin) lives at
+https://github.com/mebessusn/reel-time-game.
 
----
-
-A cozy, multiplayer, Minecraft-style fishing game to play while Claude works. Cast a line on Cozy Cove lake beside other devs, row out in your boat, collect all 32 species (and their Gold and Diamond versions), trade prized fish for rod, lure and boat skins, and watch the great-catch feed roll by.
-
-- **Play anywhere**: a static web app (Vite + Three.js). Guest mode works with no setup.
-- **Online lake**: Supabase for GitHub / email sign-in, saves, leaderboards, the live feed and realtime multiplayer. Every balance change is validated by a server function.
-- **In Claude**: the `reel-time` plugin adds `/fish`. While Claude works, the game shows a timer; when your turn is done, a bell rings and a golden "Claude's Catch" fish bites.
-
-Setup: see [SETUP.md](SETUP.md). Design: see the Reel Time design document.
-
-## What's in the box
-
-| Area | Highlights |
-| --- | --- |
-| World | Voxel lake with six zones (Dock, Reed Shallows, Open Water, The Deep, Waterfall Pool, Sunken Ruins), cabin shop, lighthouse, campfire, fireflies |
-| Time | Shared wall-clock day/night (24-minute days), moon phases, clear / overcast / rain / storm |
-| Fishing | Power cast, nibble and bite, hook window, reeling mini-game (or Relaxed mode), 32 species x 6 tiers, Gold (1/40) and Diamond (1/250) variants, junk, treasure and 12 bottle messages |
-| Progress | Levels 1-50, creel and storage, Fishpedia (96 slots), 40 achievements with rewards and titles |
-| Economy | Coins from selling, Pearls from trading Diamond fish; rods, lures, boats, clothes and emotes with small perks |
-| Social | Live presence, emotes, show-off, rafting up in boats, great-catch feed with reactions, weekly and all-time boards, lake records |
-| Avatar | Gender, frame, height, 15 skin tones, 15 hair styles and 16 colors, eyes, brows, mouths, facial hair, glasses, hats, shirts, pants, shoes, accessories |
-| Audio | All synthesized: effects, ambience that changes by place and time (loons on Frostpine, frogs in Lilymarsh, quarry drips), footsteps by surface, generative lo-fi music by time of day, optional sound captions |
-| While you're away | Crab pots and set lines fill on the real clock; Claude Code tells the game when your answer is ready |
-| Home | Your cabin (H) with an aquarium, decor and a trophy mount; visit friends who are on the lake |
-| Progression | Bait that changes what bites, rod and boat upgrades, daily requests, a local's wish of the day, the Sunken Ruins story, one-of-a-kind fish with nicknames, lake collections with statues |
-| Lake life | Hourly 10-minute derbies, the weekly Lantern Festival meter, player-written messages in bottles, meteor showers, fog nights and migration mornings, optional real-world weather |
-| Comfort | Gus's guided first catch, waystone fast travel, controller support, rebindable keys, interface size, colour-blind markers, creel lock / sort / filter, a shared gear box |
-
-## Project layout
-
-```
-src/            game client (data, world, entities, game loop, UI, audio, saves, networking)
-supabase/       database migration (schema, row-level security, server functions) + generated seed
-claude-plugin/  the /fish companion plugin
-scripts/        gen-seed.mjs keeps the database seed in sync with src/data
-tests/          rules, reel balance, SQL, cloud-save integration, browser playthrough
-```
-
-## Commands
-
-| Command | What it does |
-| --- | --- |
-| `npm run dev` | Dev server at http://localhost:5173 |
-| `npm run build` | Static site in `dist/` |
-| `npm run build:single` | One self-contained HTML file in `dist-single/` (guest mode) |
-| `npm test` | Rules, balance, database and cloud tests |
-| `npm run test:e2e` | Headless browser playthrough (dev server must be running) |
-| `node scripts/gen-seed.mjs` | Regenerate `supabase/migrations/0002_seed.sql` after editing species, items or achievements |
-
-## A note on trust
-
-Catch rolls happen in the browser, so a determined player could fake catches. The server rejects impossible ones (unknown species, wrong zone or time, weight out of range, level gates, more than 6 catches a minute) and owns every coin, Pearl and purchase. That is plenty for a friendly lake.
-
-## Claude plugin: /fish
-
-Install the Reel Time plugin in Claude Code (terminal, desktop app or web):
-
-```
-/plugin marketplace add mebessusn/reel-time
-/plugin install reel-time@reel-time
-```
-
-Then type `/fish`. In the Claude app the lake opens in the tab beside the chat; in a terminal you get a link. When Claude finishes a long turn, a bell rings and a golden fish bites in the game.
+Reel Time is an independent game. It isn't made or endorsed by Anthropic.

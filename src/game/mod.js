@@ -282,7 +282,7 @@ export class Moderation {
 
   renderBugs(c) {
     const box = h('div.row-list', h('div.empty', 'Loading bug reports…'));
-    c.body.append(h('div.muted', { style: { marginBottom: '8px' } }, 'Bug reports and feedback from players in this lake, newest first. Something the game\'s maker should fix? Open an issue at github.com/mebessusn/reel-time-plugin/issues.'), box);
+    c.body.append(h('div.muted', { style: { marginBottom: '8px' } }, 'Bug reports and feedback from players in this lake, newest first. Something the game\'s maker should fix? Open an issue at github.com/mebessusn/reel-time-game/issues.'), box);
     this.allBugs().then((rows) => {
       clear(box);
       if (!rows.length) { box.append(h('div.empty', 'No bug reports yet.')); return; }
