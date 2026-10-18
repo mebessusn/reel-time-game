@@ -1,6 +1,6 @@
 {
   "name": "reel-time",
-  "version": "0.7.2",
+  "version": "0.7.3",
   "description": "Reel Time: /fish opens the cozy fishing game, /reel-time:lake points it at your own lake; when Claude finishes, a bell rings and a golden fish bites.",
   "author": {
     "name": "Megan Bess"

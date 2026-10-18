@@ -18,6 +18,7 @@ export const CHANGELOG = [
       fix: [
         'The old website version (sign in with GitHub or email, cloud saves) is gone: Reel Time is one thing now, a lake that lives in Claude. The first-time splash is just Start fishing, and Settings no longer offers a sign-in that went nowhere.',
         'Plugin 0.7.2: the unused web-build settings (Supabase URL and key) are gone from /config, and the plugin no longer points at the maker\'s own lake by default. /fish asks for your lake\'s link (/reel-time:lake) the first time, so nobody lands on a lake they can\'t open.',
+        'Plugin 0.7.3: /fish in the claude.ai web app opens your own lake (it looks up your Reel Time artifact) instead of the maker\'s, and points you to the 5-minute setup if you don\'t have one yet.',
       ],
     },
   },
