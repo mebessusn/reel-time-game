@@ -10,7 +10,7 @@ You don't need to build anything. Everyone runs their own lake, a private copy o
 1. Download [`release/reel-time.html`](release/reel-time.html) (open it, then use the download button at the top right).
 2. Follow **[Make your own lake](https://github.com/mebessusn/reel-time-plugin#make-your-own-lake-5-minutes-works-on-any-claude-plan)**:
    attach it in a claude.ai chat, paste the publish message, invite friends by email as Editors.
-3. Optional: the [Claude Code plugin](https://github.com/mebessusn/reel-time-plugin) for golden fish.
+3. Optional: the [Claude Code plugin](https://github.com/mebessusn/reel-time-plugin) so you see your prompts cooking while you fish. Rewards are gained for longer prompts! (This is the fun part!)
 
 ## Build it yourself
 
