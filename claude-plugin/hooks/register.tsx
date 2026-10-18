@@ -4,8 +4,7 @@
 // - When the turn ends, the game hears "done": a bell rings at the dock and a golden "answer fish" bites.
 //   Here, a toast and a bell ring too (for turns that took a while).
 // The signal is a tiny doc in your private corner of the Reel Time artifact's database
-// (data/users/me/claude), written through the ArtifactData tool; for a self-hosted web build it can
-// also go out as a Supabase Realtime broadcast. Nothing about the prompt itself is ever sent.
+// (data/users/me/claude), written through the ArtifactData tool. Nothing about the prompt itself is ever sent.
 import { atom, read, update } from 'claude-code'
 import type { Engine, Register } from 'claude-code'
 
@@ -48,11 +47,11 @@ async function setLake($: Engine, args: string, fallback: string): Promise<{ tex
   return { text: `Done. Reel Time now signals your lake at ${link}. Run /fish to open it.` }
 }
 
-export function gameLink(base: string, pair = ''): string {
+export function gameLink(base: string): string {
   const url = base.trim()
   if (!url) return ''
   const sep = url.includes('?') ? '&' : '?'
-  return `${url}${sep}src=claude${pair ? `&pair=${pair}` : ''}`
+  return `${url}${sep}src=claude`
 }
 
 /** The version number an ArtifactData result or refusal names, if any. */
@@ -81,19 +80,8 @@ function queued<T>(fn: () => Promise<T>): Promise<T> {
 }
 const OWN_TOOLS = new Set(['Artifact', 'ArtifactData'])
 
-type Cfg = { artifactUrl: string; sbUrl: string; sbKey: string }
+type Cfg = { artifactUrl: string }
 
-
-const PAIR_ABC = 'abcdefghjkmnpqrstuvwxyz23456789'
-
-async function pairCode($: Engine): Promise<string> {
-  let code = String((await $.store.get('pair')) ?? '')
-  if (!/^[a-z0-9]{10}$/.test(code)) {
-    code = Array.from({ length: 10 }, () => PAIR_ABC[Math.floor(Math.random() * PAIR_ABC.length)]).join('')
-    await $.store.set('pair', code)
-  }
-  return code
-}
 
 function resultText(r: any): string {
   if (!r) return ''
@@ -133,16 +121,6 @@ async function currentVersion($: Engine, cfg: Cfg): Promise<number> {
   } catch { return 0 }
 }
 
-async function broadcast($: Engine, cfg: Cfg, sig: Signal): Promise<string> {
-  const pair = await pairCode($)
-  const res = await $.http.fetch(`${cfg.sbUrl}/realtime/v1/api/broadcast`, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json', apikey: cfg.sbKey, authorization: `Bearer ${cfg.sbKey}` },
-    body: JSON.stringify({ messages: [{ topic: `claude:${pair}`, event: 'status', payload: sig }] }),
-  })
-  return res.ok ? 'broadcast' : `broadcast ${res.status}`
-}
-
 /** How many fish you caught in the game while Claude worked (the game writes claude_lake). */
 /** True for this plugin's own status calls: ArtifactData on the game's artifact, in data/users/me, claude or claude_lake. */
 export function isOwnStatusCall(input: unknown, artifactUrl: string): boolean {
@@ -179,9 +157,6 @@ async function sendSignal($: Engine, cfg: Cfg, sig: Signal): Promise<void> {
   if (cfg.artifactUrl) {
     try { notes.push(await writeDoc($, cfg, sig)) } catch (err) { notes.push(`error: ${String((err as Error)?.message ?? err).slice(0, 120)}`) }
   }
-  if (cfg.sbUrl && cfg.sbKey) {
-    try { notes.push(await broadcast($, cfg, sig)) } catch (err) { notes.push(`broadcast error: ${String((err as Error)?.message ?? err).slice(0, 80)}`) }
-  }
   await update($, fish, (x) => ({ ...x, lastSignal: sig.state, lastSignalResult: notes.join(', ') || 'off' }))
   // v0.5.0: say once per session if the game can't hear us (no beta access yet, or the artifact moved)
   if (notes.some((n) => n.startsWith('refused') || n.startsWith('error')) && !warnedThisSession) {
@@ -193,10 +168,10 @@ let warnedThisSession = false
 
 // /fish is also a markdown command (commands/fish.md) so the app lists it before a session starts; the app may
 // list that one as /reel-time:fish, so this hook answers both names and the markdown body is only a fallback.
-async function openLake($: any, url: string, sbUrl: string, sbKey: string) {
+async function openLake($: any, url: string) {
   await update($, fish, (s) => ({ ...s, isOptedIn: true }))
-  if (!url) return { text: 'Reel Time needs its game URL first: open /config, find reel-time, and set Game URL.' }
-  const link = gameLink(url, sbUrl && sbKey ? await pairCode($) : '')
+  if (!url) return { text: "Reel Time doesn't know your lake yet. Run /reel-time:lake and paste your lake's link (https://claude.ai/artifact/...). No lake? Make one in 5 minutes: https://github.com/mebessusn/reel-time-game" }
+  const link = gameLink(url)
 
   // In the Claude app the game opens in the artifact tab beside the chat. A terminal has no such tab (or the
   // URL may be a self-hosted build), so the link below is always there as the fallback.
@@ -226,9 +201,7 @@ export const register: Register = (on, options) => {
   const shouldRing = options.bell !== false
   const signalGame = options.signalGame !== false
   const alwaysOn = options.alwaysOn !== false
-  const sbUrl = String(options.supabaseUrl ?? '').trim().replace(/\/$/, '')
-  const sbKey = String(options.supabaseAnonKey ?? '').trim()
-  const cfg: Cfg = { get artifactUrl() { return lakeArtifact() }, sbUrl, sbKey }
+  const cfg: Cfg = { get artifactUrl() { return lakeArtifact() } }
 
   on('session.start', async ($, e, next) => {
     await loadLake($)
@@ -245,10 +218,10 @@ export const register: Register = (on, options) => {
     return next(e)
   })
 
-  on('command.run', { command: 'fish' }, async ($) => openLake($, lakeUrl(), sbUrl, sbKey))
+  on('command.run', { command: 'fish' }, async ($) => openLake($, lakeUrl()))
   on('command.run', { command: 'lake' }, async ($, e) => setLake($, e.args, defaultArtifactUrl))
   on('command.run', { command: 'reel-time:lake' }, async ($, e) => setLake($, e.args, defaultArtifactUrl)).catch(($, e, next) => next(e))
-  on('command.run', { command: 'reel-time:fish' }, async ($) => openLake($, lakeUrl(), sbUrl, sbKey)).catch(($, e, next) => next(e))
+  on('command.run', { command: 'reel-time:fish' }, async ($) => openLake($, lakeUrl())).catch(($, e, next) => next(e))
 
   // Never let this plugin get in the way of a prompt: the signal is sent in the background,
   // and any failure passes the prompt through.
@@ -321,7 +294,7 @@ export const register: Register = (on, options) => {
     return (
       <Box flexDirection="column">
         <Text bold>Reel Time</Text>
-        {lakeUrl() ? <Link href={gameLink(lakeUrl())} label="Open the lake" /> : <Text dimColor>Set the Game URL in /config to get a link here.</Text>}
+        {lakeUrl() ? <Link href={gameLink(lakeUrl())} label="Open the lake" /> : <Text dimColor>Run /reel-time:lake with your lake's link to get a link here.</Text>}
         <Text dimColor>{status}</Text>
         {s.lastSignal ? <Text dimColor>Game signal ({s.lastSignal}): {s.lastSignalResult}</Text> : null}
         {s.turnsWaited > 0 && <Text dimColor>Turns waited out on the lake: {s.turnsWaited}</Text>}

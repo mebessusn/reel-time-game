@@ -1,6 +1,5 @@
 // Lake Legends: the three best fish anyone has caught (rarity x variant first, weight breaks ties).
 // Sources, merged and de-duplicated:
-//   - Supabase: the server's top_trophies() over every catch ever recorded.
 //   - Artifact: the page's shared `db` collection `trophies` (writers add qualifying catches),
 //     plus each live viewer's personal best riding in room presence (view-only viewers too).
 //   - Always: this device's own list (guest mode, tabs on one device).
@@ -45,7 +44,6 @@ export class Trophies extends Emitter {
   constructor(game) {
     super();
     this.game = game;
-    this.cloud = [];
     this.shared = [];
     this.local = top3(safe.get(KEY, []));
     this.list = this.local;
@@ -55,10 +53,6 @@ export class Trophies extends Emitter {
 
   async init() {
     const g = this.game;
-    if (g.save?.isCloud && g.save.topTrophies) {
-      await this.refreshCloud();
-      this.cloudTimer = setInterval(() => this.refreshCloud(), 60000);
-    }
     if (g.net?.kind === 'room') {
       // Personal best rides in presence so everyone (even view-only viewers) contributes.
       this.myBest = this.local.find((t) => t.userId === g.save.userId) || null;
@@ -78,10 +72,6 @@ export class Trophies extends Emitter {
     this.ready = true;
   }
 
-  async refreshCloud() {
-    try { this.cloud = await this.game.save.topTrophies(); this.recompute(); } catch (e) { console.warn('[trophies]', e.message); }
-  }
-
   presenceBests() {
     const out = [];
     for (const p of this.game.net?.peers?.values?.() || []) if (p.best) out.push(p.best);
@@ -89,7 +79,7 @@ export class Trophies extends Emitter {
   }
 
   recompute(initial = false) {
-    const next = top3([...this.cloud, ...this.shared, ...this.local, ...this.presenceBests(), ...(this.myBest ? [this.myBest] : [])]);
+    const next = top3([...this.shared, ...this.local, ...this.presenceBests(), ...(this.myBest ? [this.myBest] : [])]);
     const before = this.list.map((t) => t.id).join('|');
     const after = next.map((t) => t.id).join('|');
     const prevIds = new Set(this.list.map((t) => t.id));
@@ -120,7 +110,6 @@ export class Trophies extends Emitter {
     if (this.db && (!third || score > trophyScore(third))) {
       try { await this.db.collection('trophies').doc(entry.id.replace(/[^\w-]/g, '_')).set({ ...entry, score }); } catch { /* view-only viewers can't write; presence covers them */ }
     }
-    if (g.save?.isCloud) await this.refreshCloud();
     this.recompute();
   }
 

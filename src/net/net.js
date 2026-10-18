@@ -1,5 +1,5 @@
 // Multiplayer transport. LocalNet: BroadcastChannel between tabs (guest mode + tests).
-// SupabaseNet: Supabase Realtime channel `lake:<room>` (broadcast for state/events, presence for who's here).
+// RoomNet: the Claude artifact's room (everyone with the lake open). NullNet: single player.
 import { Emitter } from '../core/events.js';
 
 const PEER_TIMEOUT = 9000;
@@ -82,35 +82,6 @@ export class LocalNet extends BaseNet {
   }
   _send(msg) { try { this.bc?.postMessage(msg); } catch { /* ignore */ } }
   leave() { this._send({ t: 'bye', id: this.me?.id }); clearInterval(this.sweepTimer); this.bc?.close(); this.connected = false; this.left = true; }
-}
-
-export class SupabaseNet extends BaseNet {
-  constructor(supabase, room = 'main') { super(); this.sb = supabase; this.room = room; this.kind = 'supabase'; }
-  async connect(me) {
-    this.me = me;
-    const ch = this.sb.channel(`lake:${this.room}`, { config: { broadcast: { self: false, ack: false }, presence: { key: me.id } } });
-    this.ch = ch;
-    ch.on('broadcast', { event: 'm' }, ({ payload }) => this._handle(payload));
-    ch.on('presence', { event: 'join' }, ({ newPresences }) => {
-      for (const pr of newPresences) if (pr.id !== me.id) this._upsertPeer(pr.id, { meta: pr.meta || {} });
-    });
-    ch.on('presence', { event: 'leave' }, ({ leftPresences }) => { for (const pr of leftPresences) this._removePeer(pr.id); });
-    await new Promise((resolve) => {
-      ch.subscribe(async (status) => {
-        if (status === 'SUBSCRIBED') {
-          await ch.track({ id: me.id, meta: me, at: Date.now() });
-          this._send({ t: 'hello', id: me.id, meta: me });
-          this.connected = true;
-          resolve(true);
-        } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') { this.connected = false; resolve(false); }
-      });
-    });
-    this.sweepTimer = setInterval(() => this.sweep(), 3000);
-    return this.connected;
-  }
-  setMeta(meta) { super.setMeta(meta); this.ch?.track({ id: this.me.id, meta: this.me, at: Date.now() }); }
-  _send(msg) { this.ch?.send({ type: 'broadcast', event: 'm', payload: msg }); }
-  leave() { this._send({ t: 'bye', id: this.me?.id }); clearInterval(this.sweepTimer); this.ch?.unsubscribe(); this.connected = false; this.left = true; }
 }
 
 export class NullNet extends BaseNet {

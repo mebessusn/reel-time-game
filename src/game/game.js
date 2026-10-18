@@ -72,13 +72,11 @@ import { bindUiSounds } from '../ui/nav.js';
 import { onDock, heightAt } from '../world/terrain.js';
 
 export class Game {
-  constructor({ stage, uiRoot, save = null, net = null, auth = {} }) {
+  constructor({ stage, uiRoot, save = null, net = null }) {
     this.engine = new Engine(stage);
     this.audio = new AudioEngine();
     this.save = save;
     this.net = net;
-    this.auth = auth || {};
-    this.setAuth(auth);
     this.fx = new FX(this.engine.scene);
     this.swirls = new SwirlField(this.engine.scene, this.fx);
     this.swirls.water = this.engine.water;
@@ -177,7 +175,6 @@ export class Game {
     });
   }
 
-  setAuth(auth = {}) { this.auth = auth; this.cloudAvailable = !!auth.available; this.authLabel = auth.label || ''; }
 
   // Menus before play (title screen settings) need the key map and extended save.
   prepareMenus() {
@@ -1233,6 +1230,4 @@ export class Game {
     if (cfg) { await this.save.saveAvatar(cfg); this.pushMeta(); if (this.started) await this.autoClaim(); }
   }
 
-  showSignIn() { this.auth.showSignIn?.(); }
-  async signOut() { await this.save.signOut(); location.reload(); }
 }

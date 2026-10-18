@@ -3,9 +3,8 @@ import { prewarmFishSkins } from './entities/softfish.js';
 import './ui/style.css';
 import { Game } from './game/game.js';
 import { LocalSave, safe } from './save/local.js';
-import { LocalNet, SupabaseNet, RoomNet, NullNet } from './net/net.js';
+import { LocalNet, RoomNet, NullNet } from './net/net.js';
 import { showSplash, showLoading } from './ui/login.js';
-import { getSupabase, cloudConfigured, redirectUrl, displayNameFrom, providerLabel } from './net/backend.js';
 import { randomAvatar } from './data/avatarOptions.js';
 import { bindKeyboardMode } from './ui/nav.js';
 import { openCountryPicker } from './ui/creator.js';
@@ -36,53 +35,16 @@ async function boot() {
   hideLoading.step(0.75, 'Filling the lake');
   window.__game = game; // used by automated tests and handy for debugging
   game.backdrop();
-  const sb = await getSupabase().catch(() => null);
-  hideLoading.step(0.9, 'Checking in at the dock');
-  let session = null;
-  if (sb) {
-    try { session = (await sb.auth.getSession()).data.session; } catch { session = null; }
-  }
   hideLoading.step(1, 'Ready');
   await new Promise((r) => setTimeout(r, 120));
   hideLoading();
 
-  const signIn = {
-    async onGitHub() {
-      const { error } = await sb.auth.signInWithOAuth({ provider: 'github', options: { redirectTo: redirectUrl() + location.search } });
-      if (error) throw error;
-    },
-    async onEmail(email) {
-      const { error } = await sb.auth.signInWithOtp({ email, options: { emailRedirectTo: redirectUrl() + location.search } });
-      if (error) throw error;
-      return 'Check your inbox for a sign-in link. You can play as a guest while you wait.';
-    },
-  };
-
   let save;
   const slot = params.get('as') || 'guest';
-  if (sb && session) {
-    const { CloudSave } = await import('./save/cloud.js');
-    save = new CloudSave(sb, session);
-    try {
-      await save.init(displayNameFrom(session.user));
-      // Offer to bring guest progress over once.
-      const guest = safe.get(`rt_profile_${slot}`);
-      if (save.isNew && guest && (guest.catchCount || 0) > 0 && !safe.get('rt_guest_imported')) {
-        if (confirm(`Bring your guest progress (${guest.catchCount} catches, level ${guest.level}) to your account? This can only happen once.`)) {
-          await save.importGuest(guest);
-          safe.set('rt_guest_imported', true);
-        }
-      }
-    } catch (e) {
-      console.error(e);
-      alert(`Could not reach the lake server (${e.message || e}). Playing as a guest for now.`);
-      save = null;
-    }
-  }
   if (!save) {
     const seen = safe.get(`rt_profile_${slot}`);
-    if (!params.has('autoplay') && (!seen || (sb && !safe.get('rt_seen_splash')))) {
-      await showSplash(uiRoot, { cloud: !!sb, ...signIn });
+    if (!params.has('autoplay') && !seen) {
+      await showSplash(uiRoot);
       safe.set('rt_seen_splash', true);
     }
     save = new LocalSave(slot);
@@ -91,20 +53,13 @@ async function boot() {
     await save.init(name);
   }
 
-  // Online lake when Supabase is configured; inside a Claude artifact, the artifact's room; otherwise tabs on this device.
+  // Inside a Claude artifact, the artifact's room; otherwise tabs on this device (dev server, tests).
   // Interim transports. Multiplayer will move to the dedicated server: add it here as one more BaseNet (src/net/net.js).
-  const makeNet = () => (sb ? new SupabaseNet(sb, params.get('room') || 'main') : window.claude?.use ? new RoomNet() : new LocalNet(params.get('room') || 'main'));
+  const makeNet = () => (window.claude?.use ? new RoomNet() : new LocalNet(params.get('room') || 'main'));
   let net = makeNet();
   game.makeNet = makeNet; // v1.13.7: switching back to multiplayer opens a fresh connection
-  const auth = {
-    available: !!sb,
-    label: session ? providerLabel(session.user) : '',
-    showSignIn: () => showSplash(uiRoot, { cloud: true, ...signIn, message: 'Your guest progress stays on this device; you can bring it over after signing in.' }),
-  };
   game.save = save;
   game.net = net;
-  game.supabase = sb || null;
-  game.setAuth(auth);
 
   // The title screen (over the live lake) for everyone, then the creator for a brand-new angler.
   if (!params.has('autoplay')) await game.menus.title({ name: save.profile.name, first: !save.profile.avatar });
@@ -128,4 +83,3 @@ boot().catch((e) => {
   uiRoot.innerHTML = `<div class="loading">Something went wrong loading the lake.<br><small>${String(e.message || e)}</small></div>`;
 });
 
-if (!cloudConfigured && import.meta.env.DEV) console.info('[reel-time] Supabase not configured: guest mode with local multiplayer between tabs.');

@@ -1,5 +1,5 @@
 // Pure game rules: bite rolls, rewards, progression, economy.
-// Used directly by guest/local saves; the Supabase server functions mirror the checks.
+// Used directly by the save (src/save/local.js).
 import { SPECIES, SPECIES_BY_ID, TIERS, TIER_INFO, VARIANTS, BASE_TIER_ODDS, DIAMOND_PEARLS, JUNK, BOTTLE_MESSAGES } from '../data/species.js';
 import { ITEMS_BY_ID, STARTER_ITEMS } from '../data/items.js';
 import { ACHIEVEMENTS, ACH_BY_ID } from '../data/achievements.js';
@@ -16,7 +16,6 @@ export const RUINS_LEVEL = 20;
 export const MAX_LEVEL = 50;
 
 // v1.13.9 balance: early levels stay quick, later ones take real time (about 80 hours of play to level 50).
-// The server has the same curve (supabase/migrations/0011_balance.sql, public._xp_for_level).
 export function xpForLevel(level) { return Math.round(50 * level * (level - 1) * (1 + 1.7 * Math.pow(level / 50, 1.5))); }
 /** The pre-v1.13.9 curve, only to keep players at the level they had reached (see ensureProfileShape). */
 export function oldXpForLevel(level) { return 50 * level * (level - 1); }

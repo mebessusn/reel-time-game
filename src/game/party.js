@@ -1,7 +1,7 @@
 // Friends and parties (v1.11).
 //
-// No server: everything rides in each angler's presence `meta`, so it works the same over the artifact room,
-// Supabase and tabs on one device. Ids are anglers' meta ids (`save.userId`); friends also remember the
+// No server: everything rides in each angler's presence `meta`, so it works the same over the artifact room
+// and tabs on one device. Ids are anglers' meta ids (`save.userId`); friends also remember the
 // platform id (`by`) where there is one, so a friend is recognised on any device.
 //
 //   meta.pty  { id, ld, m: [ids] }       the party you're in. The leader's copy is the roster everyone follows.

@@ -1,6 +1,6 @@
 // Social: lake chat, whispers (DMs), and the system log. Wooden-plank panel in the game's style.
 // Enter opens/sends, / starts a command, Esc leaves the box. Messages travel over whatever net
-// the game uses (Supabase broadcast, artifact room presence, or tabs on this device).
+// the game uses (the artifact room, or tabs on this device).
 import { h, clear } from './dom.js';
 import { icon } from './icons.js';
 

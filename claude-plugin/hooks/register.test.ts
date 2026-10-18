@@ -46,7 +46,6 @@ function engine(on: any, lake: { waitFish: number; total: number } | null = null
 test('gameLink tags the URL so the game knows it came from Claude', () => {
   expect(gameLink('https://x.dev/rt/')).toBe('https://x.dev/rt/?src=claude')
   expect(gameLink('https://x.dev/rt/?room=team')).toBe('https://x.dev/rt/?room=team&src=claude')
-  expect(gameLink('https://x.dev/rt/', 'abc123defg')).toBe('https://x.dev/rt/?src=claude&pair=abc123defg')
   expect(gameLink('  ')).toBe('')
 })
 
@@ -162,7 +161,7 @@ test('no game doc: no extra toast, nothing breaks', { options: { gameUrl: ART, a
 test('without a URL /fish explains how to set it', { options: { gameUrl: '' } }, async ($, on) => {
   engine(on)
   const ran = await $.command.run({ command: 'fish', args: '' })
-  expect(ran.text).toContain('/config')
+  expect(ran.text).toContain('/reel-time:lake')
 })
 
 test('/fish opens the game in the artifact tab, and falls back to the link when it cannot', { options: { gameUrl: ART, artifactUrl: ART } }, async ($, on) => {

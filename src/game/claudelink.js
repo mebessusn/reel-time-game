@@ -1,7 +1,7 @@
 // Claude link: the game knows when your Claude is working and when its answer is ready.
 // The Reel Time plugin for Claude Code writes a tiny status doc on every prompt and every finished
 // turn: in the artifact, into your private corner of the page's database (data/users/<you>/claude);
-// on the web build, as a Supabase broadcast on `claude:<pair code>`. On this device, other tabs can
+// on this device (dev server, tests), other tabs can
 // signal through BroadcastChannel('rt_claude') (handy for testing), and tests call __claudeSignal().
 //
 // Signal shape: { state: 'working' | 'done', at: ms, startedAt?, seconds?, aborted?, turn?, steps? (v1.12.1: tool calls in the turn) }
@@ -45,13 +45,6 @@ export class ClaudeLink extends Emitter {
         // straight away with its real start time (the live listener can miss a doc written before it attached).
         ref.get().then((snap) => { if (snap?.exists) this.signal(snap.data(), 'artifact'); }).catch(() => {});
       } catch { /* db unavailable here */ }
-    }
-    // Web build with Supabase: a broadcast channel keyed by the pair code from the /fish link
-    const pair = new URLSearchParams(location.search).get('pair');
-    const sb = this.game.supabase;
-    if (sb && pair && /^[a-z0-9]{6,32}$/i.test(pair)) {
-      this.ch = sb.channel(`claude:${pair}`).on('broadcast', { event: 'status' }, ({ payload }) => this.signal(payload, 'supabase')).subscribe();
-      this.source = this.source || 'supabase';
     }
   }
 

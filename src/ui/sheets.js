@@ -1079,10 +1079,10 @@ export class Sheets {
     } else if (cur === 'account') {
       const nameIn = h('input.field', { value: p.name, maxLength: 20, 'aria-label': 'Angler name', on: { change: (e) => g.setName(e.target.value) } });
       B.append(h('div.set-group', h('h3', 'Angler'),
-        h('div.list-row', h('img', { src: avatarThumb(p.avatar), style: { width: '44px', height: '44px' } }), h('div.grow', h('div.ttl', p.name), h('div.meta', g.save.isCloud ? `Signed in${g.authLabel ? ` with ${g.authLabel}` : ''}. Progress saves to your account.` : 'Guest. Progress saves on this device only.')),
+        h('div.list-row', h('img', { src: avatarThumb(p.avatar), style: { width: '44px', height: '44px' } }), h('div.grow', h('div.ttl', p.name), h('div.meta', g.net?.kind === 'room' ? 'Your progress saves to this lake.' : 'Progress saves on this device.')),
           h('button.btn.small', { on: { click: () => { this.close(); g.openCreator(); } } }, icon('shirt'), 'Edit look')),
-        h('div.set-name-row', nameIn, g.save.isCloud ? h('button.btn.ghost.small', { on: { click: () => g.signOut() } }, 'Sign out') : g.cloudAvailable ? h('button.btn.blue.small', { on: { click: () => g.showSignIn() } }, 'Sign in to sync') : null)),
-        h('div.set-group', h('h3', 'About'), h('div.muted', `Reel Time · ${g.net?.kind === 'supabase' ? 'Online lake' : g.net?.kind === 'local' ? 'Local lake (tabs on this device)' : g.net?.kind === 'room' ? 'Shared lake (everyone viewing this page)' : 'Offline'} · Now playing: ${g.audio.trackName || 'nothing'}`)));
+        h('div.set-name-row', nameIn)),
+        h('div.set-group', h('h3', 'About'), h('div.muted', `Reel Time · ${g.net?.kind === 'local' ? 'Local lake (tabs on this device)' : g.net?.kind === 'room' ? 'Shared lake (everyone viewing this page)' : 'Offline'} · Now playing: ${g.audio.trackName || 'nothing'}`)));
     }
     this.revertBtn = h('button.btn.ghost.on-dark', { disabled: true, on: { click: () => { if (this.settingsSnap) { g.saveSettings(JSON.parse(JSON.stringify(this.settingsSnap))); g.ui.captions.on = !!this.settingsSnap.captions; this.render(); } } } }, icon('undo'), 'Revert changes');
     c.foot.append(this.revertBtn, h('button.btn.primary', { on: { click: () => { this.game.audio.sfx('close'); this.close(); } } }, icon('check'), 'Done'));

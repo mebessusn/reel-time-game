@@ -800,7 +800,7 @@ export class UI {
       h('ol.ch-steps',
         h('li', 'In Claude Code (a terminal, or the Code tab in the Claude desktop app), run:', h('div.ch-row', code, copy)),
         h('li', 'Choose your user scope when it asks, so it works in every session.'),
-        h('li', 'Playing on your own lake (your own copy of Reel Time)? Run /reel-time:lake and paste this lake\'s link, so the signal reaches it.'),
+        h('li', 'Then run /reel-time:lake and paste this lake\'s link (from your browser\'s address bar or Claude\'s Share menu), so the signal reaches this lake.'),
         h('li', 'Send Claude any prompt. A "Claude is thinking" timer appears up here, and when Claude finishes, a bell rings and your next cast hooks a golden fish.')),
       h('p.gc-why', 'Plain Claude chats can\'t tell the game when Claude is thinking yet, so golden fish need Claude Code.'),
       h('div.gc-acts', h('button.btn.ghost.on-dark.small', { on: { click: () => { g.ext.change((d) => { d.claudeHintHiddenUntil = Date.now() + 7 * 86400000; }); close(); } } }, 'Hide this for a week'), h('button.btn.green.small', { on: { click: close } }, 'Got it')),

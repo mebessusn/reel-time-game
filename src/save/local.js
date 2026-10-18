@@ -1,4 +1,4 @@
-// Guest / offline save: browser storage + rules.js. Same interface as CloudSave.
+// The angler's save: browser storage + rules.js.
 // Feed, board and lake records are shared between tabs on this device (handy for testing multiplayer locally).
 import * as R from '../game/rules.js';
 import { SPECIES_BY_ID } from '../data/species.js';
@@ -18,7 +18,6 @@ export class LocalSave {
     this.key = `rt_profile_${slot}`;
     this.userId = safe.get(`rt_uid_${slot}`) || `guest-${newId()}`;
     safe.set(`rt_uid_${slot}`, this.userId);
-    this.isCloud = false;
     this.feedListeners = new Set();
     try {
       this.bc = new BroadcastChannel('rt_feed');
