@@ -106,3 +106,5 @@ share, study and modify for any noncommercial purpose. Everything (the game, its
 https://github.com/mebessusn/reel-time-game.
 
 Reel Time is an independent game. It isn't made or endorsed by Anthropic.
+
+Want to help? See [CONTRIBUTING.md](CONTRIBUTING.md). Contributions are accepted under the [Contributor License Agreement](CLA.md).
