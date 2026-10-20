@@ -13,6 +13,14 @@ export const CHANGE_KINDS = {
 
 export const CHANGELOG = [
   {
+    version: 'v1.14.4', date: 'Oct 20 2026', title: 'Rod on Your Back',
+    changes: {
+      gear: [
+        'Your rod rides on your back while you walk about, and comes out when you cast. Press T (or the rod button) if you\'d rather carry it in your hand.',
+      ],
+    },
+  },
+  {
     version: 'v1.14.3', date: 'Oct 20 2026', title: 'The Lighthouse Moves In',
     changes: {
       world: [

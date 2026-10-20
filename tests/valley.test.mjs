@@ -51,18 +51,20 @@ ok(frost.acts.includes('launch') && frost.mode === 'boat' && frost.zone === 'fro
 const home = await ev(async () => { const T = await import('/src/world/terrain.js'); return { body: T.waterBody(T.LAKES.frost.cx, T.LAKES.frost.cz), cove: T.waterBody(0, -2), noRowButton: !window.__game.contextActions().some((x) => x.id === 'home') }; });
 ok(home.body === home.cove && home.noRowButton, `Frostpine joins the cove by water, and no "Row to dock" button floats overhead (${JSON.stringify(home)})`);
 
-// 4. Rod: on your back in the boat, in your hand on shore, stow toggle with T
+// 4. Rod: on your back in the boat, and on your back on shore too unless you take it out (v1.14.4); T toggles
 const boatBack = await until(() => window.__game.actor.rodPlace === 'back');
 await ev(() => { const g = window.__game; g.disembark(); g.player.pos.set(0.5, 1.5, 38); g.player.target = null; });
-const shoreHand = await until(() => window.__game.actor.rodPlace === 'hand');
-const rod = { boat: boatBack ? 'back' : 'hand', shore: shoreHand ? 'hand' : 'back' };
-ok(rod.boat === 'back' && rod.shore === 'hand', `rod rides on your back in the boat, in hand on shore (${JSON.stringify(rod)})`);
+await page.waitForTimeout(1500);
+const shoreBack = await ev(() => window.__game.actor.rodPlace === 'back' && !!window.__game.rodStowed);
+ok(boatBack && shoreBack, `rod rides on your back in the boat and, stowed by default, on shore (${JSON.stringify({ boat: boatBack, shore: shoreBack })})`);
+await page.keyboard.press('t');
+await until(() => window.__game.actor.rodPlace === 'hand');
+const out = await ev(() => ({ place: window.__game.actor.rodPlace, stowed: !!window.__game.rodStowed }));
+ok(out.place === 'hand' && !out.stowed, `T takes the rod out (${JSON.stringify(out)})`);
 await page.keyboard.press('t');
 await until(() => window.__game.actor.rodPlace === 'back');
 const stow = await ev(() => ({ place: window.__game.actor.rodPlace, stowed: !!window.__game.rodStowed, mode: window.__game.player.mode, fishing: window.__game.fishing.state }));
-ok(stow.place === 'back' && stow.stowed, `T stows the rod on your back (${JSON.stringify(stow)})`);
-await page.keyboard.press('t');
-await until(() => window.__game.actor.rodPlace === 'hand' && !window.__game.rodStowed && window.__game.fishing.state === 'idle');
+ok(stow.place === 'back' && stow.stowed, `T stows it again (${JSON.stringify(stow)})`);
 await page.waitForTimeout(300);
 
 // 5. Every emote button fires on one click and shows (rod goes on the back while emoting)

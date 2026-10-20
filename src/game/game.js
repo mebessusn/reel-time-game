@@ -150,6 +150,8 @@ export class Game {
     this.ui.setVisible(false);
     this.home = new HomeUI(this);
     this.tutorial = new Tutorial(this);
+    this.rodStowed = true; // v1.14.4: the rod rides on your back until you cast (T or the rod button takes it out)
+    this.ui.setRodButton?.(true);
     this.myEmote = null;
     this.myBubble = null;
     this.sendTimer = 0;
@@ -555,7 +557,7 @@ export class Game {
     if (this.cookout.active) pose = 'roast';
     if (this.cookout.eating) pose = 'eat';
     this.pose = pose;
-    // The rod is in your hands while fishing, or walking about with it out; otherwise it rides on your back.
+    // The rod is in your hands while fishing (or if you took it out with T); otherwise it rides on your back.
     const fishingNow = this.fishing.state !== 'idle';
     this.rodPlace = fishingNow || (!this.rodStowed && pl.mode === 'shore') ? 'hand' : 'back';
     this.actor.update(dt, t, { x: pl.pos.x, y: pl.pos.y, z: pl.pos.z, yaw: pl.yaw, mode: pl.mode, pose, moving: pl.moving, bobber: this.fishing.bobberState(), power: this.fishing.power, tension: this.tugTension(), lean: this.fishing.state === 'reeling' ? this.rodAim || 0 : 0, rod: this.rodPlace, seat: this.chairs.seat ? this.chairs.seat.h || SEAT_H : 0, seatYaw: this.chairs.seat?.yaw, running: pl.sprint && pl.moving && pl.mode === 'shore' && !this.bikes.riding, passenger: !!this.riding, bike: this.bikes.state() });
@@ -1127,7 +1129,7 @@ export class Game {
   toggleRod() {
     this.rodStowed = !this.rodStowed;
     this.audio.sfx('click');
-    this.ui.toast(this.rodStowed ? 'Rod stowed on your back. Casting takes it out again.' : 'Rod in hand.', { ms: 1800 });
+    this.ui.toast(this.rodStowed ? 'Rod stowed on your back. Casting takes it out again.' : 'Rod in hand while you walk. Press T to stow it.', { ms: 1800 });
     this.ui.setRodButton?.(this.rodStowed);
   }
 
