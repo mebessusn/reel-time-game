@@ -12,7 +12,7 @@ import { buildDressing } from './dressing.js';
 import { buildLeviathan, leviathanAt } from './frostbones.js';
 import { buildLakePOIs } from './lakepois.js';
 import { splitByTiles } from '../render/cull.js';
-import { dryAt, heightAt, surfaceY, isWater, groundY, DOCK, FALLS_C, DEEP_C, HALF, LAKE_R, scatterSpots, WATER_Y, JETTIES, BRIDGES, bridgeYAlong, sc, scAround, LAKES, CLEARINGS, TRAILS, trailDist, valleyWater, riverSd, zoneAt, gentleAt, onBridge } from './terrain.js';
+import { dryAt, heightAt, surfaceY, isWater, groundY, DOCK, FALLS_C, DEEP_C, LIGHTHOUSE_ISLE, HALF, LAKE_R, scatterSpots, WATER_Y, JETTIES, BRIDGES, bridgeYAlong, sc, scAround, LAKES, CLEARINGS, TRAILS, trailDist, valleyWater, riverSd, zoneAt, gentleAt, onBridge } from './terrain.js';
 import { buildGus as buildGusModel } from '../entities/gus.js';
 import { softCabin, softDock, softTrees, softPlants, softLilyPads, softLanterns, softCampfire, softBoard, softRack, softLighthouse, softRuins, softTrophyBoard, TROPHY_SLOTS, softJetties, softBridge, softHut, softSignposts, softTent } from './softprops.js';
 import { buildFish, shellModel } from '../entities/fish.js';
@@ -52,7 +52,8 @@ export const TROPHY = (() => {
 })();
 export const RACK = { x: 11, z: 39.6, launch: { x: 4.5, z: 27 } };
 export const CAMPFIRE = { x: 2.5, z: 45 }; // v1.9.12: down on the level ground by the shore (off the trail, between the signposts and the waystone)
-export const LIGHTHOUSE = { x: 21, z: 6 };
+export const LIGHTHOUSE = { x: LIGHTHOUSE_ISLE.x, z: LIGHTHOUSE_ISLE.z };
+const LIGHTHOUSE_SCALE = 1.3; // v1.14.3: 30% taller (it looked small from the dock)
 
 
 // Ground height under a block's centre on the smooth surface, sunk a touch so trunks and stems never float
@@ -112,6 +113,7 @@ function buildTrees() {
     const h = heightAt(x, z);
     if (h < 2 || h > 11) return false;
     if (Math.abs(x) < 15 && z > 30 && z < 52) return false; // dock/cabin clearing
+    { const l = cabinLocal(x + 0.5, z + 0.5); if (l.x > -3.5 && l.x < 12.5 && l.z > -3.5 && l.z < 9.5) return false; } // v1.14.3: a clear yard all round Gus's cabin (its west side sticks out past the clearing)
     if (Math.hypot(x - LIGHTHOUSE.x, z - LIGHTHOUSE.z) < 10.5) return false; // keep the lighthouse island a clear beach
     if (trailDist(x + 0.5, z + 0.5) < 2.6) return false; // keep the trails open
     for (const c of Object.values(CLEARINGS)) if (Math.hypot(x - c.x, z - c.z) < c.r + 3) return false;
@@ -234,11 +236,16 @@ function buildRack() {
 
 function buildLighthouse() {
   const y = heightAt(LIGHTHOUSE.x, LIGHTHOUSE.z);
-  const { mesh: m, lampY } = softLighthouse(LIGHTHOUSE, y);
+  const { mesh: m, lampY: lampY0 } = softLighthouse(LIGHTHOUSE, y);
+  // scale the whole tower up about the middle of its foot
+  const pivot = new THREE.Vector3(LIGHTHOUSE.x + 0.25, y, LIGHTHOUSE.z + 0.25);
+  for (const c of m.children) { c.position.sub(pivot).multiplyScalar(LIGHTHOUSE_SCALE).add(pivot); c.scale.multiplyScalar(LIGHTHOUSE_SCALE); }
+  const lampY = y + (lampY0 - y) * LIGHTHOUSE_SCALE;
   for (const mat of m.userData.windows || []) nightWindows.glass(mat); // v1.13.7: the keeper's windows light up
-  addCircle(LIGHTHOUSE.x + 0.25, LIGHTHOUSE.z + 0.25, 1.8, { water: true });
+  addCircle(LIGHTHOUSE.x + 0.25, LIGHTHOUSE.z + 0.25, 1.8 * LIGHTHOUSE_SCALE, { water: true });
   const lampMat = new THREE.MeshBasicMaterial({ color: '#fff4c0' });
   const lamp = new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.34, 0.62, 12), lampMat);
+  lamp.scale.setScalar(LIGHTHOUSE_SCALE);
   lamp.position.set(LIGHTHOUSE.x + 0.25, lampY, LIGHTHOUSE.z + 0.25);
   // v1.9.2: a real lighthouse light. A rotating lens throws two opposed beams: soft volumetric shafts that
   // are brightest at the lens, fade along their length and toward their edges, shimmer with drifting haze
@@ -517,7 +524,7 @@ export function buildProps(scene) {
   for (const ox of [-2.25, 2.25]) addBox(FERNVIEW_FIRE.x + ox - 0.22, FERNVIEW_FIRE.z - 0.75, FERNVIEW_FIRE.x + ox + 0.22, FERNVIEW_FIRE.z + 1.0);
   out.campfire3 = new THREE.Vector3(FERNVIEW_FIRE.x, heightAt(FERNVIEW_FIRE.x, FERNVIEW_FIRE.z) + 0.3, FERNVIEW_FIRE.z);
   { const f = buildFire(out.campfire3); out.fires.push(f); scene.add(f); }
-  out.groundCover = buildGroundCover(scene, WIND, { cabinPt, y: heightAt(CABIN.x, CABIN.z) });
+  out.groundCover = buildGroundCover(scene, WIND, { cabinPt, cabinLocal, y: heightAt(CABIN.x, CABIN.z) });
   return out;
 }
 

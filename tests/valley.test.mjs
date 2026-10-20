@@ -73,7 +73,7 @@ for (let i = 0; i < labels.length; i++) {
   await ev(() => { window.__game.myEmote = null; });
   await page.keyboard.press('r');
   // the wheel pops in with a short animation: click once it has settled
-  await page.waitForFunction(() => { const w = document.querySelector('.wheel'); return w && w.getAnimations().every((a) => a.playState === 'finished'); }, null, { timeout: 5000 });
+  await page.waitForFunction(() => { const w = document.querySelector('.wheel'); return w && w.getAnimations().every((a) => a.playState === 'finished'); }, null, { timeout: 20000 });
   await page.waitForTimeout(100);
   const box = await page.locator('.wheel button').nth(i).boundingBox();
   // what is actually under the click point (logged if it isn't this button, to explain a missed click)

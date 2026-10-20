@@ -13,6 +13,16 @@ export const CHANGE_KINDS = {
 
 export const CHANGELOG = [
   {
+    version: 'v1.14.3', date: 'Oct 20 2026', title: 'The Lighthouse Moves In',
+    changes: {
+      world: [
+        'The lighthouse island has moved in from the east bank toward the middle of Cozy Cove (still clear of the deep end and the Sunken Ruins), and the lighthouse stands 30% taller.',
+        'Trees, reeds, flowers and fireflies are scattered naturally across the valley. They used to line up in rows.',
+        "Gus's cabin keeps a clear yard all the way round: no tree or boulder grows against its walls.",
+      ],
+    },
+  },
+  {
     version: 'v1.14.2', date: 'Oct 18 2026', title: 'Just the Lake',
     changes: {
       fix: [

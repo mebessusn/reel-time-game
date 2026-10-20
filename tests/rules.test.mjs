@@ -1,6 +1,7 @@
 // Unit tests for game rules: odds, economy, progression, achievements.
 import assert from 'node:assert/strict';
 import * as R from '../src/game/rules.js';
+import { scatterSpots } from '../src/world/terrain.js';
 import { SPOTS, spotAt, gateAt, nextUnlock, unlocksAt, LAKE_LEVELS, LAKE_ORDER } from '../src/game/spots.js';
 import { shellPool } from '../src/game/awaygear.js';
 import { SPECIES, SPECIES_BY_ID, ZONES } from '../src/data/species.js';
@@ -208,6 +209,16 @@ t('every valley lake has its own fish at every time of day', () => {
   }
   assert.equal(R.effectiveZone('quarry', 3, 'day'), 'open');
   assert.equal(R.effectiveZone('quarry', 12, 'day'), 'quarry');
+});
+
+t('v1.14.3: trees and reeds are scattered, not planted in rows', () => {
+  const pts = scatterSpots(99, 900, () => true);
+  assert.equal(pts.length, 900);
+  // the direction to each point's nearest neighbour: rows make one direction win; a scatter spreads them out
+  const bins = new Array(18).fill(0);
+  for (const p of pts) { let b = null, bd = 1e9; for (const q of pts) { if (q === p) continue; const d = (q.x - p.x) ** 2 + (q.z - p.z) ** 2; if (d < bd) { bd = d; b = q; } } let a = Math.atan2(b.z - p.z, b.x - p.x); if (a < 0) a += Math.PI; bins[Math.min(17, Math.floor(a / Math.PI * 18))]++; }
+  assert.ok(Math.max(...bins) / pts.length < 0.12, 'no favoured direction');
+  assert.deepEqual(scatterSpots(99, 50, () => true), scatterSpots(99, 50, () => true), 'the same for everyone');
 });
 
 console.log(`rules: ${passed} passed`);

@@ -298,11 +298,13 @@ export function buildGroundCover(scene, wind, cabin = null) {
   };
   const placed = [];
   const clear = (x, z, d) => placed.every((p) => Math.hypot(p.x - x, p.z - z) > d);
+  // v1.14.3: the meadow keeps a clear yard round Gus's cabin (its own row of stones below sits against the walls)
+  const yard = (x, z, pad = 0) => { if (!cabin?.cabinLocal) return false; const l = cabin.cabinLocal(x, z); return l.x > -3.5 - pad && l.x < 12.5 + pad && l.z > -3.5 - pad && l.z < 9.5 + pad; };
 
   // bushes on grassy ground (v1.8.1: natural low-poly bushes from art/nature.blend)
   const bushList = [];
   for (let i = 0; i < 620; i++) {
-    const s = spot(30, (x, z) => grassAt(x, z) > 0.55 && open(x, z, 0.8) && !blocked(x, z, 0.9) && clear(x, z, 2.2) && heightAt(x, z) <= 6);
+    const s = spot(30, (x, z) => grassAt(x, z) > 0.55 && open(x, z, 0.8) && !yard(x, z, 0.8) && !blocked(x, z, 0.9) && clear(x, z, 2.2) && heightAt(x, z) <= 6);
     if (!s) continue;
     placed.push(s);
     const berries = r() < 0.3 ? 1 + Math.floor(r() * 3) : 0;
@@ -317,7 +319,7 @@ export function buildGroundCover(scene, wind, cabin = null) {
   const rockParts = [];
   for (let i = 0; i < 380; i++) {
     const size = 0.35 + Math.pow(r(), 2) * 1.4;
-    const s = spot(30, (x, z) => open(x, z, size + 0.6) && !blocked(x, z, size + 0.3) && clear(x, z, size + 1.6) && heightAt(x, z) <= 7);
+    const s = spot(30, (x, z) => open(x, z, size + 0.6) && !yard(x, z, size) && !blocked(x, z, size + 0.3) && clear(x, z, size + 1.6) && heightAt(x, z) <= 7);
     if (!s) continue;
     {
       const dx = s.x - BIKE_YARD.x, dz = s.z - BIKE_YARD.z, d = Math.hypot(dx, dz), need = BIKE_YARD.r + size * 1.4;

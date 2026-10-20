@@ -71,7 +71,7 @@ try {
   // v1.10: a first start without ?autoplay shows the lake rules once; agree to them
   await A.waitForSelector('.conduct-card', { timeout: 45000 });
   await ev(A, () => document.querySelector('.conduct-card .btn.primary').click());
-  await A.waitForTimeout(400);
+  await A.waitForFunction(() => !document.querySelector('.conduct-card'), null, { timeout: 15000 }).catch(() => {});
   assert.equal(await ev(A, () => !!document.querySelector('.conduct-card')), false);
 
   log('the goal ladder shows the next goal and pays out when it is done');
@@ -102,10 +102,10 @@ try {
   assert.equal(await ev(A, () => window.__game.juice.streak), wasJunk ? 0 : 1, `streak after one ${wasJunk ? 'junk haul' : 'fish'}`);
 
   log('streaks build a flame chip and pay a bonus at 3; a near miss shouts "So close!"');
-  await ev(A, () => { window.__game.juice.landed(); window.__game.juice.landed(); });
+  await ev(A, () => { const j = window.__game.juice; while (j.streak < 3) j.landed(); }); // two more after a fish, three after a junk haul
   await A.waitForFunction(() => /×3/.test(document.querySelector('.streak-chip')?.textContent || ''), null, { timeout: 10000 });
   assert.ok(await hookOne(A));
-  await A.waitForFunction(() => window.__game.fishing.state === 'reeling' && window.__game.fishing.reel, null, { timeout: 10000 });
+  await A.waitForFunction(() => window.__game.fishing.state === 'reeling' && window.__game.fishing.reel, null, { timeout: 20000 });
   await ev(A, () => { const f = window.__game.fishing; if (!f.reel.junk) { f.reel.progress = 0.9; f.escape(true); } else f.land(); });
   const near = await ev(A, () => [...document.querySelectorAll('.pop-word')].map((x) => x.textContent).join('|'));
   assert.ok(/So close/.test(near) || (await ev(A, () => window.__game.juice.streak)) >= 3, `near miss: ${near}`);

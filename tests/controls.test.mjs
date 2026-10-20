@@ -27,10 +27,13 @@ const wall = await ev(async () => {
   g.player.pos.set(a.x, g.player.pos.y, a.z); g.player.target = null; g.player.setTarget(b.x, b.z);
   const lz = () => { const C = P.CABIN_POSE, c = Math.cos(C.yaw), s = Math.sin(C.yaw); return (g.player.pos.x - C.x) * c - (g.player.pos.z - C.z) * s + C.cx; }; // depth into the cabin along its x
   let deepest = -9, last = null, still = 0;
-  for (let i = 0; i < 200 && still < 10; i++) { // up to 20 s; done once it hasn't moved for 1 s
+  let started = false;
+  for (let i = 0; i < 300 && still < 30; i++) { // up to 30 s; done once it has set off and then not moved for 3 s (slow software frames come in bursts)
     await new Promise((r) => setTimeout(r, 100));
     deepest = Math.max(deepest, lz());
-    const p = `${g.player.pos.x.toFixed(2)},${g.player.pos.z.toFixed(2)}`; still = p === last ? still + 1 : 0; last = p;
+    const p = `${g.player.pos.x.toFixed(2)},${g.player.pos.z.toFixed(2)}`;
+    if (last && p !== last) started = true;
+    still = started && p === last ? still + 1 : 0; last = p;
   }
   return { deepest, moved: Math.hypot(g.player.pos.x - a.x, g.player.pos.z - a.z) };
 });

@@ -19,6 +19,9 @@ export const scAround = (x, z, cx, cz) => { const [nx, nz] = sc(cx, cz); return 
 export const WATER_Y = 0.85; // water surface height
 export const LAKE_R = 34;
 export const DEEP_C = { x: 0, z: -12 };
+// v1.14.3: the lighthouse island, moved in from the east bank toward the middle of the cove (it used to sit at 21, 6),
+// clear of the deep end and the Sunken Ruins
+export const LIGHTHOUSE_ISLE = { x: 13, z: 6 };
 export const FALLS_C = { x: 27, z: -24 };
 export const DOCK = { x0: -2, x1: 1, z0: 22, z1: 40, deckY: 1.5 }; // deck occupies x0..x1+1, z0..z1+1
 export const SPAWN = { x: 0.5, z: 38 };
@@ -165,7 +168,7 @@ function computeHeight(x, z) {
   const deepD = Math.hypot(x - DEEP_C.x, z - DEEP_C.z);
   // Island rock for the lighthouse
   // a roomy sandy island: a raised core with a low beach ring, edges wobbled so it isn't a perfect disc
-  const islandD = Math.hypot(x - 21, z - 6) + fbm(x * 1.7 + 40, z * 1.7) * 1.4;
+  const islandD = Math.hypot(x - LIGHTHOUSE_ISLE.x, z - LIGHTHOUSE_ISLE.z) + fbm(x * 1.7 + 40, z * 1.7) * 1.4;
   if (islandD < 6.2) return 2;
   if (islandD < 8.6) return 1;
   // ---- Cozy Cove (unchanged from the original map)
@@ -642,18 +645,19 @@ export function scatterSpots(seed, count, filter) {
   let guard = 0;
   const cells = new Map();
   const key = (x, z) => `${Math.floor(x / 3)},${Math.floor(z / 3)}`;
+  // v1.14.3: positions from a proper hash (mulberry32), anywhere, not whole blocks. The old version took an LCG's low
+  // bits modulo the map size, and those repeat in short cycles, so trees and reeds stood in rows.
+  const next = () => { s = (s + 0x6d2b79f5) >>> 0; let t = s; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
   while (out.length < count && guard++ < count * 40) {
-    s = (s * 1664525 + 1013904223) >>> 0;
-    const x = (s % (HALF * 2)) - HALF;
-    s = (s * 1664525 + 1013904223) >>> 0;
-    const z = (s % (HALF * 2)) - HALF;
+    const x = Math.round((next() * 2 - 1) * HALF * 4) / 4;
+    const z = Math.round((next() * 2 - 1) * HALF * 4) / 4;
     if (!filter(x, z)) continue;
     let near = false;
     for (let i = -1; i <= 1 && !near; i++) for (let j = -1; j <= 1 && !near; j++) {
       for (const p of cells.get(key(x + i * 3, z + j * 3)) || []) if (Math.abs(p.x - x) < 3 && Math.abs(p.z - z) < 3) { near = true; break; }
     }
     if (near) continue;
-    const p = { x, z, r: s };
+    const p = { x, z, r: Math.floor(next() * 4294967296) };
     out.push(p);
     const k = key(x, z);
     if (!cells.has(k)) cells.set(k, []);
