@@ -3,7 +3,7 @@
 // any shore, dock or island, so walkers can't reach them. Everyone sees the same pools: positions
 // come from the shared wall clock.
 import * as THREE from 'three';
-import { HALF, heightAt, onDock, boatable, WATER_Y, waterBody, zoneAt } from './terrain.js';
+import { HALF, heightAt, onDock, boatable, WATER_Y, waterBody, zoneAt, LIGHTHOUSE_ISLE } from './terrain.js';
 import { mulberry32 } from '../core/rng.js';
 import { leviathanAt } from './frostbones.js';
 import { gateAt } from '../game/spots.js';
@@ -36,7 +36,10 @@ let candidates = null;
 function findCandidates() {
   if (candidates) return candidates;
   const N = HALF * 2, INF = 1e9;
-  const solid = (x, z) => heightAt(x, z) > 0 || onDock(x + 0.5, z + 0.5);
+  // v1.14.5: the lighthouse islet (mid-Cove since v1.14.3) doesn't count as shore here: you can only reach it by
+  // boat, and counting it left no water in the Cove far enough from land for a school. Pools keep clear of it below.
+  const islet = (x, z) => Math.hypot(x - LIGHTHOUSE_ISLE.x, z - LIGHTHOUSE_ISLE.z) < 14;
+  const solid = (x, z) => (heightAt(x, z) > 0 && !islet(x, z)) || onDock(x + 0.5, z + 0.5);
   // 1) chamfer distance transform (fast, slightly over-estimates) as a pre-filter
   const D = new Float32Array(N * N);
   for (let i = 0; i < N; i++) for (let j = 0; j < N; j++) D[i * N + j] = solid(i - HALF, j - HALF) ? 0 : INF;
@@ -64,6 +67,7 @@ function findCandidates() {
     const minShore = zn === 'quarry' ? 7 : zn === 'pond' ? 11 : MIN_SHORE;
     if (D[(x + HALF) * N + z + HALF] < minShore * 1.09) continue;
     if (!boatable(x, z) || heightAt(x, z) > -2) continue;
+    if (Math.hypot(x + 0.5 - LIGHTHOUSE_ISLE.x, z + 0.5 - LIGHTHOUSE_ISLE.z) < 17) continue; // (a cast's length off the islet)
     if (leviathanAt(x, z, 6)) continue; // v1.9.13: not under the Frozen Leviathan's ice
     if (!zn || zn === 'cave' || zn === 'river') continue;
     // v1.13.7: is the whole pool on the lake's open water (its base level), clear of the level-gated deep end and

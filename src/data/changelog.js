@@ -13,6 +13,14 @@ export const CHANGE_KINDS = {
 
 export const CHANGELOG = [
   {
+    version: 'v1.14.5', date: 'Oct 20 2026', title: 'Schools Are Back',
+    changes: {
+      fix: [
+        'Cozy Cove\'s feeding schools are back. Moving the lighthouse island into the middle of the Cove had left no water far enough from land for them; the islet (boat-only) no longer counts, and schools keep clear of it.',
+      ],
+    },
+  },
+  {
     version: 'v1.14.4', date: 'Oct 20 2026', title: 'Rod on Your Back',
     changes: {
       gear: [

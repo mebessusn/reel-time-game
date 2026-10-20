@@ -173,18 +173,25 @@ await t('swirling pools boost rare odds and sit beyond cast range of land', asyn
   const { heightAt, onDock, HALF, zoneAt } = await import('../src/world/terrain.js');
   // v1.8.2: the small waters (quarry, pond) are too narrow for 20; their schools keep a smaller margin
   const margin = (p) => ({ quarry: 6, pond: 10 })[zoneAt(p.x, p.z)] ?? 20;
+  const { LIGHTHOUSE_ISLE } = await import('../src/world/terrain.js');
+  const islet = (x, z) => Math.hypot(x - LIGHTHOUSE_ISLE.x, z - LIGHTHOUSE_ISLE.z) < 14; // (boat-only: pools keep 17 off it instead)
+  const lakes = new Set();
   for (let e = 1000; e < 1010; e++) {
     const pools = poolsForEpoch(e);
     assert.ok(pools.length >= 1);
     assert.deepEqual(pools, poolsForEpoch(e), 'same pools for every client');
     for (const p of pools) {
       for (let x = -HALF; x < HALF; x++) for (let z = -HALF; z < HALF; z++) {
-        if (heightAt(x, z) > 0 || onDock(x, z)) assert.ok(Math.hypot(x + 0.5 - p.x, z + 0.5 - p.z) >= margin(p), `pool ${p.x},${p.z} too close to land at ${x},${z}`);
+        if ((heightAt(x, z) > 0 && !islet(x, z)) || onDock(x, z)) assert.ok(Math.hypot(x + 0.5 - p.x, z + 0.5 - p.z) >= margin(p), `pool ${p.x},${p.z} too close to land at ${x},${z}`);
       }
+      assert.ok(Math.hypot(p.x - LIGHTHOUSE_ISLE.x, p.z - LIGHTHOUSE_ISLE.z) >= 17, 'clear of the lighthouse islet');
+      const zn = zoneAt(p.x, p.z); lakes.add(['frost', 'marsh', 'pond', 'quarry'].includes(zn) ? zn : 'cove');
     }
     const mid = e * SWIRL_MS + SWIRL_MS / 2;
     assert.ok(swirlAt(pools[0].x, pools[0].z, mid));
   }
+  // v1.14.5: every lake gets its schools (Cozy Cove lost them when the lighthouse islet moved in)
+  for (const lake of ['cove', 'frost', 'marsh', 'pond', 'quarry']) assert.ok(lakes.has(lake), `${lake} has feeding schools`);
 });
 
 await t('lake legends ranks rarity first, then weight, and rejects junk data', async () => {
