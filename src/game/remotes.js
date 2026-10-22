@@ -5,6 +5,7 @@ import { WATER_Y } from '../world/terrain.js';
 import { PetFollower, PETS } from './pet.js';
 import { SEAT_H } from './chairs.js';
 import { readParty } from './party.js';
+import { SPECIES_BY_ID } from '../data/species.js';
 
 const MAX_RENDERED = 16;
 
@@ -17,7 +18,8 @@ export class Remotes {
   attach(net) {
     net.on('peer:join', (p) => this.add(p));
     net.on('peer:leave', (p) => this.remove(p.id));
-    net.on('peer:meta', (p) => this.list.get(p.id)?.actor.setLook(p.meta.avatar, p.meta.equipped));
+    // v1.14.7: looks are built when an angler is first drawn (update() notices the change), not for everyone on the lake
+    net.on('peer:meta', (p) => { const r = this.list.get(p.id); if (r?.lk) r.lk = null; });
     net.on('ev:cast', ({ from }) => { if (this.near(from)) this.game.audio.sfx('whoosh', { remote: true }); });
     net.on('ev:splash', ({ from, data }) => {
       const r = this.list.get(from);
@@ -28,8 +30,10 @@ export class Remotes {
     });
     net.on('ev:catch', ({ from, data }) => {
       const r = this.list.get(from);
-      if (!r || !data) return;
-      r.actor.showHeld(data.speciesId, data.variant, data.weight, 3.5);
+      // v1.14.7: presence is untrusted; a catch naming a fish this game doesn't know (an older or newer
+      // version, or a broken client) is ignored instead of breaking the bubble drawing every frame
+      if (!r || !data || !SPECIES_BY_ID[data.speciesId]) return;
+      if (r.actor.root.visible) r.actor.showHeld(data.speciesId, data.variant, data.weight, 3.5);
       // In an artifact room there is no shared feed table, so great catches reach the feed from here.
       if (this.game.net?.kind === 'room' && (data.variant !== 'normal' || ['rare', 'epic', 'legendary', 'mythic'].includes(data.tier))) {
         this.game.ui.addFeed({ kind: 'catch', name: r.peer.meta?.name || 'Someone', payload: { speciesId: data.speciesId, variant: data.variant, weight: data.weight } });
@@ -53,7 +57,7 @@ export class Remotes {
       const r = this.list.get(from);
       if (!r || !data) return;
       r.emote = { id: data.id, until: performance.now() + 2600 };
-      if (data.id === 'showoff' && data.speciesId) r.bubble = { kind: 'showoff', speciesId: data.speciesId, variant: data.variant, until: performance.now() + 5000, key: performance.now() };
+      if (data.id === 'showoff' && SPECIES_BY_ID[data.speciesId]) r.bubble = { kind: 'showoff', speciesId: data.speciesId, variant: data.variant, until: performance.now() + 5000, key: performance.now() };
       if (this.near(from)) this.game.audio.sfx({ wave: 'whistle', cheer: 'cheer', clap: 'clap', sleep: 'yawn' }[data.id] || 'click', { remote: true });
     });
   }
@@ -67,8 +71,9 @@ export class Remotes {
 
   add(peer) {
     if (this.list.has(peer.id)) return;
+    // v1.14.7: no avatar, rod or boat yet: only the 16 nearest anglers are drawn, so a busy lake builds models
+    // for those alone (each costs a few MB) and builds the rest as they come near
     const actor = new Actor(this.game.engine.scene);
-    actor.setLook(peer.meta?.avatar, peer.meta?.equipped || {});
     const s = peer.state;
     const r = { id: peer.id, peer, actor, pos: new THREE.Vector3(s?.x || 0, s?.y || 1.5, s?.z || 38), yaw: s?.yaw || Math.PI, bubble: null, emote: null };
     this.list.set(peer.id, r);
@@ -90,8 +95,19 @@ export class Remotes {
       const visible = i < MAX_RENDERED && !!s;
       r.actor.root.visible = visible;
       if (!s) return;
-      const lk = JSON.stringify([r.peer.meta?.avatar, r.peer.meta?.equipped]);
-      if (r.peer.meta?.avatar && r.lk !== lk) { r.lk = lk; r.actor.setLook(r.peer.meta.avatar, r.peer.meta.equipped || {}); }
+      if (visible) {
+        const lk = r.lk && r.lkMeta === r.peer.meta ? r.lk : JSON.stringify([r.peer.meta?.avatar, r.peer.meta?.equipped]);
+        r.lkMeta = r.peer.meta;
+        if (r.lk !== lk) { r.lk = lk; r.actor.setLook(r.peer.meta?.avatar, r.peer.meta?.equipped || {}); }
+      } else if (r.shown) {
+        // v1.14.7: out of the nearest 16: their line, float and held fish live in the scene, not under the angler,
+        // so hide them too (a held fish used to hang in the air forever when its angler stopped being drawn)
+        r.shown = false;
+        r.actor.line.line.visible = false;
+        if (r.actor.bobberObj) r.actor.bobberObj.visible = false;
+        r.actor.clearHeld();
+        if (r.actor.lantern) r.actor.lantern.userData.pool.visible = false;
+      }
       const k = Math.min(1, dt * 8);
       if (r.pos.distanceTo(new THREE.Vector3(s.x, s.y, s.z)) > 8) r.pos.set(s.x, s.y, s.z);
       r.pos.x += (s.x - r.pos.x) * k; r.pos.y += (s.y - r.pos.y) * k; r.pos.z += (s.z - r.pos.z) * k;
@@ -124,9 +140,11 @@ export class Remotes {
       }
       r.lastP = { x: r.pos.x, z: r.pos.z };
       const pk = PETS[r.peer.meta?.pet] ? r.peer.meta.pet : null;
-      if ((r.pet?.kind || null) !== pk) { r.pet?.dispose(); r.pet = pk ? new PetFollower(this.game.engine.scene, pk) : null; if (r.pet) r.pet.pos.copy(r.pos); }
+      // v1.14.7: pets are made when their angler is first drawn
+      if ((r.pet?.kind || null) !== pk && (visible || r.pet)) { r.pet?.dispose(); r.pet = pk ? new PetFollower(this.game.engine.scene, pk) : null; if (r.pet) r.pet.pos.copy(r.pos); }
       if (r.pet) r.pet.update(dt, t, { x: r.pos.x, y: r.pos.y, z: r.pos.z, yaw: r.yaw, mode: s.mode, fishing: !!s.bobber, visible, root: r.actor.root, passenger: rideOk, guest: !!(r.peer.meta?.id && (this.hasPassenger(r.peer.meta.id) || this.game.riding === r.peer.meta.id)), bike: bike?.id && r.actor.bikeObj?.visible ? r.actor.bikeObj : null });
       if (!visible) return;
+      r.shown = true;
       r.actor.update(dt, t, { x: r.pos.x, y: r.pos.y, z: r.pos.z, yaw: r.yaw, mode: s.mode, pose, moving: s.moving, bobber: s.bobber, tension: s.tension, rod: s.rod || (s.mode === 'boat' && !s.bobber ? 'back' : 'hand'), seat: s.seat && s.mode === 'shore' ? (s.seat === 1 || s.seat === true ? SEAT_H : Math.min(0.8, +s.seat || SEAT_H)) : 0, seatYaw: s.seat && s.mode === 'shore' && typeof s.seatYaw === 'number' ? s.seatYaw : undefined, running: !!s.run, passenger: rideOk, bike });
       if (r.bubble && now > r.bubble.until) r.bubble = null;
       if (s.afk) r.bubble = { kind: 'zzz', text: 'z z z', until: now + 1000, key: 'z' };

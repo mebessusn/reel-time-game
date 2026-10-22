@@ -13,6 +13,16 @@ export const CHANGE_KINDS = {
 
 export const CHANGELOG = [
   {
+    version: 'v1.14.7', date: 'Oct 22 2026', title: 'Room for Everyone',
+    changes: {
+      fix: [
+        'Busy lakes use far less memory: anglers further away than the nearest 16 are no longer built in full until they come close. With 250 anglers on the lake the game used about 500 MB less.',
+        'A fish another angler holds up no longer hangs in the air after they wander out of view, and their line, float and lantern glow go with them.',
+        'A catch from an angler on another version of the game, naming a fish yours doesn\'t know, is ignored instead of throwing errors.',
+      ],
+    },
+  },
+  {
     version: 'v1.14.6', date: 'Oct 22 2026', title: 'Schools on the Move',
     changes: {
       fix: [
