@@ -28,6 +28,7 @@ import { BOTTLE_MAX } from '../game/bottles.js';
 import { regionName } from '../world/terrain.js';
 import { PETS } from '../game/pet.js';
 import { openCatchCard } from './catchcard.js';
+import { exportSave, parseSave, applySave } from '../save/transfer.js';
 import { fishOfWeek } from '../game/social.js';
 import { dayIndex } from '../core/clock.js';
 import { SEASONS } from '../data/seasons.js';
@@ -1082,11 +1083,38 @@ export class Sheets {
         h('div.list-row', h('img', { src: avatarThumb(p.avatar), style: { width: '44px', height: '44px' } }), h('div.grow', h('div.ttl', p.name), h('div.meta', g.net?.kind === 'room' ? 'Your progress saves to this lake.' : 'Progress saves on this device.')),
           h('button.btn.small', { on: { click: () => { this.close(); g.openCreator(); } } }, icon('shirt'), 'Edit look')),
         h('div.set-name-row', nameIn)),
+        this.saveFileGroup(),
         h('div.set-group', h('h3', 'About'), h('div.muted', `Reel Time · ${g.net?.kind === 'local' ? 'Local lake (tabs on this device)' : g.net?.kind === 'room' ? 'Shared lake (everyone viewing this page)' : 'Offline'} · Now playing: ${g.audio.trackName || 'nothing'}`)));
     }
     this.revertBtn = h('button.btn.ghost.on-dark', { disabled: true, on: { click: () => { if (this.settingsSnap) { g.saveSettings(JSON.parse(JSON.stringify(this.settingsSnap))); g.ui.captions.on = !!this.settingsSnap.captions; this.render(); } } } }, icon('undo'), 'Revert changes');
     c.foot.append(this.revertBtn, h('button.btn.primary', { on: { click: () => { this.game.audio.sfx('close'); this.close(); } } }, icon('check'), 'Done'));
     this.updateRevert();
+  }
+
+  // v1.14.6: export / import the save, to move it to another computer or browser
+  saveFileGroup() {
+    const g = this.game;
+    const status = h('div.muted', { role: 'status', style: { marginTop: '6px' } });
+    const picker = h('input', { type: 'file', accept: '.json,application/json', style: { display: 'none' }, 'aria-label': 'Choose a save file', on: { change: async (e) => {
+      const file = e.target.files?.[0]; e.target.value = '';
+      if (!file) return;
+      const r = parseSave(await file.text());
+      if (!r.ok) { status.textContent = r.error; return; }
+      const when = r.at ? ` from ${new Date(r.at).toLocaleDateString()}` : '';
+      this.close(); // the confirm card sits under an open sheet
+      if (!(await g.menus.confirm({ title: 'Load this save?', text: `The save${when} replaces the progress in this browser, and the game restarts.`, ok: 'Load save', icon: 'upload' }))) return;
+      g.save.persist = () => {}; // the running game must not write its old progress back over the new save
+      try { applySave(r.keys); } catch { status.textContent = "This browser wouldn't store the save (storage may be blocked)."; return; }
+      location.reload();
+    } } });
+    const exportBtn = h('button.btn.small', { on: { click: async () => {
+      g.save.persist(); // make sure the latest progress is in storage first
+      status.textContent = (await exportSave(g.profile.name)) ? 'Saved. Keep that file to load your progress on another computer.' : "Couldn't save the file.";
+    } } }, icon('download'), 'Export save');
+    const importBtn = h('button.btn.small', { on: { click: () => picker.click() } }, icon('upload'), 'Import save');
+    return h('div.set-group', h('h3', 'Save file'),
+      h('div.muted', 'Your progress lives in this browser. Export it to a file to move it to another computer or browser, then Import it there.'),
+      h('div', { style: { display: 'flex', gap: '8px', marginTop: '8px', flexWrap: 'wrap' } }, exportBtn, importBtn, picker), status);
   }
 
   updateRevert() {

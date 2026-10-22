@@ -105,10 +105,11 @@ import {
   Monitor, Keyboard, Gamepad2, Eye, Info, ArrowLeft, ChevronLeft, ChevronRight, ChevronDown, Search, ArrowUpDown, ListFilter, ZoomIn, ZoomOut,
   Compass, LogOut, Users, Sparkles, Flame, Gift, Mail, Newspaper, Crown, Medal, Target, Shuffle, Undo2, RotateCcw, RotateCw, Shirt, Link, Copy,
   Accessibility, SlidersHorizontal, MapPin, Plus, Minus, Package, Tent, PawPrint, Clock, Award, CircleHelp, Menu, Ellipsis, Navigation, Type, Music, Anchor,
-  Gem, Waves, Tag, Archive, Leaf, Snowflake, Heart, FishingHook, Wrench, History, Bike, Backpack, ShieldCheck, Ban, Gavel, Hourglass, UserX, ScrollText as Rules, Shovel, Hand, PartyPopper, Meh, Bed, Citrus, ChevronUp, Bug,
+  Gem, Waves, Tag, Archive, Leaf, Snowflake, Heart, FishingHook, Wrench, History, Bike, Backpack, ShieldCheck, Ban, Gavel, Hourglass, UserX, ScrollText as Rules, Shovel, Hand, PartyPopper, Meh, Bed, Citrus, ChevronUp, Bug, Download, Upload,
 } from 'lucide';
 
 const LINE = {
+  download: Download, upload: Upload, // v1.14.6: save export / import
   creel: ShoppingBasket, book: BookOpen, shop: Store, trophy: Trophy, gear: Settings, smile: Smile, boat: Sailboat, star: Star, bell: Bell, user: User,
   lock: Lock, unlock: LockOpen, camera: Camera, rod: FishingRod, map: MapIcon, chat: MessageCircle, home: House, scroll: ScrollText, worm: Worm, flag: Flag,
   fish: Fish, sun: Sun, moon: Moon, dawn: Sunrise, cloud: Cloud, rain: CloudRain, storm: CloudLightning, close: X, check: Check, play: Play, pause: Pause,
