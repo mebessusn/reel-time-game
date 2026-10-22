@@ -94,6 +94,9 @@ export class Bikes {
     const actor = new Actor(scene);
     actor.setLook(randomAvatar(mulberry32(5150)), { rod: 'rod_willow', lure: 'lure_classic', boat: 'boat_oak' });
     this.vendor = { actor, x: STALL.x - 0.95, z: STALL.z, y: surfaceY(STALL.x - 0.95, STALL.z), yaw: Math.PI / 2 };
+    // v1.14.6: behind her counter from the start (the title screen doesn't run the game's update, so she used to stand
+    // at the map's origin, out in the middle of Cozy Cove, until you pressed Continue)
+    actor.update(0, 0, { x: this.vendor.x, y: this.vendor.y, z: this.vendor.z, yaw: this.vendor.yaw, mode: 'shore', pose: 'idle', moving: false, rod: 'back' });
   }
 
   nearStall() {

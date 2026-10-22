@@ -11,11 +11,15 @@ import { gateAt } from '../game/spots.js';
 export const SWIRL_MS = 6 * 60 * 1000; // pools move every 6 real minutes
 export const SWIRL_R = 3.2; // fishing radius
 const MIN_SHORE = 21; // max cast is ~18 + perks; keep pools out of reach from land
+// v1.14.6: Cozy Cove's open water is small since the lighthouse islet moved in (v1.14.3), and 21 m from every shore
+// left one patch, so nearly every school gathered on the same spot. The rare-fish boost only counts from a boat
+// (fishing.ctx), so Cove schools may sit nearer the shore: 12 m spreads them over the whole Cove.
+const COVE_SHORE = 12;
 const MAX_POOLS = 8;
 // v1.8.1: the big waters always have two pools spinning; the small ones get one
 const SLOTS = { cove: 2, marsh: 2, frost: 2, pond: 1, quarry: 1 };
 // after a pool spins out, its slot rests this long before the next one opens
-export const SWIRL_REST_MS = 60 * 1000;
+export const SWIRL_REST_MS = 30 * 1000; // (v1.14.6: was a minute)
 const FADE_MS = 15000;
 // Each school gives up a limited number of fish (SUCCESSFUL casts only, shared by everyone on the lake),
 // then scatters and a new one gathers elsewhere in the same water. Usage comes from the shared db via
@@ -64,7 +68,7 @@ function findCandidates() {
     const zn = zoneAt(x, z);
     // v1.8.2: the small lakes (the quarry, Fern Pond) can't fit a spot out of casting range of land, so
     // their schools sit as far out as the water allows
-    const minShore = zn === 'quarry' ? 7 : zn === 'pond' ? 11 : MIN_SHORE;
+    const minShore = zn === 'quarry' ? 7 : zn === 'pond' ? 11 : ['frost', 'marsh'].includes(zn) ? MIN_SHORE : COVE_SHORE;
     if (D[(x + HALF) * N + z + HALF] < minShore * 1.09) continue;
     if (!boatable(x, z) || heightAt(x, z) > -2) continue;
     if (Math.hypot(x + 0.5 - LIGHTHOUSE_ISLE.x, z + 0.5 - LIGHTHOUSE_ISLE.z) < 17) continue; // (a cast's length off the islet)
@@ -111,7 +115,7 @@ export function poolsForEpoch(epoch) {
       const c = list[Math.floor(r() * list.length)];
       const prev = seq[seq.length - 1];
       if (!seq.length && !out.every((p) => Math.hypot(p.x - c.x, p.z - c.z) > 16) && tries < 60) continue;
-      if (prev && Math.hypot(prev.x - c.x, prev.z - c.z) < 10 && tries < 60) continue;
+      if (prev && Math.hypot(prev.x - c.x, prev.z - c.z) < 14 && tries < 60) continue; // (v1.14.6: the next school gathers well away from the last)
       seq.push({ x: c.x, z: c.z });
       wantGated = r() < 0.1;
     }

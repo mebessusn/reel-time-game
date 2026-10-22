@@ -25,7 +25,7 @@ import { RodHolders } from './rodholders.js';
 import { Treasure } from './treasure.js';
 import { updateCulling } from '../render/cull.js';
 import { updateShadowCasters } from '../render/shadowcull.js';
-import { SwirlField, swirlAt, setSwirlUsage, noteSwirlCatch, swirlCatchesLeft } from '../world/swirls.js';
+import { SwirlField, swirlAt, setSwirlUsage, noteSwirlCatch, swirlCatchesLeft, SWIRL_MS } from '../world/swirls.js';
 import { caveCamFit } from '../world/cave.js';
 import { Bikes } from './bikes.js';
 import { Buzz } from './buzz.js';
@@ -81,7 +81,7 @@ export class Game {
     this.swirls = new SwirlField(this.engine.scene, this.fx);
     this.swirls.water = this.engine.water;
     this.engine.camFit = caveCamFit; // the camera stays inside the cavern
-    this.swirls.onSpent = (at) => { if (Math.hypot(at.x - this.player.pos.x, at.z - this.player.pos.z) < 40) this.chat?.system('That school of fish scattered. A new one will gather on this water in about a minute.', 'swirl'); };
+    this.swirls.onSpent = (at) => { if (Math.hypot(at.x - this.player.pos.x, at.z - this.player.pos.z) < 40) this.chat?.system('That school of fish scattered. A new one will gather on this water in about half a minute.', 'swirl'); };
     this.swirls.onChange = () => this.chat?.system('The fish moved. New feeding schools are churning up open water. Row out and cast into one for rare fish!', 'swirl', { popup: true });
     this.ambient = new AmbientFish(this.engine.scene);
     this.trophies = new Trophies(this);
@@ -222,16 +222,7 @@ export class Game {
     this.engine.start((dt, t) => this.update(dt, t));
     // feeding-school cast counts, shared by everyone: one doc per pool per angler
     this.swirlMine = new Map();
-    this.shared.watch?.('swirls', (docs) => {
-      const m = new Map(), times = new Map();
-      for (const d of docs) if (typeof d.pool === 'string' && d.pool.length < 40) {
-        m.set(d.pool, (m.get(d.pool) || 0) + Math.max(0, Math.min(50, Math.floor(Number(d.n) || 0))));
-        const at = Math.min(Date.now() + 5000, Number(d.at) || 0);
-        if (at) times.set(d.pool, Math.max(times.get(d.pool) || 0, at));
-      }
-      for (const [k, v] of this.swirlMine) m.set(k, Math.max(m.get(k) || 0, v));
-      setSwirlUsage(m, times);
-    }, { limit: 400 });
+    this.watchSchools();
     this.tackle.init();
     this.gear.init();
     this.quests.init();
@@ -615,6 +606,7 @@ export class Game {
     }
     // Feeding schools + ambient fish
     const L = this.engine.water.uniforms.uLight.value;
+    this.watchSchools(); // (a new period of schools: watch its counts)
     this.swirls.update(t, (L.r + L.g + L.b) / 3, dt);
     const scare = [];
     const bs = this.fishing.bobber;
@@ -878,12 +870,35 @@ export class Game {
   }
 
   /** A fish landed out of a feeding school: one of its catches is used (shared with everyone). */
+  /** Feeding-school catch counts, shared by everyone: one doc per pool per angler. v1.14.6: only this period's docs
+   *  (field `ep`), re-subscribed when the schools move. The old watch read up to 400 docs of a collection that only
+   *  grows, in no order, so once a lake had more than that, anglers could count a school differently (one saw it
+   *  scatter and move while a friend still saw it). */
+  watchSchools() {
+    const ep = Math.floor(Date.now() / SWIRL_MS);
+    if (this.schoolEp === ep) return;
+    this.schoolEp = ep;
+    this.schoolUnsub?.();
+    const take = (docs) => {
+      const m = new Map(), times = new Map();
+      for (const d of docs) if (typeof d.pool === 'string' && d.pool.length < 40 && d.pool.startsWith(`${ep}:`)) {
+        m.set(d.pool, (m.get(d.pool) || 0) + Math.max(0, Math.min(50, Math.floor(Number(d.n) || 0))));
+        const at = Math.min(Date.now() + 5000, Number(d.at) || 0);
+        if (at) times.set(d.pool, Math.max(times.get(d.pool) || 0, at));
+      }
+      for (const [k, v] of this.swirlMine) if (k.startsWith(`${ep}:`)) m.set(k, Math.max(m.get(k) || 0, v));
+      setSwirlUsage(m, times);
+    };
+    this.schoolUnsub = this.shared.watchWhere ? this.shared.watchWhere('swirls', 'ep', ep, take, { limit: 200 }) : this.shared.watch?.('swirls', take, { limit: 400 });
+    for (const k of this.swirlMine.keys()) if (!k.startsWith(`${ep}:`)) this.swirlMine.delete(k);
+  }
+
   schoolCatch(sw) {
     noteSwirlCatch(sw.id);
     const mine = (this.swirlMine.get(sw.id) || 0) + 1;
     this.swirlMine.set(sw.id, mine);
     const uid = String(this.save.userId || 'me').replace(/[^A-Za-z0-9_-]/g, '').slice(0, 40);
-    this.shared.set?.('swirls', `${sw.id.replace(/:/g, '-')}-${uid}`, { pool: sw.id, n: mine, at: Date.now() }).catch?.(() => {});
+    this.shared.set?.('swirls', `${sw.id.replace(/:/g, '-')}-${uid}`, { pool: sw.id, ep: Number(sw.id.split(':')[0]), n: mine, at: Date.now() }).catch?.(() => {});
     const left = swirlCatchesLeft(sw);
     this.ui.toast(left > 0 ? `Feeding school: ${left} more fish before it scatters.` : 'That was the last fish in that school. It\'s scattering.', { icon: 'waves', ms: 2600 });
   }

@@ -172,7 +172,7 @@ await t('swirling pools boost rare odds and sit beyond cast range of land', asyn
   const { poolsForEpoch, swirlAt, SWIRL_MS } = await import('../src/world/swirls.js');
   const { heightAt, onDock, HALF, zoneAt } = await import('../src/world/terrain.js');
   // v1.8.2: the small waters (quarry, pond) are too narrow for 20; their schools keep a smaller margin
-  const margin = (p) => ({ quarry: 6, pond: 10 })[zoneAt(p.x, p.z)] ?? 20;
+  const margin = (p) => ({ quarry: 6, pond: 10, frost: 20, marsh: 20 })[zoneAt(p.x, p.z)] ?? 11; // (v1.14.6: the Cove keeps 12 m)
   const { LIGHTHOUSE_ISLE } = await import('../src/world/terrain.js');
   const islet = (x, z) => Math.hypot(x - LIGHTHOUSE_ISLE.x, z - LIGHTHOUSE_ISLE.z) < 14; // (boat-only: pools keep 17 off it instead)
   const lakes = new Set();
@@ -192,6 +192,14 @@ await t('swirling pools boost rare odds and sit beyond cast range of land', asyn
   }
   // v1.14.5: every lake gets its schools (Cozy Cove lost them when the lighthouse islet moved in)
   for (const lake of ['cove', 'frost', 'marsh', 'pond', 'quarry']) assert.ok(lakes.has(lake), `${lake} has feeding schools`);
+  // v1.14.6: and the Cove's schools move around (they had nearly all gathered on one spot)
+  const cells = new Map(); let n = 0;
+  for (let e = 2000; e < 2200; e++) for (const p of poolsForEpoch(e)) {
+    const zn = zoneAt(p.x, p.z); if (['frost', 'marsh', 'pond', 'quarry'].includes(zn)) continue;
+    n++; const k = `${Math.round(p.x / 4)},${Math.round(p.z / 4)}`; cells.set(k, (cells.get(k) || 0) + 1);
+  }
+  assert.ok(cells.size >= 30, `Cove schools use ${cells.size} spots`);
+  assert.ok(Math.max(...cells.values()) / n < 0.12, `no Cove spot gets more than 12% of schools (${Math.max(...cells.values())}/${n})`);
 });
 
 await t('lake legends ranks rarity first, then weight, and rejects junk data', async () => {

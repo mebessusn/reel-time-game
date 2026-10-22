@@ -13,6 +13,9 @@ export class Shared {
     this.db = null;
     this.kind = 'local';
     try { this.bc = new BroadcastChannel('rt_shared'); this.bc.onmessage = (e) => this.localNotify(e.data?.name); } catch { this.bc = null; }
+    // v1.14.6: the other tab's localStorage write can land after its BroadcastChannel ping, so a re-read on the ping can
+    // see the old data and miss the change. The storage event only fires once the new value is there.
+    try { window.addEventListener('storage', (e) => { if (e.key?.startsWith('rt_shared_')) this.localNotify(e.key.slice(10)); }); } catch { /* no window (tests) */ }
     this.watchers = new Map(); // name -> Set(fn)
   }
 

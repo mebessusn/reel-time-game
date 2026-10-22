@@ -13,6 +13,17 @@ export const CHANGE_KINDS = {
 
 export const CHANGELOG = [
   {
+    version: 'v1.14.6', date: 'Oct 22 2026', title: 'Schools on the Move',
+    changes: {
+      fix: [
+        'Cozy Cove\'s feeding schools move around the whole Cove again. Since the lighthouse island moved in, nearly every school had gathered on the same spot.',
+        'Feeding schools no longer vanish for one angler while a friend still sees them: everyone counts each school\'s catches the same way. On a busy lake, older records could crowd out the current ones.',
+        'When a school is fished out, the next one gathers in about half a minute (it was a minute), well away from the last.',
+        'Rosie no longer stands in the middle of Cozy Cove behind the title screen: she\'s behind her bike shop counter from the start.',
+      ],
+    },
+  },
+  {
     version: 'v1.14.5', date: 'Oct 20 2026', title: 'Schools Are Back',
     changes: {
       fix: [
