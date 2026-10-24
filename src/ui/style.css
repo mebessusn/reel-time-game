@@ -645,6 +645,19 @@ textarea.bottle-input { width: 100%; font: inherit; font-size: var(--t-s); paddi
 .tut-step { margin-left: auto; color: var(--ink-500); font-family: var(--font-pixel); font-weight: 400; font-size: 10px; }
 .tut-text { margin: 8px 0; line-height: 1.5; font-size: var(--t-m); font-weight: 700; }
 .tut-actions { display: flex; justify-content: flex-end; }
+/* v1.14.10 the tour: a welcome card, progress dots, and a glow on the button a step is about */
+.tut-welcome { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(420px, calc(100vw - 32px)); padding: 22px 22px 18px; border-radius: var(--r-lg); z-index: 40; text-align: center; animation: tipIn 0.3s var(--ease); zoom: var(--ui-scale, 1); }
+.tut-welcome h2 { margin: 6px 0 8px; font-family: var(--font-head); }
+.tut-welcome p { margin: 0 0 16px; line-height: 1.5; font-weight: 600; }
+.tut-w-badge { width: 56px; height: 56px; margin: 0 auto; border-radius: 50%; display: grid; place-items: center; background: var(--lake-100, #d8eef0); color: var(--lake-600); }
+.tut-w-badge .ico { width: 30px; height: 30px; }
+.tut-w-acts { display: flex; flex-direction: column; gap: 8px; align-items: stretch; }
+.tut-dots { display: flex; gap: 5px; margin: 0 0 8px; }
+.tut-dots span { width: 7px; height: 7px; border-radius: 50%; background: var(--birch-200, #ddd); }
+.tut-dots span.done { background: var(--lake-600); }
+.tut-dots span.on { background: var(--brass, #e9b949); box-shadow: 0 0 0 2px rgba(233, 185, 73, .35); }
+.hotbar .tut-glow { position: relative; animation: tutGlow 1.2s ease-in-out infinite; z-index: 2; }
+@keyframes tutGlow { 0%, 100% { box-shadow: 0 0 0 2px #ffd46a, 0 0 8px 2px rgba(255, 212, 106, .6); } 50% { box-shadow: 0 0 0 4px #ffd46a, 0 0 18px 6px rgba(255, 212, 106, .85); } }
 
 /* ---------- sound captions ---------- */
 .captions { position: absolute; left: 12px; bottom: 100px; display: flex; flex-direction: column; gap: 3px; pointer-events: none; z-index: 11; }
@@ -1501,3 +1514,11 @@ body.in-home .plate-layer, body.in-home .feed, body.in-home .chat-peek, body.in-
 .vj-page { padding: 16px 18px; border-radius: var(--r); line-height: 1.6; font-size: var(--t-s); }
 .vj-page h3 { margin: 0 0 8px; font-family: var(--font-display, inherit); }
 .vj-page small { display: block; text-align: right; margin-top: 10px; font-style: italic; opacity: .7; }
+
+/* v1.14.10 the Field Guide's polaroid: slides in, develops from white, slides away */
+.snap-print { position: absolute; right: 24px; bottom: calc(110px + var(--safe-b, 0px)); width: min(250px, 42vw); z-index: 30; background: #f7f3ea; padding: 0; border-radius: 4px; box-shadow: 0 12px 30px rgba(0, 0, 0, .35); transform: translateX(140%) rotate(8deg); transition: transform .45s var(--ease, ease); pointer-events: none; zoom: var(--ui-scale, 1); overflow: hidden; }
+.snap-print img { display: block; width: 100%; }
+.snap-print.in { transform: translateX(0) rotate(-3deg); }
+.snap-print.out { transform: translateX(140%) rotate(8deg); }
+.snap-dev { position: absolute; left: 5.5%; top: 4%; width: 89%; height: 70%; background: #fdfbf5; animation: snapDev 1.8s ease-out forwards; }
+@keyframes snapDev { from { opacity: 1; } to { opacity: 0; } }

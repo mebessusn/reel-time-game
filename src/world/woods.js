@@ -87,9 +87,10 @@ export function bakeLoose(group, keep = () => false) {
   const inv = new THREE.Matrix4().copy(group.matrixWorld).invert(), buckets = new Map(), out = new THREE.Group();
   group.traverse((o) => {
     if (!o.isMesh) return;
-    if (keep(o)) { const c = o.clone(); c.applyMatrix4(new THREE.Matrix4().multiplyMatrices(inv, o.matrixWorld)); out.add(c); return; }
+    if (keep(o)) { const c = o.clone(); new THREE.Matrix4().multiplyMatrices(inv, o.matrixWorld).decompose(c.position, c.quaternion, c.scale); out.add(c); return; } // (v1.14.10: was applied on top of its own transform)
     const g = o.geometry.clone();
     for (const k of Object.keys(g.attributes)) if (k !== 'position' && k !== 'normal') g.deleteAttribute(k);
+    if (g.attributes.normal && !(g.attributes.normal.array instanceof Float32Array)) { const n = g.attributes.normal, f = new Float32Array(n.count * 3); for (let i = 0; i < n.count; i++) { f[i * 3] = n.getX(i); f[i * 3 + 1] = n.getY(i); f[i * 3 + 2] = n.getZ(i); } g.setAttribute('normal', new THREE.BufferAttribute(f, 3)); } // (packed Blender meshes)
     if (!g.index) { const n = g.attributes.position.count; g.setIndex([...Array(n).keys()]); }
     g.applyMatrix4(new THREE.Matrix4().multiplyMatrices(inv, o.matrixWorld));
     if (!buckets.has(o.material)) buckets.set(o.material, []);

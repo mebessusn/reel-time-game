@@ -100,6 +100,25 @@ export class Actor {
   }
 
   // v1.8.1: a shovel in both hands while digging for treasure
+  /** v1.14.10: a little instant camera in your hands (the Field Guide's photo pose). Its lens faces the way the hand
+   *  points (the hand's -y), so with the arm raised it looks where you look. */
+  showCamera(on) {
+    if (!this.avatar?.rodHand) return;
+    if (on && !this.camProp) {
+      const g = new THREE.Group(), M = (c, e) => new THREE.MeshLambertMaterial({ color: c, emissive: e || '#000000' });
+      const body = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.09, 0.15), M('#f2ece0')); g.add(body);
+      const stripe = new THREE.Mesh(new THREE.BoxGeometry(0.202, 0.03, 0.03), M('#e8603a')); stripe.position.set(0, -0.046, 0.03); g.add(stripe);
+      const lens = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.05, 0.05, 12), M('#2a2e34')); lens.position.set(0.02, -0.065, 0); g.add(lens);
+      const glass = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.01, 12), M('#6ab0d8', '#204060')); glass.position.set(0.02, -0.092, 0); g.add(glass);
+      const flash = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.012, 0.03), M('#f8f8ff', '#808080')); flash.position.set(-0.06, -0.046, -0.045); g.add(flash);
+      g.position.set(-0.05, -0.02, 0.02);
+      this.camProp = g;
+    }
+    if (!this.camProp) return;
+    if (on && this.camProp.parent !== this.avatar.rodHand) this.avatar.rodHand.add(this.camProp);
+    this.camProp.visible = on;
+  }
+
   showShovel(on) {
     if (!this.avatar?.rodHand) return;
     if (on && !this.shovel) {
@@ -187,9 +206,10 @@ export class Actor {
       } else if (this.bikeObj) this.bikeObj.visible = false;
     }
     if (this.held && pose === 'idle') pose = 'hold';
-    const busyHands = ['wave', 'cheer', 'shrug', 'clap', 'dance', 'orange', 'run', 'sleep', 'hold', 'row', 'oars', 'dig', 'bike', 'yell', 'cry', 'roast', 'eat'].includes(pose);
+    const busyHands = ['photo', 'wave', 'cheer', 'shrug', 'clap', 'dance', 'orange', 'run', 'sleep', 'hold', 'row', 'oars', 'dig', 'bike', 'yell', 'cry', 'roast', 'eat'].includes(pose);
     this.placeRod(s.rod === 'back' || busyHands ? 'back' : 'hand');
     this.showShovel(pose === 'dig');
+    if (pose === 'photo' || this.camProp) this.showCamera(pose === 'photo');
     if (pose === 'dig' && this.pose !== 'dig') this.digT0 = t; // start each dig on the first stroke
     animateAvatar(this.avatar, pose, pose === 'dig' ? t - (this.digT0 || 0) : t, { power: s.power, k: s.castK, sitting: this.mode === 'boat' || !!s.seat, chair: s.seat && this.mode !== 'boat' ? this.chairBend : 0, crank: s.bike?.crank || 0, back: s.bike?.back || 0, steer: s.bike?.steer || 0 });
     // keep a hand-held rod pointing straight out even when the arm angles in for a two-handed grip

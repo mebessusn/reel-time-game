@@ -653,7 +653,7 @@ export class Game {
     this.fauna?.update(dt, t, pl.pos, this.engine.camera);
     this.skyNews(sky.wt);
     this.engine.cam.dist = (this.fishing.state === 'reeling' ? 9 : pl.mode === 'boat' ? 13 : 11.5);
-    if (this.dialogue.active) this.dialogue.updateCamera(dt);
+    if (this.dialogue.active || this.dialogue.hold) this.dialogue.updateCamera(dt) || this.engine.updateCamera(dt, focus); // (v1.14.10: hold covers the gap between two lines)
     else if (this.selfie.active) this.selfie.updateCamera(dt);
     else this.engine.updateCamera(dt, focus);
     this.audio.setScene({

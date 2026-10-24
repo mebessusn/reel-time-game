@@ -21,6 +21,12 @@ export class Waypoint {
     this.group.visible = false;
     game.engine.scene.add(this.group);
     this.mat = mat;
+    // v1.14.10: the tutorial's own beam (no HUD chip, never saved)
+    this.tut = this.group.clone(); this.tut.visible = false; game.engine.scene.add(this.tut);
+  }
+  tutorialBeam(at) {
+    this.tut.visible = !!at;
+    if (at) this.tut.position.set(at.x, Math.max(WATER_Y, heightAt(Math.floor(at.x), Math.floor(at.z))) + 0.05, at.z);
   }
 
   get wp() { return this.game.ext?.d?.waypoint || null; }
@@ -32,6 +38,7 @@ export class Waypoint {
   }
 
   update(dt, t) {
+    if (this.tut.visible) { this.mat.uniforms.uT.value = t; this.tut.children[1].scale.setScalar(1 + Math.sin(t * 3) * 0.08); }
     const wp = this.wp;
     if (!wp) { if (this.group.visible) this.group.visible = false; return null; }
     if (!this.group.visible) this.sync();

@@ -377,6 +377,13 @@ export function animateAvatar(av, state, t, extra = {}) {
       p.head.rotation.set(-0.12, back * 1.1 + st * 0.35, 0);
       break;
     }
+    case 'photo': {
+      // v1.14.10: an instant camera up at the eye, both hands on it; a little nod as the shutter goes
+      const nod = Math.max(0, Math.sin(t * 6)) * 0.03;
+      p.armR.rotation.set(-1.78 - nod, 0, -0.42); p.armL.rotation.set(-1.78 - nod, 0, 0.42);
+      p.head.rotation.x = 0.06; p.body.rotation.x = 0.04;
+      break;
+    }
     case 'hold':
       p.armL.rotation.x = -2.6; p.armR.rotation.x = -2.6; p.armL.rotation.z = 0.2; p.armR.rotation.z = -0.2;
       break;

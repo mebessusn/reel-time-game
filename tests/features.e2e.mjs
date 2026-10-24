@@ -64,8 +64,10 @@ try {
   log('tutorial greets a new angler');
   assert.ok(await ev(A, () => !!document.querySelector('.tutorial')));
   assert.match(await ev(A, () => document.querySelector('.tut-text').textContent), /Gus/);
-  await at(A, 0.5, 30);
+  await ev(A, () => { window.__game.engine.cam.yaw += 1; }); // v1.14.10: step 1 is looking around
   await A.waitForFunction(() => document.querySelector('.tut-step')?.textContent.startsWith('2/'), null, { timeout: 30000 });
+  await at(A, 0.5, 30); // then out onto the dock
+  await A.waitForFunction(() => document.querySelector('.tut-step')?.textContent.startsWith('3/'), null, { timeout: 30000 });
   await ev(A, () => document.querySelector('.tutorial .btn').click());
   assert.equal(await ev(A, () => window.__game.ext.d.tutorial.done), true);
 

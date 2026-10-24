@@ -74,7 +74,9 @@ try {
       lab = await act(A, 'Photograph');
     }
     ok(!!lab, `photographed a wild animal (${lab})`);
+    await A.waitForTimeout(1500); // (v1.14.10: the camera comes up to your eye first, then the shutter)
     ok(await ev(A, () => Object.keys(window.__game.woods.d.guide).length === 1), 'it\'s in the Field Guide');
+    ok(await ev(A, () => !!document.querySelector('.snap-print img')), 'and the polaroid shows on screen');
   }
 
   // ---------- Old Hollis: tea for three mint gives a hint

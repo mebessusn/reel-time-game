@@ -45,7 +45,10 @@ export class Dialogue {
     document.body.classList.add('in-dialogue');
     let resolve;
     const done = new Promise((r) => { resolve = r; });
-    this.active = { npc, el, body, btns, choices, resolve, text, t0: performance.now(), camFrom: g.engine.camera.position.clone(), lookFrom: g.engine.cam.target.clone(), k: 0 };
+    // v1.14.10: a reply that leads to more talk (a choice that opens the next line) keeps the shot: no easing back in
+    const held = this.hold && performance.now() < this.hold.until ? this.hold : null;
+    this.hold = null;
+    this.active = { npc, el, body, btns, choices, resolve, text, t0: performance.now(), camFrom: held ? held.pos.clone() : g.engine.camera.position.clone(), lookFrom: held ? held.look.clone() : g.engine.cam.target.clone(), k: held ? 1 : 0 };
     this.typed = false;
     // type the words out, a few letters at a time
     let n = 0;
@@ -80,7 +83,9 @@ export class Dialogue {
     setTimeout(() => a.el.remove(), 180);
     document.body.classList.remove('in-dialogue');
     this.game.audio.sfx('close');
-    this.game.engine.cam.yaw = this.restoreYaw ?? this.game.engine.cam.yaw;
+    // hold the shot for a moment: if the choice opens another line, the camera stays put (see open)
+    if (choice && a.lookNow) this.hold = { pos: this.game.engine.camera.position.clone(), look: a.lookNow.clone(), until: performance.now() + 700 };
+    else this.game.engine.cam.yaw = this.restoreYaw ?? this.game.engine.cam.yaw;
     a.resolve(choice || null);
     if (choice?.fn) choice.fn();
   }
@@ -88,6 +93,10 @@ export class Dialogue {
   /** The cutscene camera: over your shoulder, framing the local's face. */
   updateCamera(dt) {
     const a = this.active, g = this.game, cam = g.engine.camera;
+    if (!a && this.hold) {
+      if (performance.now() < this.hold.until) { cam.position.copy(this.hold.pos); cam.lookAt(this.hold.look); return true; }
+      this.hold = null; g.engine.cam.yaw = this.restoreYaw ?? g.engine.cam.yaw; // (nothing followed: back to normal)
+    }
     if (!a) return false;
     const p = g.player.pos, head = a.npc.actor.headWorld(tmp.clone());
     const dx = head.x - p.x, dz = head.z - p.z, d = Math.hypot(dx, dz) || 1, ux = dx / d, uz = dz / d;
@@ -97,7 +106,8 @@ export class Dialogue {
     const e = a.k * a.k * (3 - 2 * a.k);
     cam.position.lerpVectors(a.camFrom, want, e);
     const look = new THREE.Vector3(head.x - ux * 0.3, head.y - 0.25, head.z - uz * 0.3);
-    cam.lookAt(new THREE.Vector3().lerpVectors(a.lookFrom, look, e));
+    a.lookNow = new THREE.Vector3().lerpVectors(a.lookFrom, look, e);
+    cam.lookAt(a.lookNow);
     this.restoreYaw = Math.atan2(-ux, -uz);
     return true;
   }

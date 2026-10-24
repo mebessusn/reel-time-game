@@ -13,6 +13,23 @@ export const CHANGE_KINDS = {
 
 export const CHANGELOG = [
   {
+    version: 'v1.14.10', date: 'Oct 24 2026', title: 'Say Cheese',
+    changes: {
+      new: [
+        'A proper welcome: on a new game Gus offers to show you around (about three minutes), or you can skip it. Ten short steps, from looking around and your first fish to your backpack, the map and your journal. The button each step talks about glows, and a beam of light shows you where his dock is. Replay it any time from the Menu.',
+        'Photographing wildlife for the Field Guide: you raise a little instant camera to your eye, the shutter clicks, and a polaroid of what you shot slides onto the screen as it develops. It goes into your photo album too.',
+      ],
+      world: [
+        'Camps got a lot nicer: a canvas A-frame tent that billows between its poles, with guy ropes, stakes, the door tied back, a bedroll inside and a lantern out front; a fire ring of stones with a log teepee, embers, smoke and a pot on a tripod; two camp chairs, a woodpile with an axe in the block, a cooler and a pack.',
+        'Seafoam: white water laps along every shore, a bright line where the water meets the sand with lacy foam rolling in toward it.',
+      ],
+      fix: [
+        'Picking a reply in a conversation no longer swings the camera away and back: it stays on whoever you\'re talking to until the conversation ends.',
+        'A camp\'s fire no longer sits off to one side of its stones, and its glow is soft by day and warm at night.',
+      ],
+    },
+  },
+  {
     version: 'v1.14.9', date: 'Oct 24 2026', title: 'The Wild Woods',
     changes: {
       new: [

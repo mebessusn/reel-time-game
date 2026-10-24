@@ -114,6 +114,7 @@ export class Menus {
       item('Friends & party', 'users', () => { this.close(); g.ui.sheets.open('social'); }),
       item('Play with friends (invites)', 'link', () => { this.close(); this.friends(); }),
       item('How to play', 'help', () => { this.close(); g.ui.sheets.state.settingsTab = 'controls'; g.ui.sheets.open('settings'); }),
+      item('Replay the tutorial', 'bell', () => { this.close(); g.tutorial.replay(); }), // v1.14.10
       item('Photo album', 'camera', () => { this.close(); g.ui.sheets.open('album'); }),
       item('Changelog', 'history', () => { this.close(); this.changelog(); }),
       item('Send feedback', 'chat', () => { this.close(); import('../game/reports.js').then((m) => m.openFeedback(g)); }),

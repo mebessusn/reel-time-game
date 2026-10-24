@@ -152,9 +152,14 @@ export function buildWater() {
         float sk = smoothstep(0.25, 1.1, uWind) * calm;
         col += vec3(0.06, 0.09, 0.1) * smoothstep(0.2, 1.0, vSwell) * sk;   // crests lighter
         col -= vec3(0.05, 0.06, 0.05) * smoothstep(-0.2, -1.0, vSwell) * sk; // troughs darker
-        // shore foam
-        float foam = smoothstep(0.05, 0.0, depth) * (0.55 + 0.45 * sin(dot(q, vec2(3.1, 2.3)) + uTime * 1.6));
-        col = mix(col, vec3(0.95), foam * 0.6);
+        // v1.14.10 seafoam: a bright line where the water meets the shore, and lacy bands that roll in toward it
+        float mDeep = max(0.0, depth * 12.0 - 0.15); // metres of water under this point
+        float lace = fbm(q * 2.4 + vec2(uTime * 0.18, -uTime * 0.11));
+        float edge = smoothstep(0.38, 0.02, mDeep + (lace - 0.5) * 0.25);
+        float roll = smoothstep(0.6, 0.95, sin(mDeep * 5.5 - uTime * 1.7 + lace * 2.6)) * smoothstep(1.7, 0.25, mDeep);
+        float foam = clamp(edge * 0.95 + roll * smoothstep(0.42, 0.68, lace) * 0.85, 0.0, 1.0) * (1.0 - smoothstep(0.55, 0.9, dm.g));
+        foam *= 0.75 + 0.25 * sin(uTime * 2.1 + dot(q, vec2(0.7, 0.4))); // breathing as the water laps
+        col = mix(col, vec3(0.96, 0.985, 1.0), foam * 0.85);
         // sun (or moon) on the moving surface: soft sheen plus sharp sparkles along the path
         vec3 R = reflect(-V, N);
         float spec = pow(max(dot(R, L), 0.0), 140.0);
@@ -190,6 +195,7 @@ export function buildWater() {
         float alpha = mix(0.34, 0.86, smoothstep(0.0, 0.55, depth));
         alpha = mix(alpha, 0.94, fres * 0.7);
         col = mix(col, uSkyTint * uLight * 1.08, fres * 0.45);
+        alpha = max(alpha, foam * 0.92); // (foam is white water, not see-through)
         alpha *= 1.0 - smoothstep(0.3, 0.9, dm.g);
         gl_FragColor = vec4(col, alpha);
         #include <fog_fragment>

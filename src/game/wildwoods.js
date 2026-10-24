@@ -18,7 +18,10 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { WOODS, buildWoods, cullWoods, campable, RING_GLOW, wmat, bakeLoose } from '../world/woods.js';
-import { POOLS, CREEKS, HALF, groundY, surfaceY, isWater, trailDist, heightAt, grassAt, WATER_Y, zoneAt, CLEARINGS, LAKES } from '../world/terrain.js';
+import { POOLS, CREEKS, HALF, groundY, surfaceY, isWater, trailDist, heightAt, grassAt, WATER_Y, zoneAt, CLEARINGS, LAKES, regionName } from '../world/terrain.js';
+import { shoot } from '../ui/polaroid.js';
+import { buildNode } from '../entities/meshNodes.js';
+import { CAMP_MATS, CAMP_NODES } from '../data/campMesh.js';
 import { addCircle } from '../world/colliders.js';
 import { PLACES } from './places.js';
 import { FORAGE, PANTRY, STEW, GUIDE, GUIDE_SETS, GUIDE_ALL, PAGES, PAGES_ALL, SECRET_WATERS, RANGER_TASKS, WAGON_HOURS, WAGON_DISCOUNT, RHEA, HOLLIS, WREN, RHEA_LOOK, HOLLIS_LOOK, WREN_LOOK } from '../data/woodsdata.js';
@@ -328,6 +331,9 @@ export class WildWoods {
       b.visible = true;
     } else for (const b of this.beavers) b.visible = false;
     for (const c of this.camps.values()) for (const [k, f] of (c.group.userData.flames || []).entries()) f.scale.set(1, 0.85 + Math.sin(t * (9 + k * 4) + k) * 0.15 + Math.sin(t * 23) * 0.05, 1);
+    { const night = g.engine.sky.night || 0; for (const c of this.camps.values()) { const gl = c.group.userData.glow; if (gl) gl.material.opacity = 0.06 + night * 0.26; } } // (v1.14.10: the fire's glow shows after dark)
+    // v1.14.10: embers and a wisp of smoke off camps you're near
+    for (const c of this.camps.values()) { const F = c.group.userData.fire; if (!F || Math.abs(F.x - p.x) > 30 || Math.abs(F.z - p.z) > 30) continue; const y = c.group.position.y; if (Math.random() < dt * 3) this.game.fx.ember({ x: F.x, y: y + 0.5, z: F.z }); if (Math.random() < dt * 1.5) this.game.fx.smoke({ x: F.x, y: y + 0.8, z: F.z }); }
     for (const o of this.owls) if (o.visible) o.userData.head.rotation.y = Math.sin(t * 0.4 + o.position.x) * 1.1;
     for (const bg of this.bees) {
       bg.visible = Math.hypot(bg.position.x - p.x, bg.position.z - p.z) < 40 && !this.isNight();
@@ -473,8 +479,27 @@ export class WildWoods {
   }
   photograph(w) {
     const g = this.game, e = GUIDE.find((x) => x.id === w.kind);
-    const flash = document.createElement('div'); flash.className = 'woods-flash'; g.ui.root.append(flash); setTimeout(() => flash.remove(), 500);
-    g.audio.sfx('shutter');
+    if (this.shooting) return;
+    // v1.14.10: you turn to it and raise the camera to your eye; a moment later the shutter goes and the polaroid
+    // slides onto the screen (and into your photo album)
+    const pl = g.player, at = w.obj.getWorldPosition(new THREE.Vector3());
+    pl.target = null; pl.yaw = Math.atan2(at.x - pl.pos.x, at.z - pl.pos.z);
+    g.myEmote = { id: 'photo', left: 1.7 }; g.netEvent?.('emote', { id: 'photo' });
+    this.shooting = true;
+    setTimeout(() => {
+      this.shooting = false;
+      const now = w.obj.getWorldPosition(new THREE.Vector3()), eye = g.actor.headWorld(new THREE.Vector3());
+      const dx = now.x - eye.x, dz = now.z - eye.z, d = Math.hypot(dx, dz) || 1;
+      eye.x += dx / d * 0.45; eye.z += dz / d * 0.45; eye.y += 0.05;
+      now.y += 0.25;
+      const flash = document.createElement('div'); flash.className = 'woods-flash'; g.ui.root.append(flash); setTimeout(() => flash.remove(), 500);
+      g.audio.sfx('shutter');
+      try { shoot(g, eye, now, `${g.profile.name}'s ${e.name.replace(/^./, (c) => c.toLowerCase())}`, `${regionName(pl.pos.x, pl.pos.z) || 'The woods'}  ·  ${new Date().toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}`); } catch (err) { console.error(err); }
+      this.logPhoto(w, e);
+    }, 650);
+  }
+  logPhoto(w, e) {
+    const g = this.game;
     this.change((d) => { d.guide[w.kind] = Date.now(); d.ranger.have.photo = (d.ranger.have.photo || 0) + 1; });
     g.ui.toast(`${e.name}: in your Field Guide (${Object.keys(this.d.guide).length}/${GUIDE.length}).`, { icon: 'camera', title: 'Snap!', ms: 3200 });
     g.reward('woods', `photo-${w.kind}`, { coins: 60, xp: 50 }, 'Field Guide');
@@ -722,22 +747,30 @@ export class WildWoods {
 
 export function fmtTime(s) { const m = Math.floor(s / 60); return `${m}:${(s - m * 60).toFixed(1).padStart(4, '0')}`; }
 
-/** A tent and a campfire. */
+/** A camp (v1.14.10: Blender-built, art/src/camp.py): the tent, a fire ring with a tripod and pot, two chairs by the
+ *  fire, a woodpile with a chopping block, a cooler and a pack. The flames flicker (the game's own); no real light. */
 function buildCamp(c) {
   const g = new THREE.Group();
   const y = groundY(c.x, c.z) ?? surfaceY(c.x, c.z);
   g.position.set(c.x, y, c.z); g.rotation.y = c.yaw;
-  const canvas = wmat('#d8763a'), canvasD = wmat('#b85e2a'), stone = wmat('#8a857a'), log = wmat('#6a4a2e'), flame = new THREE.MeshBasicMaterial({ color: '#ffb040' }), flame2 = new THREE.MeshBasicMaterial({ color: '#ff6a20' });
-  const tent = new THREE.Mesh(new THREE.ConeGeometry(1.3, 1.6, 4), canvas); tent.position.set(-1.6, 0.8, -0.4); tent.rotation.y = Math.PI / 4; g.add(tent);
-  const door = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.8, 0.04), canvasD); door.position.set(-1.6 + 0.62, 0.4, -0.4 + 0.62); door.rotation.y = Math.PI / 4; g.add(door);
-  for (let k = 0; k < 7; k++) { const a = (k / 7) * Math.PI * 2, s = new THREE.Mesh(new THREE.DodecahedronGeometry(0.16, 0), stone); s.position.set(1.0 + Math.cos(a) * 0.5, 0.08, Math.sin(a) * 0.5); g.add(s); }
-  for (const a of [0.4, 1.9, 3.4]) { const l = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.07, 0.7, 5), log); l.position.set(1.0, 0.15, 0); l.rotation.set(0.35, a, Math.PI / 2 - 0.4); g.add(l); }
-  const f1 = new THREE.Mesh(new THREE.ConeGeometry(0.22, 0.6, 5), flame); f1.position.set(1.0, 0.4, 0); g.add(f1);
-  const f2 = new THREE.Mesh(new THREE.ConeGeometry(0.13, 0.4, 5), flame2); f2.position.set(1.05, 0.5, 0.05); g.add(f2);
-  const glow = new THREE.Mesh(new THREE.CircleGeometry(1.4, 12), new THREE.MeshBasicMaterial({ color: '#ffb060', transparent: true, opacity: 0.25, depthWrite: false, blending: THREE.AdditiveBlending })); glow.rotation.x = -Math.PI / 2; glow.position.set(1.0, 0.04, 0); g.add(glow); // (no real light: a light per camp would cost every material a recompile)
-  const baked = bakeLoose(g, (o) => o === f1 || o === f2 || o === glow);
+  const put = (name, x, z, ry = 0) => { const n = buildNode(CAMP_MATS, CAMP_NODES, name, { shadow: true }); n.position.set(x, 0, z); n.rotation.y = ry; g.add(n); return n; };
+  const FX = 1.1; // the fire, in front of the tent and to one side
+  put('camp_tent', -1.5, -0.7, Math.atan2(FX + 1.5, 0.7) * 0.5 + 0.25);
+  put('camp_fire', FX, 0, 0.4);
+  put('camp_chair', FX - 1.25, 0.95, Math.atan2(1.25, -0.95));
+  put('camp_chair_red', FX + 1.2, 0.85, Math.atan2(-1.2, -0.85));
+  put('camp_woodpile', -0.2, -2.1, 0.2);
+  put('camp_cooler', -2.9, 0.9, 0.9);
+  const flame = new THREE.MeshBasicMaterial({ color: '#ffb040' }), flame2 = new THREE.MeshBasicMaterial({ color: '#ff6a20' }), flame3 = new THREE.MeshBasicMaterial({ color: '#fff0a0' });
+  const f1 = new THREE.Mesh(new THREE.ConeGeometry(0.2, 0.55, 6), flame); f1.position.set(FX, 0.36, 0); g.add(f1);
+  const f2 = new THREE.Mesh(new THREE.ConeGeometry(0.12, 0.4, 5), flame2); f2.position.set(FX + 0.07, 0.42, 0.06); g.add(f2);
+  const f3 = new THREE.Mesh(new THREE.ConeGeometry(0.08, 0.3, 5), flame3); f3.position.set(FX - 0.05, 0.3, -0.04); g.add(f3);
+  const glow = new THREE.Mesh(new THREE.CircleGeometry(1.7, 16), new THREE.MeshBasicMaterial({ color: '#ffb060', transparent: true, opacity: 0.25, depthWrite: false, blending: THREE.AdditiveBlending })); glow.rotation.x = -Math.PI / 2; glow.position.set(FX, 0.04, 0); g.add(glow); // (no real light: a light per camp would cost every material a recompile)
+  const live = new Set([f1, f2, f3, glow]);
+  const baked = bakeLoose(g, (o) => live.has(o));
   baked.position.copy(g.position); baked.rotation.copy(g.rotation);
-  baked.userData.flames = baked.children.filter((o) => o.material === flame || o.material === flame2);
-  baked.userData.fire = { x: c.x + Math.cos(c.yaw) * 1.0, z: c.z - Math.sin(c.yaw) * 1.0 };
+  baked.userData.flames = baked.children.filter((o) => o.material === flame || o.material === flame2 || o.material === flame3);
+  baked.userData.glow = baked.children.find((o) => o.geometry?.type === 'CircleGeometry');
+  baked.userData.fire = { x: c.x + Math.cos(c.yaw) * FX, z: c.z - Math.sin(c.yaw) * FX };
   return baked;
 }
