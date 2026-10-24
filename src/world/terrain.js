@@ -59,6 +59,18 @@ export function caveTunnelAt(x, z) {
   const vx = bx - ax, vz = bz - az, t = ((x - ax) * vx + (z - az) * vz) / (vx * vx + vz * vz);
   return { t, d: Math.hypot(x - (ax + vx * t), z - (az + vz * t)) };
 }
+// v1.14.9 The Wild Woods: four hidden pools tucked into the woods off the trails, and two wadeable creeks with riffles
+// (fly fishing) running out of two of them into the waterways. Each pool is its own fishing zone; the creeks are 'creek'.
+export const POOLS = {
+  moonwell: { name: 'Moonwell', cx: -185, cz: -20, rx: 9, rz: 7, noise: 1 },
+  foxhollow: { name: 'Fox Hollow', cx: 160, cz: 10, rx: 10, rz: 8, noise: 1.2 },
+  mirrortarn: { name: 'Mirror Tarn', cx: -38, cz: -142, rx: 11, rz: 8, noise: 1 },
+  lantern: { name: 'Lantern Spring', cx: -30, cz: 150, rx: 8, rz: 7.5, noise: 0.8 },
+};
+export const CREEKS = {
+  tarnrun: { name: 'Tarn Run', w: 1.25, pts: [[-46, -136], [-58, -128], [-70, -122], [-82, -113], [-94, -108], [-104, -104], [-111, -104]] },
+  hollowbrook: { name: 'Hollow Brook', w: 1.25, pts: [[152, 16], [146, 24], [140, 28], [134, 35], [128, 38], [124, 42]] },
+};
 const MARSH_ISLES = [[88, 180, 9], [184, 140, 8], [120, 196, 6]];
 
 // Trails between the lakes (flattened, dirt-topped). Signposts stand at their first points.
@@ -78,6 +90,8 @@ export const TRAILS = {
   lodge: { to: 'LODGE', pts: scTrail([[-48, -22], [-30, -48], [-10, -58], [0, -70], [0, -86]]) },
   quarry: { to: 'QUARRY', pts: scTrail([[10, 41], [26, 31], [40, 19], [44, 15], [44, 3], [47, -6], [56, -24], [64, -46], [72, -62]]) },
   marsh: { to: 'LILYMARSH', pts: scTrail([[9, 43], [22, 51], [32, 62], [34, 70]]) },
+  // v1.14.9: the Ridgeback Loop, a dirt bike trail round Lookout Mesa in the south woods, off the Lilymarsh trail
+  loop: { to: 'RIDGEBACK LOOP', pts: [[46, 108], [40, 120], [36, 131], ...Array.from({ length: 25 }, (_, i) => { const a = Math.PI * 0.5 + (i / 24) * Math.PI * 2; return [25 + Math.cos(a) * 27 + Math.sin(a * 3) * 3, 156 - Math.sin(a) * 25]; })] },
 };
 // Flattened clearings for the settlements
 const CL = (x, z, r, h) => { const [nx, nz] = sc(x, z); return { x: nx, z: nz, r: Math.round(r * 1.4), h }; };
@@ -89,6 +103,17 @@ export const CLEARINGS = {
   // v1.9.4: Sundae's Trailer Park east of Fern Pond, and Fernview Campground off its north shore (src/world/campers.js)
   park: { x: -100, z: 156, r: 13, h: 3 },
   fernview: { x: -170, z: 107, r: 10, h: 3 },
+  // v1.14.9 The Wild Woods (src/world/woods.js): the ranger's fire tower, the trapper's cabin, the crashed bush plane,
+  // Old Hollis's treehouse, and the five places Wren's wagon stops
+  tower: { x: -158, z: -45, r: 9, h: 3 },
+  trapper: { x: 118, z: -12, r: 8, h: 2 },
+  plane: { x: 182, z: 88, r: 10, h: 2 },
+  hollis: { x: -80, z: -190, r: 9, h: 3 },
+  wagon1: { x: -66, z: 32, r: 6, h: 2 },
+  wagon2: { x: 22, z: -128, r: 6, h: 2 },
+  wagon3: { x: 98, z: -32, r: 6, h: 2 },
+  wagon4: { x: 62, z: 104, r: 6, h: 2 },
+  wagon5: { x: -92, z: 120, r: 6, h: 2 },
 };
 // Hills and mountains: [x, z, radius, height]
 const BUMPS0 = [[-88, -102, 40, 12], [-110, -62, 32, 9], [-50, -108, 24, 7], [104, -104, 30, 9], [110, 20, 24, 5], [-110, 16, 26, 5],
@@ -127,9 +152,14 @@ const RIVER_LIST = Object.values(RIVERS);
 // v1.9.11: where the Echo Cavern spur leaves the Quarry Cut the channels meet at a sharp angle; a round pool
 // there gives a rowboat room to turn the corner, and its banks drop off steeply instead of shelving.
 const JUNCTIONS = [{ x: 50.5, z: -84, r: 8.5 }];
+for (const r of RIVER_LIST) { const xs = r.pts.map((p) => p[0]), zs = r.pts.map((p) => p[1]); r.box = [Math.min(...xs) - r.w - 1, Math.min(...zs) - r.w - 1, Math.max(...xs) + r.w + 1, Math.max(...zs) + r.w + 1]; }
 function riverAt(x, z) {
   let sd = 1e9, which = null;
-  for (const r of RIVER_LIST) { const d = polyDist(x, z, r.pts) - r.w - noise(x * 0.09, z * 0.09) * 0.6; if (d < sd) { sd = d; which = r; } }
+  for (const r of RIVER_LIST) {
+    const b = r.box, bx = Math.max(b[0] - x, 0, x - b[2]), bz = Math.max(b[1] - z, 0, z - b[3]);
+    if (Math.sqrt(bx * bx + bz * bz) - r.w - 0.6 >= sd) continue; // v1.14.9: this river can't be the nearest
+    const d = polyDist(x, z, r.pts) - r.w - noise(x * 0.09, z * 0.09) * 0.6; if (d < sd) { sd = d; which = r; }
+  }
   for (const j of JUNCTIONS) { const d = Math.hypot(x - j.x, z - j.z) - j.r; if (d < sd) { sd = d; which = RIVERS.cavespur; } }
   return { sd, which };
 }
@@ -144,15 +174,45 @@ function valleyWater(x, z) { // nearest of the valley lakes
   }
   return { zone, sd };
 }
+const POOL_LIST = Object.entries(POOLS), CREEK_LIST = Object.values(CREEKS);
+/** Signed distance to the nearest hidden pool (negative inside), and which. */
+function poolAt(x, z) {
+  let zone = null, sd = 1e9;
+  for (const [k, P] of POOL_LIST) {
+    if (Math.abs(x - P.cx) > P.rx + 30 || Math.abs(z - P.cz) > P.rz + 30) continue;
+    const d = ell(x, z, P);
+    if (d < sd) { sd = d; zone = k; }
+  }
+  return { zone, sd };
+}
+/** Signed distance to the nearest creek (negative inside), and which. */
+for (const c of CREEK_LIST) { const xs = c.pts.map((p) => p[0]), zs = c.pts.map((p) => p[1]); c.box = [Math.min(...xs) - 12, Math.min(...zs) - 12, Math.max(...xs) + 12, Math.max(...zs) + 12]; }
+function creekAt(x, z) {
+  let sd = 1e9, which = null;
+  for (const c of CREEK_LIST) {
+    if (x < c.box[0] || z < c.box[1] || x > c.box[2] || z > c.box[3]) continue; // (far from it: skip the maths)
+    const d = polyDist(x, z, c.pts) - c.w - noise(x * 0.13, z * 0.13) * 0.35;
+    if (d < sd) { sd = d; which = c; }
+  }
+  return { sd, which };
+}
+/** A creek's riffles and runs: shallow riffles you can wade, with a knee-deep run every dozen metres. */
+const creekRun = (x, z) => noise(x * 0.085 + 31, z * 0.085 - 17) > 0.35;
 const marshIsle = (x, z) => Math.min(...MARSH_ISLES.map(([cx, cz, r]) => Math.hypot(x - cx, z - cz) - r + fbm(x * 2, z * 2) * 1.2));
 const quarryEntrance = (x, z) => { // the trail ramps in from the south-west
   const a = Math.atan2(z - LAKES.quarry.cz, x - LAKES.quarry.cx), want = Math.atan2(16, -8); // the Quarry Cut comes in this way too
   return Math.abs(Math.atan2(Math.sin(a - want), Math.cos(a - want))) < 0.42;
 };
 const trailList = Object.values(TRAILS).map((t) => t.pts);
+// v1.14.9: each trail's bounding box, so a point far from a trail skips it (the trail's distance can't beat the box's)
+const trailBox = trailList.map((pts) => { const xs = pts.map((p) => p[0]), zs = pts.map((p) => p[1]); return [Math.min(...xs), Math.min(...zs), Math.max(...xs), Math.max(...zs)]; });
 function trailDist(x, z) {
   let d = 1e9;
-  for (const pts of trailList) d = Math.min(d, polyDist(x, z, pts));
+  for (let i = 0; i < trailList.length; i++) {
+    const b = trailBox[i], bx = Math.max(b[0] - x, 0, x - b[2]), bz = Math.max(b[1] - z, 0, z - b[3]);
+    if (bx * bx + bz * bz >= d * d) continue;
+    d = Math.min(d, polyDist(x, z, trailList[i]));
+  }
   return d;
 }
 
@@ -180,6 +240,11 @@ function computeHeight(x, z) {
     if (deepD < 10) depth = Math.min(depth, -6 - Math.floor((10 - deepD) / 2.5));
     return Math.max(-11, depth);
   }
+  // ---- v1.14.9: hidden pools and creeks
+  const pw = poolAt(x, z);
+  if (pw.sd < 0) return Math.max(-3, -1 - Math.floor(-pw.sd / 3));
+  const ck = creekAt(x, z);
+  if (ck.sd < 0 && riverSd(x, z) > 0) return ck.sd < -0.5 && creekRun(x, z) ? -1 : 0; // (where a creek runs into the river, the river's channel wins)
   // ---- the waterways (deep enough to row the whole way)
   const rv = riverSd(x, z);
   if (rv < 0) return rv < -1.4 || nearJunction(x, z, 0) ? -3 : -2; // (the junction pool is deep right to its edge)
@@ -198,7 +263,7 @@ function computeHeight(x, z) {
   }
   // ---- land
   const r0 = Math.hypot(x, z);
-  const t = Math.min(d - LAKE_R, rv, w.sd);
+  const t = Math.min(d - LAKE_R, rv, w.sd, pw.sd, ck.sd);
   const tr = trailDist(x, z);
   if (w.zone === 'quarry' && w.sd < 8 && !quarryEntrance(x, z) && rv > 4) return w.sd < 1.5 ? 8 : 7; // quarried rock walls
   const ce = caveDomeE(x, z);
@@ -241,6 +306,9 @@ function computeHeight(x, z) {
     const sd = Math.hypot(x - sx, z - sz);
     if (sd < sr) h = Math.max(h, sh - Math.floor(sd));
   }
+  // v1.14.9: the hidden pools and creeks keep low, walkable banks whatever hill they sit in
+  if (pw.sd < 9) h = Math.min(h, 1 + Math.floor(Math.max(0, pw.sd - 1.5) * 0.45));
+  if (ck.sd < 6) h = Math.min(h, 1 + Math.floor(Math.max(0, ck.sd - 1) * 0.5));
   // Settlement clearings and trails stay walkable
   for (const c of Object.values(CLEARINGS)) {
     const cd = Math.hypot(x - c.x, z - c.z);
@@ -539,6 +607,8 @@ export function zoneAt(x, z) {
     if (Math.hypot(x - 0, z - DOCK.z0) < 10) return 'dock';
     return 'open';
   }
+  { const pw = poolAt(x, z); if (pw.sd < 1.5) return pw.zone; }
+  if (creekAt(x, z).sd < 1.2 && riverSd(x, z) > 0) return 'creek';
   if (riverSd(x, z) < 1.5) return 'river';
   return valleyWater(x, z).zone || 'open';
 }
@@ -546,6 +616,7 @@ export function zoneAt(x, z) {
 // Boats need at least depth 2 except near the cove launch.
 export function boatable(x, z) {
   const h = heightAt(x, z);
+  if (h <= -1 && poolAt(x, z).sd < 2) return false; // v1.14.9: the hidden pools are for wading and casting, not rowing
   return h <= -1 || (h <= 0 && Math.abs(x - 4) < 3 && z > 18 && z < 34);
 }
 
@@ -575,8 +646,11 @@ export function nearestLanding(x, z) {
 }
 
 export function regionName(x, z) {
-  const names = { lodge: 'Pinewood Lodge', camp: 'Fern Camp', bog: 'Bog Hut', shed: 'Quarry Shed', park: "Sundae's Trailer Park", fernview: 'Fernview Campground' };
-  for (const [k, c] of Object.entries(CLEARINGS)) if (Math.hypot(x - c.x, z - c.z) < c.r + 6) return names[k];
+  const names = { lodge: 'Pinewood Lodge', camp: 'Fern Camp', bog: 'Bog Hut', shed: 'Quarry Shed', park: "Sundae's Trailer Park", fernview: 'Fernview Campground',
+    tower: 'Ridge Lookout', trapper: "Trapper's Cabin", plane: 'Crash Clearing', hollis: "Hollis's Treehouse" };
+  for (const [k, c] of Object.entries(CLEARINGS)) if (names[k] && Math.hypot(x - c.x, z - c.z) < c.r + 6) return names[k];
+  { const pw = poolAt(x, z); if (pw.sd < 10) return POOLS[pw.zone].name; }
+  { const ck = creekAt(x, z); if (ck.sd < 5) return ck.which.name; }
   const w = valleyWater(x, z);
   if (w.zone && w.sd < (w.zone === 'cave' ? 4 : 18)) return LAKES[w.zone].name;
   if (lakeDist(x, z) < LAKE_R + 14) return 'Cozy Cove';
@@ -587,6 +661,7 @@ export function regionName(x, z) {
 
 export function buildTerrainMesh() {
   const sandy = (x, z, h) => {
+    if (h === 1 && (x * x + z * z) > 3600) { const c = creekAt(x, z).sd; if (c > 0.6 && c < 7 && riverSd(x, z) > 4) return false; } // v1.14.9: grassy creek banks
     if (h === 1) return true;
     if (h !== 2) return false;
     return lakeDist(x, z) < LAKE_R + 4 || riverSd(x, z) < 3 || valleyWater(x, z).sd < 4;
@@ -666,5 +741,5 @@ export function scatterSpots(seed, count, filter) {
   return out;
 }
 
-export { trailDist, riverSd, valleyWater, lakeDist };
+export { trailDist, riverSd, valleyWater, lakeDist, poolAt, creekAt };
 export const TERRAIN_N = N;

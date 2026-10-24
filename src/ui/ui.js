@@ -437,13 +437,38 @@ export class UI {
     const W = this.root.clientWidth || window.innerWidth, H = this.root.clientHeight || window.innerHeight;
     const bw = this.contextBox.offsetWidth || 160, bh = this.contextBox.offsetHeight || 40;
     const x = s ? Math.max(bw / 2 + 8, Math.min(W - bw / 2 - 8, s.x)) : W / 2;
-    const y = s ? Math.max(bh + 70, Math.min(H - 90, s.y)) : H - 120;
+    let y = s ? Math.max(bh + 70, Math.min(H - 90, s.y)) : H - 120;
+    // v1.14.9: never sit on a speech bubble or a name tag (a local saying hello, a friend's chat):
+    // lift the button clear above whatever it would cover
+    y = this.clearOfBubbles(x, y, bw, bh);
     // a small dead zone, and no moving at all while the pointer is on it, so it is easy to click
     const lx = this.promptAt?.x ?? -1e9, ly = this.promptAt?.y ?? -1e9;
     if (this.promptHover || (Math.abs(x - lx) < 4 && Math.abs(y - ly) < 4)) return;
     this.promptAt = { x, y };
     this.contextBox.style.left = `${Math.round(x)}px`;
     this.contextBox.style.top = `${Math.round(y)}px`;
+  }
+
+  /** The lowest y (the button's bottom edge) at or above `y` where a bw x bh button centred on x covers no bubble or name tag. */
+  clearOfBubbles(x, y, bw, bh) {
+    // (worked out from where each is placed, not its on-screen box: bubbles pop in with an animation that moves them)
+    const rects = [];
+    for (const el of this.plateLayer.children) {
+      if (el.classList.contains('hidden') || !(el.classList.contains('chat-bubble') || el.classList.contains('showoff') || el.classList.contains('nameplate'))) continue;
+      const cx = parseFloat(el.style.left), by = parseFloat(el.style.top), w = el.offsetWidth, hh = el.offsetHeight;
+      if (!w || !hh || !Number.isFinite(cx) || !Number.isFinite(by)) continue;
+      rects.push({ l: cx - w / 2, r: cx + w / 2, t: by - hh - 8, b: by }); // (8: the bubble's tail)
+    }
+    const l = x - bw / 2 - 4, r = x + bw / 2 + 4;
+    for (let pass = 0; pass < 4; pass++) {
+      let moved = false;
+      for (const b of rects) {
+        if (b.r < l || b.l > r) continue; // not under the button
+        if (b.b > y - bh - 14 && b.t < y) { y = b.t - 4; moved = true; } // (14: the button's little stalk)
+      }
+      if (!moved) break;
+    }
+    return Math.max(bh + 8, y);
   }
 
   // Count a number up (or down) to its new value.

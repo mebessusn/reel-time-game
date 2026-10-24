@@ -45,7 +45,7 @@ const perkText = (item) => {
   if (item.kind === 'rod' && ROD_LB[item.id]) perks.unshift(`Lands fish up to ${ROD_LB[item.id]} lb`);
   return perks.length ? perks.join(', ') : 'Cosmetic';
 };
-const SHEET_ICON = { social: 'users', admin: 'shield', settings: 'gear', creel: 'backpack', tackle: 'package', fishpedia: 'book', shop: 'shop', board: 'scroll', journal: 'star', map: 'map', legends: 'trophy', album: 'camera', bikes: 'bike' };
+const SHEET_ICON = { fieldguide: 'camera', valleyjournal: 'scroll', wagon: 'shop', loop: 'bike', social: 'users', admin: 'shield', settings: 'gear', creel: 'backpack', tackle: 'package', fishpedia: 'book', shop: 'shop', board: 'scroll', journal: 'star', map: 'map', legends: 'trophy', album: 'camera', bikes: 'bike' };
 const TIME_LABEL = { any: 'Any time', dawn: 'Dawn', day: 'Day', dusk: 'Dusk', night: 'Night' };
 // Colour-blind markers: a shape per tier, shown next to the colour when the setting is on.
 export const TIER_MARK = { common: '●', uncommon: '▲', rare: '◆', epic: '★', legendary: '♛', mythic: '✦' };
@@ -881,6 +881,7 @@ export class Sheets {
       ['collect', 'Collect', 'book', miles.some((m) => m.have >= m.n && !m.claimed)],
       ['ach', 'Awards', 'trophy', claimable.length > 0],
       ['bottles', 'Bottles', 'chat', false],
+      ['woods', 'Woods', 'leaf', false], // v1.14.9 The Wild Woods (woodsui.js)
     ];
     const cur = this.state.journalTab || 'climb';
     for (const [id, label, ic, dot] of TABS) {
@@ -890,6 +891,7 @@ export class Sheets {
     const B = c.body;
     B.classList.add('j-page');
 
+    if (cur === 'woods') { this.render_woodsTab?.(c); return; }
     if (cur === 'climb') {
       // your climb: the next thing a level opens, and level rewards you're owed
       const nu = nextUnlock(p.level);

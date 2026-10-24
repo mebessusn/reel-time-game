@@ -1483,3 +1483,21 @@ body.in-home .plate-layer, body.in-home .feed, body.in-home .chat-peek, body.in-
 .feedback-mood { font-size: 26px; line-height: 1; width: 48px; height: 48px; border-radius: 12px; border: 1px solid var(--birch-300); background: #fff; cursor: pointer; filter: grayscale(0.6); transition: transform var(--fast) var(--ease), filter var(--fast) var(--ease); }
 .feedback-mood:hover { filter: none; transform: translateY(-2px); }
 .feedback-mood[aria-pressed="true"] { filter: none; border-color: var(--lake-500); box-shadow: 0 0 0 2px var(--lake-500); background: #e3f1f0; }
+
+/* v1.14.9 The Wild Woods (woodsui.js, wildwoods.js) */
+.woods-flash { position: absolute; inset: 0; background: #fff; pointer-events: none; z-index: 40; animation: woodsFlash .45s ease-out forwards; }
+@keyframes woodsFlash { from { opacity: .85; } to { opacity: 0; } }
+.loop-hud { position: absolute; left: 50%; top: calc(64px + var(--safe-t, 0px)); transform: translateX(-50%); z-index: 8; pointer-events: none; font: 800 var(--t-s) var(--font-body); color: var(--on-dark); background: rgba(13, 31, 27, .72); padding: 6px 14px; border-radius: var(--r-pill); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.guide-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; margin-bottom: 10px; }
+.guide-card { display: grid; gap: 4px; padding: 10px; border-radius: var(--r); background: rgba(0, 0, 0, .06); opacity: .7; }
+.guide-card.have { opacity: 1; background: rgba(95, 140, 70, .16); }
+.guide-card b { font-size: var(--t-s); }
+.guide-card small { font-size: var(--t-xs); line-height: 1.35; opacity: .8; }
+.guide-ic svg { width: 22px; height: 22px; }
+.vj-list { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+.vj-tab { font: 700 var(--t-xs) var(--font-body); padding: 5px 10px; border-radius: var(--r-pill); border: 0; background: rgba(0, 0, 0, .07); color: inherit; cursor: pointer; }
+.vj-tab.on { background: var(--gold-500, #e8a317); color: #2a1a00; }
+.vj-tab.missing { opacity: .45; cursor: default; }
+.vj-page { padding: 16px 18px; border-radius: var(--r); line-height: 1.6; font-size: var(--t-s); }
+.vj-page h3 { margin: 0 0 8px; font-family: var(--font-display, inherit); }
+.vj-page small { display: block; text-align: right; margin-top: 10px; font-style: italic; opacity: .7; }

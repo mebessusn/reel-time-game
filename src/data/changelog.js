@@ -13,6 +13,25 @@ export const CHANGE_KINDS = {
 
 export const CHANGELOG = [
   {
+    version: 'v1.14.9', date: 'Oct 24 2026', title: 'The Wild Woods',
+    changes: {
+      new: [
+        'Four hidden pools in the woods, each with a fish of its own: Moonwell in the western hills (silversides at night), Fox Hollow (brook trout, and a beaver lodge), Mirror Tarn (an epic cutthroat) and Lantern Spring (tiny glowing darters). Find all four for the Pathfinder title.',
+        'Two creeks to wade, Tarn Run and Hollowbrook, with riffle dace and the legendary Old Mossback (dusk and night, in the rain). Rhea sells a fly rod, the Willowbend: fish bite faster in moving water and jumpers come to it twice as often.',
+        'Foraging: chanterelles, blackberries and wild mint grow through the woods, and they come back every day. Roll a fallen log for worms, or catch crickets after dark, for free bait. Cook two chanterelles, two blackberries and a sprig of mint at any fire for forest stew: Well Fed for five minutes.',
+        'The Field Guide: photograph twelve animals (deer, rabbits, raccoons, herons, beavers, owls, hawks, honeybees and more) to fill three sets, each with a reward, and all of them for the Naturalist title.',
+        'Ridge Lookout: climb Ranger Rhea\'s fire tower for the best view in the valley. Rhea has three forest jobs a day.',
+        'The valley journal: eight pages from Elias Fenn, the trapper who first mapped the valley, blown about the woods. Find them all for the Lorekeeper title. Old Hollis in his treehouse brews mint tea and tells you where to look.',
+        'Wren\'s Wagon: a travelling merchant who moves to a new spot in the woods every three hours. Rare gear at a quarter off, and she buys your mushrooms and berries.',
+        'The Ridgeback Loop: a bike trail with jumps round the eastern ridge. Ride a lap for your time and a place on the lake\'s leaderboard.',
+        'Pitch a camp: put up a tent and a campfire anywhere in the woods. Your friends see it too, and you can cook at it.',
+      ],
+      world: [
+        'The woods between the lakes are full of life now: the trapper\'s cabin, a bush plane that came down in a storm, footbridges, a beaver dam, wild hives, fairy rings that glow at night, a pumpkin patch, owls in the big trees at night and bees in the daytime.',
+      ],
+    },
+  },
+  {
     version: 'v1.14.8', date: 'Oct 22 2026', title: 'Room for Everyone',
     changes: {
       fix: [

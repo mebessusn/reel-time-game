@@ -94,7 +94,7 @@ export class Npcs {
     this.list = [];
     this.lastAnyGreet = 0;
     // ?nonpc skips the locals (used by multi-tab tests on slow software GL)
-    if (typeof location !== 'undefined' && new URLSearchParams(location.search).has('nonpc')) return;
+    if (typeof location !== 'undefined' && new URLSearchParams(location.search).has('nonpc')) { this.off = true; return; }
     const r = mulberry32(31337);
     let n = 0;
     const name = () => NAMES[(n++) % NAMES.length];
@@ -151,6 +151,24 @@ export class Npcs {
     }
   }
 
+  /**
+   * v1.14.9: add a local from elsewhere (the Wild Woods' ranger, hermit and merchant). def: { id, name, title, look, kind: 'roamer' |
+   * 'fisher' | 'stand', x, z, yaw, roam (metres), hello: [lines], bobber: { x, z } (fishers), catch: [species ids],
+   * rod, talk }. Returns the local, or null with ?nonpc.
+   */
+  add(def) {
+    if (this.off) return null;
+    const r = mulberry32(this.list.length * 7919 + (def.name.length * 131));
+    const actor = new Actor(this.game.engine.scene);
+    actor.setLook(def.look || randomAvatar(r), { rod: def.rod || 'rod_willow', lure: 'lure_classic', boat: 'boat_oak' });
+    actor.root.visible = false;
+    const npc = { ...def, kind: def.kind || 'roamer', actor, pos: new THREE.Vector3(def.x, walkY(def.x, def.z) ?? groundY(def.x, def.z) ?? 1, def.z), yaw: def.yaw ?? r() * 6.28, home: { x: def.x, z: def.z },
+      target: null, wait: r() * 4, moving: false, lastGreet: -1e9, congrats: null, bubble: null, pose: 'idle', emote: null, r };
+    if (npc.kind === 'fisher') { npc.cycle = 'wait'; npc.timer = 8 + r() * 25; npc.zone = zoneAt(def.bobber.x, def.bobber.z) || 'open'; }
+    this.list.push(npc);
+    return npc;
+  }
+
   // The latest great catch you made (set by the game when a rare+, gold or diamond lands).
   greatCatch() {
     const c = this.game.lastGreat;
@@ -202,10 +220,20 @@ export class Npcs {
           g.audio?.sfx?.('cheer', { remote: true });
         } else {
           npc.emote = { id: 'wave', until: now + 2400 };
-          this.say(npc, pick(npc.kind === 'fisher' ? FISHER_HELLO : HELLO, npc), now);
+          this.say(npc, pick(npc.hello || (npc.kind === 'fisher' ? FISHER_HELLO : HELLO), npc), now);
         }
         npc.target = null; npc.wait = 3;
       }
+      // ---- v1.14.9: talking to themselves while you're near (npc.mutter: their lines, dealt in a shuffled order so
+      // you hear them all before any repeats; a bubble over their head, not the chat log, so a long wait stays quiet)
+      if (npc.mutter && d < 12 && !g.ui?.modalOpen && !npc.talking) {
+        if (!npc.mutterAt) npc.mutterAt = now + 8000 + npc.r() * 4000;
+        else if (now >= npc.mutterAt && now - npc.lastGreet > 6000 && !(npc.bubble && now < npc.bubble.until)) {
+          npc.mutterAt = now + 14000 + npc.r() * 8000;
+          if (!npc.mutterDeck?.length) { npc.mutterDeck = npc.mutter.map((_, i) => i); for (let i = npc.mutterDeck.length - 1; i > 0; i--) { const j = Math.floor(npc.r() * (i + 1)); [npc.mutterDeck[i], npc.mutterDeck[j]] = [npc.mutterDeck[j], npc.mutterDeck[i]]; } }
+          npc.bubble = { kind: 'chat', text: npc.mutter[npc.mutterDeck.pop()].replace('{you}', you), until: now + 4800, key: now };
+        }
+      } else if (npc.mutter && d > 16) npc.mutterAt = 0;
       // ---- answering your emote
       if (npc.reply && now >= npc.reply.at) {
         const rep = npc.reply; npc.reply = null;
@@ -221,12 +249,21 @@ export class Npcs {
       let pose = 'idle', bobber = null, tension = 0;
       if (npc.talking) npc.bubble = null; // (their words are in the dialogue box)
       if (npc.kind === 'roamer') { if (!npc.talking) this.stroll(npc, dt); else npc.moving = false; } // talking: stand still and face you
-      else {
+      else if (npc.kind === 'stand') {
+        // v1.14.9: keeps their post (a shop, a tower, a lookout); turns to you when you come close, else looks about
+        npc.moving = false;
+        if (!npc.talking && !npc.emote) {
+          if (npc.homeYaw == null) npc.homeYaw = npc.yaw;
+          const base = d < 6 ? Math.atan2(me.x - npc.pos.x, me.z - npc.pos.z) : npc.homeYaw + Math.sin(t * 0.25 + npc.home.x) * 0.5;
+          let dy = base - npc.yaw; dy = Math.atan2(Math.sin(dy), Math.cos(dy)); npc.yaw += dy * Math.min(1, dt * 3);
+        }
+        if (npc.idlePose && !npc.emote) pose = npc.idlePose;
+      } else {
         npc.timer -= dt;
         if (npc.cycle === 'wait' && npc.timer <= 0) { npc.cycle = 'reel'; npc.timer = 2.4; }
         else if (npc.cycle === 'reel' && npc.timer <= 0) {
           npc.cycle = 'hold'; npc.timer = 3;
-          const pool = SPECIES.filter((s) => s.zones.includes(npc.zone) && (s.tier === 'common' || s.tier === 'uncommon') && !s.shell && !s.spots);
+          const pool = npc.catch ? npc.catch.map((id) => SPECIES_BY_ID[id]).filter(Boolean) : SPECIES.filter((s) => s.zones.includes(npc.zone) && (s.tier === 'common' || s.tier === 'uncommon') && !s.shell && !s.spots);
           const sp = (pool.length ? pool : [SPECIES_BY_ID.bluegill])[Math.floor(npc.r() * Math.max(1, pool.length))];
           npc.actor.showHeld(sp.id, 'normal', (sp.weight[0] + sp.weight[1]) / 2, 3);
           g.fx?.splash?.(new THREE.Vector3(npc.bobber.x, WATER_Y, npc.bobber.z), 0.5);
@@ -304,7 +341,7 @@ export class Npcs {
       npc.wait -= dt;
       if (npc.wait > 0) return;
       for (let i = 0; i < 8; i++) {
-        const x = npc.home.x + (npc.r() - 0.5) * 24, z = npc.home.z + (npc.r() - 0.5) * 24;
+        const R = npc.roam || 24, x = npc.home.x + (npc.r() - 0.5) * R, z = npc.home.z + (npc.r() - 0.5) * R;
         if (walkable(x, z)) { npc.target = { x, z }; break; }
       }
       npc.wait = 2 + npc.r() * 6;

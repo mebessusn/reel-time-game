@@ -126,7 +126,7 @@ await page.keyboard.press('Escape');
 const npc = await ev(async () => {
   const g = window.__game;
   const by = {};
-  for (const n of g.npcs.list) { if (n.kind === 'scene') continue; /* the trailer park's scripted pair */ by[n.area] ||= { r: 0, f: 0 }; by[n.area][n.kind === 'fisher' ? 'f' : 'r']++; }
+  for (const n of g.npcs.list) { if (n.kind === 'scene' || n.kind === 'stand') continue; /* the trailer park's scripted pair; locals who keep a post (the woods' ranger, hermit and merchant) */ by[n.area] ||= { r: 0, f: 0 }; by[n.area][n.kind === 'fisher' ? 'f' : 'r']++; }
   g.lastGreat = { id: 'test-great', at: Date.now(), label: 'Gold Koi' };
   const n = g.npcs.list.find((x) => x.area === 'pond' && x.kind === 'roamer');
   g.player.pos.set(n.pos.x + 2, n.pos.y, n.pos.z + 2); g.player.target = null;

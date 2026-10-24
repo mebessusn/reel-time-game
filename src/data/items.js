@@ -13,6 +13,7 @@ export const PERK_TEXT = {
   shallowsBite: (v) => `Shallows bite speed +${Math.round(v * 100)}%`,
   nightBite: (v) => `Night bite speed +${Math.round(v * 100)}%`,
   ruinsNight: () => 'Unlocks the Ruins bonus at night',
+  flowBite: (v) => `Creek and river bites +${Math.round(v * 100)}%, trout rise to it`,
 };
 
 const I = (id, kind, name, price, extra = {}) => ({ id, kind, name, price, source: 'shop', ...extra });
@@ -27,6 +28,8 @@ export const ITEMS = [
   I('rod_neon', 'rod', 'Neon Synth', { pearls: 150 }, { level: 24, perk: { reelZone: 0.05 }, colors: ['#40f0e0', '#f040c0'], glow: true }),
   I('rod_obsidian', 'rod', 'Obsidian Deep', { pearls: 260 }, { level: 30, perk: { deepBite: 0.1 }, colors: ['#2a1a3a', '#6a40a0'] }),
   I('rod_diamond', 'rod', 'Diamond Rod', { pearls: 500 }, { level: 40, perk: { diamondOdds: 0.25 }, colors: ['#9af0ff', '#e0ffff'], glow: true }),
+  // v1.14.9: Ranger Rhea's fly rod, for the creeks and rivers (sold at Ridge Lookout and by Wren's wagon)
+  I('rod_fly', 'rod', 'Willowbend Fly Rod', { coins: 2400 }, { level: 6, perk: { flowBite: 0.3, castDistance: 2 }, colors: ['#5a7a4a', '#c8a050'], vendor: 'ranger' }),
   I('rod_lightning', 'rod', 'Lightning Rod', null, { source: 'achievement', perk: { biteSpeed: 0.05 }, colors: ['#f0e040', '#3a4058'], glow: true }),
 
   // Lures / bobbers

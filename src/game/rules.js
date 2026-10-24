@@ -105,6 +105,7 @@ export function biteDelay(ctx, r = Math.random) {
   if (ctx.weather === 'rain' || ctx.weather === 'storm') mult -= 0.2;
   if (ctx.zone === 'deep' || ctx.zone === 'ruins') mult -= p.deepBite || 0;
   if (ctx.zone === 'shallows') mult -= p.shallowsBite || 0;
+  if (ctx.zone === 'creek' || ctx.zone === 'river') mult -= p.flowBite || 0; // v1.14.9 the fly rod
   if (ctx.phase === 'night') mult -= p.nightBite || 0;
   if (ctx.perfectCast) mult -= 0.05;
   if (ctx.superCast) mult -= 0.25;
@@ -232,6 +233,7 @@ export function rollBite(ctx, r = Math.random) {
     if (s.weather) w *= 3; // weather fish are the point of fishing in that weather
     if (s.spots) w *= 4; // v1.12: a spot's own fish are why you came
     if (s.lakeFish) w *= 3; // v1.13: and a lake's own fish are why you rowed there
+    if (ctx.perks?.flowBite && (ctx.zone === 'creek' || ctx.zone === 'river') && s.behaviour === 'jump') w *= 2.2; // v1.14.9: trout rise to a fly
     if (s.bloodMoon) w *= 4; // and under a blood moon, the hunters crowd everything else out
     if (ctx.bait && BAITS[ctx.bait]) w *= BAITS[ctx.bait].likes(s);
     if (ctx.season) w *= seasonBoost(ctx.season, s.id);

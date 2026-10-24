@@ -52,6 +52,8 @@ import { Tackle } from './tackle.js';
 import { Derby } from './derby.js';
 import { Community } from './community.js';
 import { Bottles } from './bottles.js';
+import { WildWoods } from './wildwoods.js'; // v1.14.9 The Wild Woods
+import '../ui/woodsui.js';
 import { WorldEvents } from './worldevents.js';
 import { RealWeather } from './realweather.js';
 import { Keymap, Gamepads } from './controls.js';
@@ -130,6 +132,7 @@ export class Game {
     this.party = new Party(this);
     this.cookout = new Cookout(this);
     this.bottles = new Bottles(this);
+    this.woods = new WildWoods(this);
     this.events = new WorldEvents(this);
     this.realWeather = new RealWeather(this);
     this.pads = new Gamepads(this);
@@ -231,6 +234,7 @@ export class Game {
     this.community.init();
     this.lakeFlag.init();
     this.bottles.init();
+    this.woods.init();
     this.living.init();
     this.social.init();
     this.pet.init();
@@ -253,7 +257,7 @@ export class Game {
 
   meta() {
     const p = this.profile;
-    return { id: this.save.userId, name: p.name, avatar: p.avatar, equipped: p.equipped, lvl: p.level, title: p.title, crown: (p.stats.weeklyWins || 0) > 0 && p.title === 'Champion', home: this.ext ? homeLayout(this.ext.d, p) : null, derby: this.derby?.myEntry() || null, pet: this.ext?.d.pet || null, ...(this.party ? this.party.meta() : {}) };
+    return { id: this.save.userId, name: p.name, avatar: p.avatar, equipped: p.equipped, lvl: p.level, title: p.title, crown: (p.stats.weeklyWins || 0) > 0 && p.title === 'Champion', home: this.ext ? homeLayout(this.ext.d, p) : null, derby: this.derby?.myEntry() || null, pet: this.ext?.d.pet || null, ...(this.party ? this.party.meta() : {}), ...(this.woods?.built ? this.woods.meta() : {}) };
   }
   pushMeta() { if (this.started) this.net?.setMeta(this.meta()); this.actor.setLook(this.profile.avatar, this.profile.equipped); }
 
@@ -534,6 +538,7 @@ export class Game {
     this.community.update(dt, this.forceFireworks);
     this.lakeFlag.update(dt);
     this.cookout.update(dt);
+    this.woods.update(dt, t);
 
     const now = performance.now();
     let pose = this.fishing.poseName();
@@ -745,6 +750,7 @@ export class Game {
     acts.push(...this.lakeFlag.contextActions());
     acts.unshift(...this.living.contextActions()); // v1.9.10 the rainbow's pot of gold
     acts.unshift(...this.cookout.contextActions());
+    acts.unshift(...this.woods.contextActions());
     const gearActs = this.gear.contextActions();
     acts.push(...gearActs.filter((a) => !a.id.startsWith('set-')));
     const ws = this.waystones.near();
@@ -937,6 +943,7 @@ export class Game {
     this.quests.progress('catch', { ...c, fromHolder: !!this.fishing.fromHolder });
     this.fishing.fromHolder = false;
     this.derby.onCatch(c);
+    this.woods.onCatch(c);
     this.community.onCatch().catch(() => {});
     this.lakeFlag.onCatch(c);
     this.collections.check(c);

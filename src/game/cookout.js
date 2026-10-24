@@ -44,6 +44,9 @@ export class Cookout {
 
   /** The campfire next to the log you're sitting on, or null. */
   fire() {
+    // v1.14.9: or a camp's fire you're standing by (yours or a friend's, in the woods)
+    const camp = this.game.woods?.campFireNear?.();
+    if (camp) return camp;
     const s = this.game.chairs?.seat;
     if (!s || s.kind !== 'log') return null;
     const fires = [CAMPFIRE, CAMP_FIRE, FERNVIEW_FIRE];
@@ -53,7 +56,11 @@ export class Cookout {
   contextActions() {
     const f = this.fire();
     if (!f || this.active || this.panel) return [];
-    return [{ id: 'roast', label: 'Roast a fish', color: 'gold', at: { x: f.x, z: f.z, y: heightAt(f.x, f.z), h: 1.4 }, fn: () => this.openPicker() }];
+    const out = [{ id: 'roast', label: 'Roast a fish', color: 'gold', at: { x: f.x, z: f.z, y: heightAt(f.x, f.z), h: 1.4 }, fn: () => this.openPicker() }];
+    // v1.14.9: a forest stew, from what you picked in the woods
+    const W = this.game.woods;
+    if (W?.canStew?.() && !this.eating) out.push({ id: 'stew', label: 'Cook forest stew', color: 'green', fn: () => W.cookStew() });
+    return out;
   }
 
   // ---------------- the picker
@@ -237,6 +244,16 @@ export class Cookout {
     g.bumpStat?.('fishEaten');
   }
 
+  /** v1.14.9: a forest stew (wildwoods.js): Well Fed with no one fish (no craving), for `secs`. */
+  stew(secs) {
+    const g = this.game;
+    this.fed = { sp: null, stew: true, w: 0, until: performance.now() + secs * 1000, secs };
+    g.audio.sfx('buff');
+    g.juice?.pop('Mmm, stew!', { color: '#c8e0a0', size: 30 });
+    g.chat?.system(`Well Fed: Forest Stew! Chanterelles, blackberries and wild mint. For ${Math.round(secs / 60)} min fish bite quicker and your hands are steadier on the reel.`, 'catch', { popup: true });
+    g.ext.bump?.('stews');
+  }
+
   fedLeft() { return this.fed ? Math.max(0, (this.fed.until - performance.now()) / 1000) : 0; }
   /** Added to the game's perks while Well Fed. */
   perks() { return this.fedLeft() > 0 ? { biteSpeed: WELL_FED.biteSpeed, reelZone: WELL_FED.reelZone } : {}; }
@@ -245,6 +262,7 @@ export class Cookout {
   info() {
     const left = this.fedLeft();
     if (!(left > 0)) return null;
+    if (this.fed.stew) return { name: 'Well Fed: Forest Stew', left, lines: [`Fish bite ${Math.round(WELL_FED.biteSpeed * 100)}% faster`, `Reel zone ${Math.round(WELL_FED.reelZone * 100)}% wider in Tug & Turn`], from: 'From a forest stew cooked at a campfire.' };
     const name = SPECIES_BY_ID[this.fed.sp]?.name || 'fish';
     return { name: `Well Fed: Smells Like ${name}`, left, lines: [`${name} bite far more often (where they live)`, `Fish bite ${Math.round(WELL_FED.biteSpeed * 100)}% faster`, `Reel zone ${Math.round(WELL_FED.reelZone * 100)}% wider in Tug & Turn`], from: 'From eating a campfire-roasted fish. Eat another to switch fish.' };
   }

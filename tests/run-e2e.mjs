@@ -22,6 +22,7 @@ const SUITES = [
   ['features', 'tests/features.e2e.mjs'],
   ['sprint', 'tests/sprint.e2e.mjs'],
   ['party', 'tests/party.e2e.mjs'],
+  ['woods', 'tests/woods.e2e.mjs'], // v1.14.9 The Wild Woods
 ];
 const pick = (process.env.RT_SUITES || '').split(',').map((s) => s.trim()).filter(Boolean);
 const suites = pick.length ? SUITES.filter(([n]) => pick.includes(n)) : SUITES;

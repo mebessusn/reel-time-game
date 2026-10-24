@@ -26,7 +26,7 @@ export const UPGRADES = {
 export const MAX_UPGRADE = 5;
 
 // The heaviest fish (lb) each rod can land on a plain line. Braided line multiplies it (lineRating in rules.js).
-export const ROD_LB = { rod_willow: 8, rod_birch: 14, rod_bamboo: 22, rod_copper: 35, rod_cherry: 45, rod_neon: 60, rod_lightning: 90, rod_obsidian: 110, rod_diamond: 160 };
+export const ROD_LB = { rod_willow: 8, rod_birch: 14, rod_bamboo: 22, rod_copper: 35, rod_cherry: 45, rod_neon: 60, rod_lightning: 90, rod_obsidian: 110, rod_diamond: 160, rod_fly: 18 };
 export const lineRating = (rodId, up = {}) => Math.round((ROD_LB[rodId] || 10) * (1 + 0.35 * (up.line || 0)));
 
 export function upgradeEffects(up = {}) {

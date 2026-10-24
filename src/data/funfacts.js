@@ -71,6 +71,12 @@ export const FUN_FACTS = {
   mittencrab: ['Mitten crabs are named for the furry patches on their claws.', 'They walk a long way to the sea to breed, sometimes hundreds of miles.'],
   noblecray: ['The noble crayfish has bright red undersides on its claws.', 'In parts of Europe, summer crayfish parties are an old tradition.'],
   ghostcray: ['Cave crayfish can live for over 100 years in the cold dark.', 'With no light in caves, they find food by touch and smell alone.'],
+  moonsilver: ['Silversides school near the surface and flash like coins when they turn.', 'Valley lore: the Moonwell only fills on the night of the full moon. It is always full. Nobody can explain it.'],
+  brookie: ['Brook trout are really a kind of char, cousins of the Arctic Char.', 'They need cold, clean water: a brookie in a pool means the spring is healthy.'],
+  cutthroat: ['Cutthroat trout are named for the red slash under their jaw.', 'Valley lore: on a still day the Tarn reflects the sky so well that the Cutthroats seem to swim in clouds.'],
+  lanterndarter: ['Darters have no swim bladder, so they rest on the bottom between short dashes.', 'Valley lore: Lantern Spring was named for the darters, not the other way round.'],
+  riffledace: ['Dace love fast, shallow water and face upstream to catch drifting bugs.', 'A riffle is where a creek runs shallow over stones and breaks into little waves.'],
+  mossback: ['Old trout grow a hooked jaw called a kype.', 'Valley lore: the ranger has seen Old Mossback twice in thirty years, both times in the rain.'],
   murraycray: ['The Murray crayfish is the second-largest freshwater crayfish on Earth.', 'It is covered in spines and can give a strong pinch, so pick it up from behind.'],
 };
 

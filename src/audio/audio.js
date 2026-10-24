@@ -206,6 +206,11 @@ export class AudioEngine {
       case 'step': this.step(opts.surface, opts.vol); break;
       case 'flap': for (let i = 0; i < 5; i++) this.noise({ dur: 0.06, vol: 0.06, type: 'bandpass', freq: 900, q: 0.7, when: i * 0.09, out: this.bus.ambience }); break;
       case 'honk': for (let i = 0; i < 3; i++) this.tone({ freq: 330 + i * 15, to: 280, type: 'sawtooth', dur: 0.16, vol: 0.012, when: i * 0.35 + Math.random() * 0.1, out: this.bus.ambience }); break;
+      // v1.14.9 The Wild Woods
+      case 'owl': { const v = opts.vol ?? 1; this.tone({ freq: 392, to: 370, type: 'sine', dur: 0.32, vol: 0.05 * v, attack: 0.06, out: this.bus.ambience }); this.tone({ freq: 392, to: 360, type: 'sine', dur: 0.5, vol: 0.06 * v, attack: 0.08, when: 0.45, out: this.bus.ambience }); this.tone({ freq: 330, to: 300, type: 'sine', dur: 0.6, vol: 0.045 * v, attack: 0.1, when: 1.05, out: this.bus.ambience }); break; }
+      case 'shutter': this.noise({ dur: 0.04, vol: 0.2, type: 'highpass', freq: 2400, out }); this.tone({ freq: 600, type: 'square', dur: 0.03, vol: 0.05, out }); this.noise({ dur: 0.05, vol: 0.14, type: 'highpass', freq: 1800, when: 0.08, out }); break;
+      case 'pop': this.tone({ freq: 520, to: 880, type: 'sine', dur: 0.08, vol: 0.12, out }); this.noise({ dur: 0.05, vol: 0.06, type: 'bandpass', freq: 1600, out }); break;
+      case 'place': this.noise({ dur: 0.18, vol: 0.18, type: 'lowpass', freq: 600, to: 200, out }); this.tone({ freq: 140, to: 90, dur: 0.12, vol: 0.1, out }); break;
       case 'tick': this.tone({ freq: 1800 + Math.random() * 300, type: 'square', dur: 0.025, vol: 0.025, out }); break;
       case 'splashRemote': this.tone({ freq: r(400, 520), to: 160, dur: 0.12, vol: 0.12, out: this.bus.others }); break;
       default: break;
