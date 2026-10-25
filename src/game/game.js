@@ -97,6 +97,14 @@ export class Game {
       if (mine) this.audio.sfx('achievement');
     });
     this.player = new Player();
+    // v1.14.11: in and out of the water
+    this.player.onSwim = (on) => {
+      const p = this.player.pos;
+      this.fx.splash(new THREE.Vector3(p.x, WATER_Y, p.z), on ? 1.1 : 0.6);
+      this.audio.sfx('plop');
+      if (on && this.fishing.busy) this.fishing.cancel?.();
+      if (on && !this.swimTipped) { this.swimTipped = true; this.ui.toast('Swimming! Walk into the shallows to climb out. No casting until you\'re back on your feet.', { icon: 'waves', ms: 5000 }); }
+    };
     this.actor = new Actor(this.engine.scene);
     Actor.camera = this.engine.camera;
     this.fishing = new Fishing(this);
@@ -407,6 +415,7 @@ export class Game {
       else if (!down.moved && !down.orbit && down.hit && !this.fishing.busy) {
         const p = down.hit.point;
         if (down.hit.kind === 'ground' && this.player.mode === 'shore') this.player.setTarget(p.x, p.z);
+        else if (this.player.mode === 'swim') this.player.setTarget(p.x, p.z); // (swimming: click the water or the bank to swim there)
         else if (down.hit.kind === 'water' && this.player.mode === 'boat') this.player.setTarget(p.x, p.z);
         else if (down.hit.kind === 'water') this.player.faceToward(p.x, p.z);
         else if (down.hit.kind === 'ground' && this.player.mode === 'boat' && this.player.nearShore()) this.disembark();

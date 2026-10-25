@@ -138,6 +138,40 @@ const areasOk = Object.entries(npc.by).every(([a, c]) => c.r >= 2 && c.r <= 3 &&
 ok(areasOk && Object.keys(npc.by).length >= 7, `every area has 2-3 locals strolling and 1-4 fishing (${JSON.stringify(npc.by)})`);
 ok((npc.said.includes('Gold Koi') && npc.emote === 'cheer') || (npc.dbg.congrats === 'test-great' && npc.chat), `a local cheers for your recent great catch ("${npc.said}" ${JSON.stringify(npc.dbg)})`);
 
+// v1.14.11: bridge railings: you can't step off (or climb on) over the side of a footbridge, only at its ends
+const rails = await ev(async () => {
+  const T = await import('/src/world/terrain.js'), g = window.__game, pl = g.player, out = [];
+  for (const B of T.BRIDGES) {
+    const px = B.cx, pz = B.cz, sx = -B.uz, sz = B.ux; // across the deck
+    pl.pos.set(px, T.bridgeY(px, pz), pz); pl.baseY = pl.pos.y;
+    const side = pl.canStand(px + sx * 1.3, pz + sz * 1.3), along = pl.canStand(px + B.ux * 0.4, pz + B.uz * 0.4);
+    // and from the bank or water beside the deck, onto it
+    pl.pos.set(px + sx * 1.4, 1, pz + sz * 1.4);
+    const climb = pl.canStand(px + sx * 0.6, pz + sz * 0.6);
+    // walking across the deck for a second keeps you on it
+    pl.pos.set(px, T.bridgeY(px, pz), pz); pl.baseY = pl.pos.y; pl.setTarget(px + sx * 6, pz + sz * 6);
+    await new Promise((r) => setTimeout(r, 1200));
+    out.push({ side, along, climb, stillOn: T.onBridge(pl.pos.x, pl.pos.z) });
+    pl.target = null;
+  }
+  return out;
+});
+ok(rails.length > 0 && rails.every((r) => !r.side && r.along && !r.climb && r.stillOn), `bridge railings hold (${JSON.stringify(rails)})`);
+
+// v1.14.11: swimming: off the side of the cove dock into a swim (no casting), and out again at the beach
+const swim = await ev(async () => {
+  const T = await import('/src/world/terrain.js'), g = window.__game, pl = g.player;
+  pl.target = null; pl.mode = 'shore'; pl.pos.set(0.5, 1.5, 30); pl.baseY = 1.5;
+  const into = pl.canStand(2.3, 30); pl.pos.set(2.4, 1.5, 30);
+  await new Promise((r) => setTimeout(r, 800));
+  const r = { into, mode: pl.mode, y: +pl.pos.y.toFixed(2), water: T.WATER_Y, cast: g.fishing.startCharge() };
+  pl.setTarget(0.5, 44);
+  for (let i = 0; i < 200 && pl.mode === 'swim'; i++) await new Promise((q) => setTimeout(q, 100));
+  r.out = pl.mode;
+  return r;
+});
+ok(swim.into && swim.mode === 'swim' && Math.abs(swim.y - swim.water) < 0.05 && swim.cast === false && swim.out === 'shore', `swimming in the lake (${JSON.stringify(swim)})`);
+
 ok(errors.length === 0, `no page errors${errors.length ? `: ${errors.slice(0, 3).join(' / ')}` : ''}`);
 await browser.close();
 console.log(failed ? `valley: ${failed} failed` : 'valley: all passed');

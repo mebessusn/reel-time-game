@@ -310,6 +310,19 @@ export function animateAvatar(av, state, t, extra = {}) {
     p.legR.rotation.x = bend + (extra.dangle ? Math.sin(t * 2 + 1.4) * 0.15 : 0);
   }
   switch (state) {
+    case 'swim': { // a front crawl with a flutter kick
+      const k = Math.sin(t * 7), a = t * 2.4;
+      p.legL.rotation.x = k * 0.35; p.legR.rotation.x = -k * 0.35;
+      p.armL.rotation.set(-Math.PI + Math.sin(a) * 1.1, 0, 0.25); p.armR.rotation.set(-Math.PI + Math.sin(a + Math.PI) * 1.1, 0, -0.25);
+      p.head.rotation.x = -0.7;
+      break;
+    }
+    case 'tread': { // treading water: slow kicks, hands sculling
+      const k = Math.sin(t * 3);
+      p.legL.rotation.x = k * 0.3; p.legR.rotation.x = -k * 0.3;
+      p.armL.rotation.set(-0.5, 0, 0.9 + k * 0.25); p.armR.rotation.set(-0.5, 0, -0.9 - k * 0.25);
+      break;
+    }
     case 'walk':
       p.legL.rotation.x = sw * 0.6; p.legR.rotation.x = -sw * 0.6;
       p.armL.rotation.x = -sw * 0.5; p.armR.rotation.x = sw * 0.5;

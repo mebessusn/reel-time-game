@@ -158,7 +158,7 @@ try {
   const [x0, z0] = C[2], [x1, z1] = C[3], L = Math.hypot(x1 - x0, z1 - z0), nx = -(z1 - z0) / L, nz = (x1 - x0) / L;
   await tp(A, x0 + nx * 4, z0 + nz * 4, Math.atan2(-nx, -nz)); await frames(A, 3);
   const c2 = await catchOne(A);
-  ok(c2?.zone === 'creek', `caught a fish in Hollow Brook (${c2?.sp})`);
+  ok(c2?.zone === 'creek', `caught a fish in Hollow Brook (${c2?.sp}, zone ${c2?.zone}, mode ${await ev(A, () => window.__game.player.mode)})`);
   ok(await ev(A, () => (window.__game.woods.d.ranger.have['catch-pool'] || 0) >= 1 && (window.__game.woods.d.ranger.have['catch-creek'] || 0) >= 1), 'Ranger Rhea counts them');
   await A.screenshot({ path: `${OUT}/woods-creek.png` });
 

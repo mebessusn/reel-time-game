@@ -13,6 +13,17 @@ export const CHANGE_KINDS = {
 
 export const CHANGELOG = [
   {
+    version: 'v1.14.11', date: 'Oct 24 2026', title: 'Take a Dip',
+    changes: {
+      new: [
+        'Swimming! Walk out past your depth in any lake, river or pool (or step off the side of a dock) and you swim: tread water when you stop, a front crawl when you move. Swim under the footbridges, and walk into the shallows to climb out. No casting while you\'re in the water.',
+      ],
+      fix: [
+        'Footbridge railings are solid: you can no longer walk off the side of a bridge into the water (or climb on over the side). On and off at the ends, like a real bridge.',
+      ],
+    },
+  },
+  {
     version: 'v1.14.10', date: 'Oct 24 2026', title: 'Say Cheese',
     changes: {
       new: [

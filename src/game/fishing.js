@@ -62,6 +62,11 @@ export class Fishing {
   startCharge(aimPoint) {
     if (this.state !== 'idle') return false;
     const p = this.game.player;
+    if (p.mode === 'swim') { // (v1.14.11: no casting while you're swimming)
+      const now = performance.now();
+      if (now - (this.noWaterToast || 0) > 2500) { this.noWaterToast = now; this.game.ui.toast('You can\'t cast while swimming. Climb out onto the bank first.', { icon: 'waves' }); }
+      return false;
+    }
     if (aimPoint) p.faceToward(aimPoint.x, aimPoint.z);
     // only wind up when there's open water within a full-power cast in the direction you're facing
     if (!this.waterInReach()) {

@@ -204,9 +204,19 @@ export class Actor {
         this.root.rotation.z = s.bike.lean || 0;
         pose = 'bike';
       } else if (this.bikeObj) this.bikeObj.visible = false;
+      // v1.14.11: swimming in the valley's lakes and rivers: treading water at the surface, a crawl when moving
+      if (this.mode === 'swim') {
+        this.root.rotation.order = 'YXZ';
+        const want = s.moving ? 0.55 : 0.25;
+        this.swimTilt = (this.swimTilt ?? want) + (want - (this.swimTilt ?? want)) * Math.min(1, dt * 4);
+        this.root.rotation.x = this.swimTilt;
+        this.root.position.y = WATER_Y + waveAt(s.x, s.z) + Math.sin(t * 2.2 + s.x) * 0.03;
+        this.body.position.set(0, -1.05, 0);
+        pose = s.moving ? 'swim' : 'tread';
+      } else if (this.root.rotation.order !== 'XYZ') { this.root.rotation.order = 'XYZ'; this.swimTilt = null; }
     }
     if (this.held && pose === 'idle') pose = 'hold';
-    const busyHands = ['photo', 'wave', 'cheer', 'shrug', 'clap', 'dance', 'orange', 'run', 'sleep', 'hold', 'row', 'oars', 'dig', 'bike', 'yell', 'cry', 'roast', 'eat'].includes(pose);
+    const busyHands = ['photo', 'swim', 'tread', 'wave', 'cheer', 'shrug', 'clap', 'dance', 'orange', 'run', 'sleep', 'hold', 'row', 'oars', 'dig', 'bike', 'yell', 'cry', 'roast', 'eat'].includes(pose);
     this.placeRod(s.rod === 'back' || busyHands ? 'back' : 'hand');
     this.showShovel(pose === 'dig');
     if (pose === 'photo' || this.camProp) this.showCamera(pose === 'photo');

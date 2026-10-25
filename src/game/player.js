@@ -1,9 +1,9 @@
 // Local player controller: walking, rowing, facing, AFK.
 import * as THREE from 'three';
-import { groundY, walkY, surfaceY, boatable, deckHit, onBridge, SPAWN, HALF, onDock, WATER_Y, DOCK, COVE_LAUNCH, WADE_DEPTH, zoneAt } from '../world/terrain.js';
+import { groundY, walkY, surfaceY, boatable, deckHit, onBridge, railBlocks, SPAWN, HALF, onDock, WATER_Y, DOCK, COVE_LAUNCH, WADE_DEPTH, zoneAt, isWater } from '../world/terrain.js';
 import { blocked, solidTopAt, STEP } from '../world/colliders.js';
 
-const WALK = 3.6, ROW = 3.0, SPRINT = 1.35;
+const WALK = 3.6, ROW = 3.0, SPRINT = 1.35, SWIM = 2.0;
 // v1.13.11: rowing the waterways between lakes is 50% faster, so travelling by boat doesn't drag
 export const RIVER_ROW = 1.5;
 const JUMP_V = 6.5, GRAVITY = 22; // a ~1 block hop that lasts about 0.6 s
@@ -38,7 +38,7 @@ export class Player {
   get airborne() { return this.air > 0 || this.vy > 0; }
 
   jump() {
-    if (this.mode !== 'shore' || this.airborne) return false;
+    if (this.mode !== 'shore' || this.airborne) return false; // (no jumping while swimming)
     this.vy = JUMP_V;
     this.touch();
     return true;
@@ -54,6 +54,15 @@ export class Player {
       // can't row through a dock or jetty (if somehow already inside one, any move out of it is allowed)
       return !deckHit(x, z) || deckHit(this.pos.x, this.pos.z);
     }
+    // v1.14.11: swimming. In the water you swim anywhere that's water (under bridges too, round rocks and pilings),
+    // and climb out wherever it's shallow enough to stand
+    if (this.mode === 'swim') {
+      if (!onBridge(x, z) && walkY(x, z, WADE_DEPTH) != null) return !blocked(x, z, 0.28, 'shore', null);
+      return this.swimmable(x, z);
+    }
+    if (railBlocks(this.pos.x, this.pos.z, x, z)) return false; // (v1.14.11: bridge railings: on and off only at the ends; swimmers pass under)
+    // walking out past your depth (keys or stick, not a click: a click walks you to the water's edge) starts a swim
+    if (this.mode === 'shore' && !this.target && !this.noSwim && walkY(x, z, WADE_DEPTH) == null && this.swimmable(x, z) && !blocked(x, z, 0.28, 'shore', this.pos.y)) return true;
     // (on a bridge deck nothing on the ground underneath can get in the way)
     if (onBridge(x, z) && walkY(x, z, WADE_DEPTH) != null) return true;
     if (walkY(x, z, WADE_DEPTH) != null && !blocked(x, z, 0.28, 'shore', this.mode === 'shore' ? this.pos.y : null)) return true;
@@ -65,6 +74,9 @@ export class Player {
     }
     return false;
   }
+
+  /** Open water deeper than wading, not under a bridge deck you'd be walking on, clear of rocks. */
+  swimmable(x, z) { return isWater(x, z) && surfaceY(x, z) < WATER_Y - WADE_DEPTH + 0.02 && !blocked(x, z, 0.35, 'boat'); }
 
   standable(x, z) { return walkY(x, z, WADE_DEPTH) != null && !blocked(x, z, 0.28, 'shore'); }
 
@@ -134,7 +146,7 @@ export class Player {
     // in a waterway the boat picks up speed, eased in and out over about half a second
     const inRiver = this.mode === 'boat' && zoneAt(this.pos.x, this.pos.z) === 'river';
     this.riverK = (this.riverK || 0) + ((inRiver ? 1 : 0) - (this.riverK || 0)) * Math.min(1, dt * 4);
-    const speed = (this.mode === 'boat' ? ROW * this.rowMult * (1 + (RIVER_ROW - 1) * this.riverK) : WALK * (wade > 0.15 ? 0.6 : 1)) * (this.sprint ? SPRINT : 1);
+    const speed = (this.mode === 'boat' ? ROW * this.rowMult * (1 + (RIVER_ROW - 1) * this.riverK) : this.mode === 'swim' ? SWIM : WALK * (wade > 0.15 ? 0.6 : 1)) * (this.sprint ? SPRINT : 1);
     let mx = 0, mz = 0;
     if (!locked) {
       let f = (this.held('up') ? 1 : 0) - (this.held('down') ? 1 : 0);
@@ -168,6 +180,11 @@ export class Player {
       d = Math.atan2(Math.sin(d), Math.cos(d));
       this.yaw += d * Math.min(1, dt * 10);
       this.dir.set(mx, 0, mz);
+    }
+    // into the water and out again
+    if (this.mode === 'shore' && !this.airborne && walkY(this.pos.x, this.pos.z, WADE_DEPTH) == null && this.swimmable(this.pos.x, this.pos.z)) { this.mode = 'swim'; this.target = null; this.onSwim?.(true); }
+    else if (this.mode === 'swim' && !onBridge(this.pos.x, this.pos.z) && walkY(this.pos.x, this.pos.z, WADE_DEPTH) != null) {
+      this.mode = 'shore'; this.baseY = walkY(this.pos.x, this.pos.z, WADE_DEPTH); this.air = 0; this.vy = 0; this.onSwim?.(false);
     }
     if (this.mode === 'shore') {
       let g = walkY(this.pos.x, this.pos.z, WADE_DEPTH) ?? surfaceY(this.pos.x, this.pos.z);

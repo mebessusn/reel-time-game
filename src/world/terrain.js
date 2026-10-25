@@ -518,6 +518,14 @@ export function walkwayAt(x, z) {
   return null;
 }
 export function onBridge(x, z) { return !!bridgeAt(x, z); }
+/** v1.14.11: the railings run the full length of both sides of every footbridge, so a step that would leave a deck
+ *  (or climb onto one) anywhere but its two open ends goes through a railing. */
+export function railBlocks(fx, fz, tx, tz) {
+  const A = bridgeAt(fx, fz), B = bridgeAt(tx, tz);
+  if (A === B) return false;
+  const through = (Bd, x, z) => Math.abs(bridgeLocal(Bd, x, z)[0]) < Bd.half - 0.02; // (beside the deck, not past an end)
+  return (A && through(A, tx, tz)) || (B && through(B, fx, fz));
+}
 /** v1.8.2: a boat of radius r would hit a dock, jetty or boardwalk (bridges are high enough to row under). */
 export function deckHit(x, z, r = 0.9) {
   const hit = (px, pz) => onCoveDock(px, pz) || !!jettyAt(px, pz) || !!walkwayAt(px, pz);
