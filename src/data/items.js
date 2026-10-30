@@ -3,6 +3,8 @@
 // source: 'starter' (owned by everyone), 'shop', 'achievement' (granted by an achievement only).
 
 export const PERK_TEXT = {
+  troll: () => 'Fish while the charter runs (trolling)',
+  bigGame: () => 'A 3,600 lb line and quicker fights at sea',
   hookWindow: (v) => `Hook window +${v}s`,
   castDistance: (v) => `Cast distance +${v}`,
   reelZone: (v) => `Reel zone +${Math.round(v * 100)}%`,
@@ -28,6 +30,7 @@ export const ITEMS = [
   I('rod_neon', 'rod', 'Neon Synth', { pearls: 150 }, { level: 24, perk: { reelZone: 0.05 }, colors: ['#40f0e0', '#f040c0'], glow: true }),
   I('rod_obsidian', 'rod', 'Obsidian Deep', { pearls: 260 }, { level: 30, perk: { deepBite: 0.1 }, colors: ['#2a1a3a', '#6a40a0'] }),
   I('rod_diamond', 'rod', 'Diamond Rod', { pearls: 500 }, { level: 40, perk: { diamondOdds: 0.25 }, colors: ['#9af0ff', '#e0ffff'], glow: true }),
+  I('rod_biggame', 'rod', 'Big Game Rod', null, { source: 'charter', level: 20, perk: { bigGame: 1 }, colors: ['#1c2a3c', '#d8a83a'] }), // v1.15: Marlowe's tackle locker
   // v1.14.9: Ranger Rhea's fly rod, for the creeks and rivers (sold at Ridge Lookout and by Wren's wagon)
   I('rod_fly', 'rod', 'Willowbend Fly Rod', { coins: 2400 }, { level: 6, perk: { flowBite: 0.3, castDistance: 2 }, colors: ['#5a7a4a', '#c8a050'], vendor: 'ranger' }),
   I('rod_lightning', 'rod', 'Lightning Rod', null, { source: 'achievement', perk: { biteSpeed: 0.05 }, colors: ['#f0e040', '#3a4058'], glow: true }),
@@ -40,6 +43,7 @@ export const ITEMS = [
   I('lure_spinner', 'lure', 'Golden Spinner', { pearls: 60 }, { level: 15, perk: { goldOdds: 0.25 }, colors: ['#f2c040', '#c08a20'] }),
   I('lure_spark', 'lure', 'Little Spark', null, { source: 'achievement', colors: ['#e8784a', '#fff0e0'], glow: true }),
   I('lure_crystal', 'lure', 'Crystal Jig', { pearls: 280 }, { level: 32, perk: { diamondOdds: 0.1 }, colors: ['#a0f0ff', '#ffffff'], glow: true }),
+  I('lure_troll', 'lure', 'Trolling Skirt', null, { source: 'charter', level: 20, perk: { troll: 1 }, colors: ['#f040a0', '#40c0f0'] }), // v1.15: Marlowe's tackle locker
   I('lure_lantern', 'lure', 'Lantern Lure', { pearls: 350 }, { level: 22, perk: { ruinsNight: 1 }, colors: ['#ffd060', '#4a2a70'], glow: true }),
 
   // Boats (cosmetic only)
@@ -66,7 +70,25 @@ export const ITEMS = [
   I('acc_cat', 'accessory', 'Pet Cat (shoulder)', { pearls: 120 }),
   I('hat_tophat', 'hat', 'Top Hat', { coins: 1800 }),
   I('hat_frog', 'hat', 'Frog Hat', { pearls: 70 }),
+  // v1.15 Open Waters: beach games prizes (the first win at each game on Palm Key)
+  I('hat_visor_beach', 'hat', 'Beach Visor', null, { source: 'beach' }),
+  I('hat_crab', 'hat', 'Crab Hat', null, { source: 'beach' }),
+  I('hat_coconut', 'hat', 'Coconut Hat', null, { source: 'beach' }),
+  I('hat_pail', 'hat', 'Sand Pail Hat', null, { source: 'beach' }),
+  I('hat_swimcap', 'hat', 'Swim Cap', null, { source: 'beach' }),
   I('acc_camera', 'accessory', 'Camera', { coins: 1200 }),
+  // Frostmere (map 3): Pell's cold-weather outfits, and the north's prizes (never in Gus's shop)
+  I('shirt_parka', 'shirt', 'Expedition Parka', null, { source: 'north', northPrice: { coins: 900 } }),
+  I('shirt_sweater_snow', 'shirt', 'Snowflake Sweater', null, { source: 'north', northPrice: { coins: 700 } }),
+  I('shirt_sweater_deer', 'shirt', 'Reindeer Sweater', null, { source: 'north', northPrice: { coins: 700 } }),
+  I('hat_bobble', 'hat', 'Bobble Hat', null, { source: 'north', northPrice: { coins: 400 } }),
+  I('acc_mittens', 'accessory', 'Mittens', null, { source: 'north', northPrice: { coins: 350 } }),
+  I('eye_snowgoggles', 'eyewear', 'Snow Goggles', null, { source: 'north', northPrice: { coins: 500 } }),
+  I('shoes_furboots', 'shoes', 'Fur-trimmed Boots', null, { source: 'north', northPrice: { coins: 600 } }),
+  I('hat_earflap', 'hat', 'Earflap Hat', null, { source: 'north' }),
+  I('shirt_musher', 'shirt', 'Musher\'s Bib', null, { source: 'north' }),
+  I('acc_aurora_scarf', 'accessory', 'Aurora Scarf', null, { source: 'north' }),
+  I('hat_aviator', 'hat', 'Aviator Cap', null, { source: 'north' }),
 
   // Emotes
   I('emote_clap', 'emote', 'Clap', null, { source: 'achievement' }),

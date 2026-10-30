@@ -105,7 +105,7 @@ import {
   Monitor, Keyboard, Gamepad2, Eye, Info, ArrowLeft, ChevronLeft, ChevronRight, ChevronDown, Search, ArrowUpDown, ListFilter, ZoomIn, ZoomOut,
   Compass, LogOut, Users, Sparkles, Flame, Gift, Mail, Newspaper, Crown, Medal, Target, Shuffle, Undo2, RotateCcw, RotateCw, Shirt, Link, Copy,
   Accessibility, SlidersHorizontal, MapPin, Plus, Minus, Package, Tent, PawPrint, Clock, Award, CircleHelp, Menu, Ellipsis, Navigation, Type, Music, Anchor,
-  Gem, Waves, Tag, Archive, Leaf, Snowflake, Heart, FishingHook, Wrench, History, Bike, Backpack, ShieldCheck, Ban, Gavel, Hourglass, UserX, ScrollText as Rules, Shovel, Hand, PartyPopper, Meh, Bed, Citrus, ChevronUp, Bug, Download, Upload,
+  Dog, Gem, Waves, Tag, Archive, Leaf, Snowflake, Heart, FishingHook, Wrench, History, Bike, Backpack, ShieldCheck, Ban, Gavel, Hourglass, UserX, ScrollText as Rules, Shovel, Hand, PartyPopper, Meh, Bed, Citrus, ChevronUp, Bug, Download, Upload,
 } from 'lucide';
 
 const LINE = {
@@ -119,7 +119,7 @@ const LINE = {
   rotL: RotateCcw, rotR: RotateCw, shirt: Shirt, link: Link, copy: Copy, access: Accessibility, sliders: SlidersHorizontal, pin: MapPin, plus: Plus, minus: Minus,
   package: Package, tent: Tent, paw: PawPrint, clock: Clock, award: Award, help: CircleHelp, menu: Menu, more: Ellipsis, nav: Navigation, type: Type, music: Music,
   anchor: Anchor, gem: Gem, waves: Waves, tag: Tag, archive: Archive, leaf: Leaf, snow: Snowflake, heart: Heart, hook: FishingHook, wrench: Wrench, history: History,
-  bike: Bike, backpack: Backpack, shield: ShieldCheck, ban: Ban, gavel: Gavel, hourglass: Hourglass, userx: UserX, rules: Rules, shovel: Shovel, hand: Hand, party: PartyPopper, meh: Meh, bed: Bed, citrus: Citrus, up: ChevronUp, bug: Bug,
+  dog: Dog, bike: Bike, backpack: Backpack, shield: ShieldCheck, ban: Ban, gavel: Gavel, hourglass: Hourglass, userx: UserX, rules: Rules, shovel: Shovel, hand: Hand, party: PartyPopper, meh: Meh, bed: Bed, citrus: Citrus, up: ChevronUp, bug: Bug,
 };
 
 // Filled, coloured currency marks (24-unit grid like the rest).

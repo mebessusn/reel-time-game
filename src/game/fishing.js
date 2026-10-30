@@ -1,9 +1,17 @@
 // Fishing state machine: charge -> flying -> waiting -> nibble -> bite -> reeling -> landed (design doc section 5).
 import * as THREE from 'three';
 import { isWater, zoneAt, WATER_Y, onDock, castClearance } from '../world/terrain.js';
+import { blocked } from '../world/colliders.js';
 
 // open water a bobber can sit on: not under the dock, a jetty or the bridge (with a little clearance)
-const openWater = (x, z) => isWater(x, z) && !onDock(x, z) && !onDock(x + 0.5, z) && !onDock(x - 0.5, z) && !onDock(x, z + 0.5) && !onDock(x, z - 0.5);
+const openWater = (x, z) => isWater(x, z) && !blocked(x, z, 0.25, 'boat') && !onDock(x, z) && !onDock(x + 0.5, z) && !onDock(x - 0.5, z) && !onDock(x, z + 0.5) && !onDock(x, z - 0.5);
+/** v1.17.1: how far a cast can fly straight ahead before something tall is in the way (a lamp post, a tree, a wall,
+ *  a piling, a sign): the line goes over low things (rocks you could step on), not through high ones. */
+function solidClearance(p, fwd, max = 30) {
+  const over = p.pos.y + 1.6; // (low solids whose top is under the rod tip's arc don't stop it)
+  for (let s = 0.9; s <= max; s += 0.4) { const x = p.pos.x + fwd.x * s, z = p.pos.z + fwd.z * s; if (blocked(x, z, 0.12, 'shore', over) || (!onDock(x, z) && blocked(x, z, 0.12, 'boat'))) return s; } // (a dock or jetty you stand on blocks boats, not lines: castClearance stops a line at the far side of one)
+  return Infinity;
+}
 import { SPECIES_BY_ID } from '../data/species.js';
 import { biteDelay, rollBite, effectiveZone, eligibleSpecies, rollWeight, easeOverweight } from './rules.js';
 import { spotAt, gateAt } from './spots.js';
@@ -53,7 +61,7 @@ export class Fishing {
     const p = this.game.player, fwd = p.forward();
     let extra = 0;
     try { extra = this.game.perks().castDistance || 0; } catch { /* save still loading */ }
-    const max = Math.min(4 + 14 + extra, castClearance(p.pos.x, p.pos.z, fwd.x, fwd.z, 30) - 0.8);
+    const max = Math.min(4 + 14 + extra, castClearance(p.pos.x, p.pos.z, fwd.x, fwd.z, 30) - 0.8, solidClearance(p, fwd) - 0.6);
     for (let d = 2; d <= max; d += 0.5) if (openWater(p.pos.x + fwd.x * d, p.pos.z + fwd.z * d)) return true;
     return false;
   }
@@ -61,17 +69,22 @@ export class Fishing {
   // Begin charging. aimPoint optional (world xz) to face toward.
   startCharge(aimPoint) {
     if (this.state !== 'idle') return false;
+    if (this.game.ocean && !this.game.ocean.canCast()) return false; // v1.15: lines up while the charter runs
+    if (this.game.north && !this.game.north.canCast()) return false; // Frostmere: not from the plane
     const p = this.game.player;
     if (p.mode === 'swim') { // (v1.14.11: no casting while you're swimming)
       const now = performance.now();
       if (now - (this.noWaterToast || 0) > 2500) { this.noWaterToast = now; this.game.ui.toast('You can\'t cast while swimming. Climb out onto the bank first.', { icon: 'waves' }); }
       return false;
     }
+    if (this.game.north?.ice?.tryDrop()) return false; // Frostmere: at a hole in the ice, the line goes straight down
     if (aimPoint) p.faceToward(aimPoint.x, aimPoint.z);
     // only wind up when there's open water within a full-power cast in the direction you're facing
     if (!this.waterInReach()) {
+      if (this.game.north?.snowballs?.tryThrow(aimPoint)) return false; // Frostmere: on the snow, a snowball
       const now = performance.now();
-      if (now - (this.noWaterToast || 0) > 2500) { this.noWaterToast = now; this.game.ui.toast('No water in reach. Face the water to cast.', { icon: 'waves' }); }
+      const ice = this.game.north?.ice?.onIce();
+      if (now - (this.noWaterToast || 0) > 2500) { this.noWaterToast = now; this.game.ui.toast(ice ? (this.game.north.ice.has('auger_hand') || this.game.north.ice.has('auger_power') ? 'You\'re on the ice: drill a hole (E) and fish through it.' : 'You\'re on the ice. Pell at the trading post sells augers to drill a hole.') : 'No water in reach. Face the water to cast.', { icon: 'waves' }); }
       return false;
     }
     this.aim = aimPoint ? new THREE.Vector3(aimPoint.x, 0, aimPoint.z) : null;
@@ -83,6 +96,7 @@ export class Fishing {
 
   releaseCharge() {
     if (this.state !== 'charge') return;
+    this.iceHole = null; this.tipup = false;
     const g = this.game, p = g.player;
     const perks = g.perks();
     const power = this.power;
@@ -93,7 +107,7 @@ export class Fishing {
     this.super = power >= SUPER_AT;
     const fwd = p.forward();
     // v1.8.2: a line can't fly through a bridge, dock or jetty: the cast stops short of it
-    const clear = castClearance(p.pos.x, p.pos.z, fwd.x, fwd.z, 30) - 0.8;
+    const clear = Math.min(castClearance(p.pos.x, p.pos.z, fwd.x, fwd.z, 30) - 0.8, solidClearance(p, fwd) - 0.6); // (v1.17.1: and not through anything solid)
     const dist = Math.min(clear, 4 + power * 14 + (perks.castDistance || 0) + (this.super ? 3 : 0));
     // Walk back along the cast line until we hit water.
     let land = null;
@@ -134,6 +148,21 @@ export class Fishing {
     g.netEvent('cast', { x: land.x, z: land.z });
   }
 
+  /** Frostmere: drop the line straight down a hole in the ice (no cast). { instant }: already down (a tip-up). */
+  dropAt(hole, { instant = false } = {}) {
+    const g = this.game;
+    this.iceHole = hole; this.tipup = false; this.super = false; this.perfect = false; this.aim = null;
+    g.actor.rodTip(this.flightFrom);
+    this.flightTo.set(hole.x, WATER_Y, hole.z);
+    this.bobber = { x: instant ? hole.x : this.flightFrom.x, z: instant ? hole.z : this.flightFrom.z, y: instant ? undefined : this.flightFrom.y, flying: !instant, dunk: 0 };
+    this.state = instant ? 'waiting' : 'flying';
+    this.timer = 0; this.flightTime = 0.3;
+    g.audio.sfx('reelin');
+    g.netEvent('cast', { x: hole.x, z: hole.z });
+  }
+  /** The fishing context as if the line were at (x, z) (Frostmere's tip-ups). */
+  ctxAt(x, z) { const keep = this.bobber; this.bobber = { x, z }; try { return this.ctx(); } finally { this.bobber = keep; } }
+
   ctx() {
     const g = this.game;
     const wt = g.engine.sky.state;
@@ -143,19 +172,22 @@ export class Fishing {
     // a lake's deep end or landmark (v1.13: casts below its level never land, see the 'flying' case)
     const sp = spotAt(this.bobber.x, this.bobber.z);
     const spot = sp && zoneAt(this.bobber.x, this.bobber.z) === sp.lake && g.profile.level >= sp.level ? sp : null;
-    return {
+    const c = {
       zone, rawZone, spot: spot?.id || null, spotKind: spot?.kind || null, spotLocked: sp && !spot ? sp : null, phase: wt.phase, weather: wt.weather, fullMoon: wt.fullMoon, bloodMoon: !!wt.bloodMoon, perks,
       perfectCast: this.perfect, superCast: this.super, goodCompany: g.goodCompany(), firstEver: (g.profile.catchCount || 0) === 0,
       swirl: g.player.mode === 'boat' && !!swirlAt(this.bobber.x, this.bobber.z),
       bait: g.tackle?.active || null, event: g.events?.current || null, season: g.living?.season || null,
       craving: g.cookout?.craving() || null,
     };
+    if (g.north?.here) g.north.ctxExtra(c); // Frostmere: the aurora, the shanty
+    return g.ocean ? g.ocean.ctxExtra(c) : c; // v1.15 Open Waters: no junk at sea, the spotter's birds
   }
 
   // Primary action (click / Space). Returns true if consumed.
   press() {
     if (this.state === 'bite') { this.hook(); return true; }
     if (this.state === 'reeling') { this.holding = true; return true; }
+    if ((this.state === 'waiting' || this.state === 'nibble') && this.iceHole && this.game.north?.ice) return this.game.north.ice.jig(); // Frostmere: jig
     if (this.state === 'waiting' || this.state === 'nibble') { this.reelIn(); return true; }
     return false;
   }
@@ -167,20 +199,23 @@ export class Fishing {
     this.game.audio.sfx('reelin');
   }
 
-  cancel() { if (this.flip) { this.game.engine.scene.remove(this.flip.mesh); this.flip = null; } this.clearFightFish(); this.state = 'idle'; this.bobber = null; this.reel = null; this.holding = false; this.game.ui.hideReel(); this.game.ui.hideBang(); }
+  cancel() { this.game.ocean?.fight.onCancel(); if (this.flip) { this.game.engine.scene.remove(this.flip.mesh); this.flip = null; } this.clearFightFish(); this.state = 'idle'; this.bobber = null; this.reel = null; this.holding = false; this.game.ui.hideReel(); this.game.ui.hideBang(); }
 
   hook() {
     const g = this.game;
     g.ui.hideBang();
     const c = this.ctx();
-    this.bite = g.answerPending ? this.answerBite(c) : rollBite(c);
+    // v1.15 Open Waters: a crewmate handing you the rod mid-fight passes their fish (forcedBite)
+    this.bite = this.forcedBite || (g.answerPending ? this.answerBite(c) : (c.ocean && g.ocean?.voyage.lessonBite()) || rollBite(c));
+    const handed = !!this.forcedBite; this.forcedBite = null;
     // a fish jumped near your bobber? good chance it's the one that bites
     const hs = !this.bite.answer && !c.firstEver && this.bite.kind === 'fish' ? g.living?.hintBite(this.bobber) : null; // your very first fish is always the promised bluegill
     if (hs && eligibleSpecies(null, c).some((x) => x.id === hs)) { this.bite.speciesId = hs; this.bite.weight = rollWeight(SPECIES_BY_ID[hs]); this.bite.hinted = true; }
-    if (!g.answerPending) this.bite = easeOverweight(this.bite, c, lineRating(g.profile.equipped.rod, g.ext?.d?.upgrades));
+    if (!g.answerPending && !handed) this.bite = easeOverweight(this.bite, c, g.ocean?.lineRating() ?? lineRating(g.profile.equipped.rod, g.ext?.d?.upgrades));
     // one bait per hooked fish
-    if (c.bait) this.bite.bait = g.tackle.consume();
+    if (c.bait && !handed) this.bite.bait = g.tackle.consume();
     this.biteCtx = c;
+    this.lastIce = !!this.iceHole; this.lastTipup = !!this.tipup; // (Frostmere's quests: through the ice, off a tip-up)
     g.audio.sfx('hook');
     if (this.bite.kind === 'junk') {
       this.state = 'reeling';
@@ -205,9 +240,10 @@ export class Fishing {
     this.reel = newTug(sp, diff, { relaxed, perk: (g.perks().reelZone || 0) * 0.5, reelBonus: up.reelBonus || 0, lineBonus: up.lineBonus || 0 });
     // Weight limit (v1.9.3): a fish heavier than your line rating snaps it the moment it's hooked, so no one
     // spends a whole fight on a fish they could never land. The toast says what to upgrade.
-    const rating = lineRating(g.profile.equipped.rod, g.ext?.d?.upgrades);
+    const rating = g.ocean?.lineRating() ?? lineRating(g.profile.equipped.rod, g.ext?.d?.upgrades); // v1.15: the charter's big-game rods
     this.reel.rating = rating;
     if (this.bite.weight > rating && !this.bite.answer) { this.reel.overweight = true; }
+    g.ocean?.fight.onHook(this.reel, this.bite, sp); // v1.15: big game goes to the fighting chair
     // Geometry of the fight: the fish works left/right across the line from you to the bobber.
     const p = g.player.pos;
     const dx = this.bobber.x - p.x, dz = this.bobber.z - p.z;
@@ -234,7 +270,9 @@ export class Fishing {
     // under 2 min a gold rare, 2-10 min rare or epic, 10-30 min epic, 30+ min legendary (or the best this spot
     // has). Diamond only on long runs: 10% from 30 min, 25% from an hour.
     const secs = g.answerSeconds || 0;
-    const all = eligibleSpecies(null, c);
+    let all = eligibleSpecies(null, c);
+    // v1.15.9: aboard a charter, Marlowe's "fish on!": the golden fish is a big-game fish
+    if (c.ocean && g.ocean?.voyage.takeBigAnswer()) { const big = all.filter((s) => s.big); if (big.length) all = big; }
     const want = answerTiers(secs);
     let pool = [];
     for (const t of want) { pool = all.filter((s) => s.tier === t); if (pool.length) break; }
@@ -266,11 +304,12 @@ export class Fishing {
         const b = this.bobber;
         b.x = this.flightFrom.x + (this.flightTo.x - this.flightFrom.x) * k;
         b.z = this.flightFrom.z + (this.flightTo.z - this.flightFrom.z) * k;
-        b.y = this.flightFrom.y + (this.flightTo.y - this.flightFrom.y) * k + Math.sin(Math.PI * k) * (1.5 + this.flightTime * 2);
+        b.y = this.flightFrom.y + (this.flightTo.y - this.flightFrom.y) * k + Math.sin(Math.PI * k) * (this.iceHole ? 0.2 : 1.5 + this.flightTime * 2);
         if (this.super && Math.random() < 0.8) g.fx.sparkle(new THREE.Vector3(b.x, b.y, b.z), Math.random() < 0.5 ? '#ffe070' : '#fff8d0', 2, 0.15);
         if (k >= 1) {
           b.flying = false; b.y = undefined;
           g.fx.splash(this.flightTo, this.super ? 1.3 : 0.5);
+          g.ocean?.nightSea.splash(b.x, b.z); // v1.15.10: plankton light up round the bobber at night
           g.engine.water.ripple(b.x, b.z, this.super ? 2 : 1);
           if (this.super) { g.fx.ring?.(this.flightTo, '#ffd84a'); g.fx.sparkle(this.flightTo, '#ffe070', 22, 1.4); g.audio.sfx('superland'); }
           g.audio.sfx('plop', { x: b.x, z: b.z });
@@ -284,13 +323,14 @@ export class Fishing {
           }
           this.state = 'waiting';
           const c = this.ctx();
-          this.timer = FAST_BITE ? 2 : biteDelay(c);
+          this.timer = FAST_BITE ? 2 : biteDelay(c) * (g.ocean?.biteMult(c) ?? 1);
           this.zoneShown = c.rawZone;
           g.onBobberLanded(c);
         }
         break;
       }
       case 'waiting': {
+        if (this.iceHole && g.north?.ice && !g.answerPending) { g.north.ice.waiting(dt, this); break; } // Frostmere: the flasher's marks decide
         this.timer -= dt;
         if (g.answerPending && this.timer > 1.7) this.timer = 1.7; // the answer fish is already circling
         if (Math.random() < dt * 0.4) g.engine.water.ripple(this.bobber.x, this.bobber.z, -0.6);
@@ -349,6 +389,7 @@ export class Fishing {
     }
     const wasJump = r.jump > 0;
     stepTug(r, dt, this.holding, g.rodAim || 0);
+    g.ocean?.fight.onStep(r, dt);
     g.ui.updateReel(r);
     g.audio.reelLoop(this.holding, r.good ? 1 : 0.4);
     // Where the fish is: along the line (closer as you win line) and off to the side it pulls toward.
@@ -399,6 +440,13 @@ export class Fishing {
     g.audio.reelLoop(false);
     g.ui.hideReel();
     this.clearFightFish();
+    const big = g.ocean?.fight.onEscape(this.reel, snapped); // v1.15: a big-game fish gets its own words
+    if (big) {
+      g.juice?.broke(); g.audio.sfx('miss'); g.ui.toast(big, { icon: 'fish', ms: 6000 });
+      g.fx.splash(new THREE.Vector3(this.bobber.x, WATER_Y, this.bobber.z), 1.4);
+      this.state = 'idle'; this.bobber = null; this.reel = null;
+      return;
+    }
     const close = this.reel.progress > 0.8 || (snapped && this.reel.progress > 0.7);
     if (close) { g.juice?.pop('So close!', { color: '#ff9a7a', size: 36, ms: 1300 }); g.juice?.hit({ stop: 0, shake: 0.3, zoom: 1.04 }); }
     g.juice?.broke();
@@ -414,6 +462,7 @@ export class Fishing {
 
   land() {
     const g = this.game;
+    g.ocean?.fight.onLand(this.reel);
     g.audio.reelLoop(false);
     g.ui.hideReel();
     this.clearFightFish();

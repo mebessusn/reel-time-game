@@ -11,3 +11,10 @@ test-results/
 .vercel/
 __pycache__/
 art/_build/
+
+# stray test output (a test once took the page URL as its output folder)
+http:/
+https:/
+art/polyfork/
+src/data/polyforkMesh.js
+src/data/polyanimalMesh.js

@@ -30,6 +30,7 @@ export function blocked(x, z, r = 0.28, mode = 'shore', feetY = null) {
   for (const s of solids) {
     if (mode === 'boat' && !s.water) continue;
     if (s.top != null && feetY != null && feetY >= s.top - STEP) continue;
+    if (s.skip?.()) continue; // (v1.17.1: e.g. a shanty's walls while you're inside it)
     if (s.kind === 'circle') {
       const rr = s.r + r;
       const dx = x - s.x, dz = z - s.z;
@@ -50,4 +51,21 @@ export function solidTopAt(x, z) {
     if (inside && (best == null || s.top > best)) best = s.top;
   }
   return best;
+}
+
+/** Debugging: the solids within d of (x, z), and whether a solid shape (solidFn) answers there. */
+export function collidersNear(x, z, d = 3) {
+  const out = solids.filter((s) => (s.kind === 'circle' ? Math.hypot(s.x - x, s.z - z) < d + s.r : x > s.x0 - d && x < s.x1 + d && z > s.z0 - d && z < s.z1 + d)).map((s) => ({ ...s }));
+  return { solids: out, fns: solidFns.map((fn, i) => (fn(x, z, 0.45) ? i : -1)).filter((i) => i >= 0) };
+}
+
+/** Tests and tools: which solids (and which solid fns, by index) a body at (x, z) touches. */
+export function solidsAt(x, z, r = 0.28) {
+  const out = [];
+  solidFns.forEach((fn, i) => { if (fn(x, z, r)) out.push({ fn: i, src: String(fn).slice(0, 80) }); });
+  for (const s of solids) {
+    if (s.skip?.()) continue;
+    if (s.kind === 'circle' ? Math.hypot(x - s.x, z - s.z) < s.r + r : x > s.x0 - r && x < s.x1 + r && z > s.z0 - r && z < s.z1 + r) out.push(s);
+  }
+  return out;
 }

@@ -30,7 +30,9 @@ export class AudioEngine {
     this.master = ctx.createGain();
     this.comp = ctx.createDynamicsCompressor();
     this.comp.threshold.value = -18; this.comp.ratio.value = 3;
-    this.master.connect(this.comp).connect(ctx.destination);
+    // v1.15: underwater, everything goes muffled (a lowpass between the mix and the compressor)
+    this.under = ctx.createBiquadFilter(); this.under.type = 'lowpass'; this.under.frequency.value = 20000; this.under.Q.value = 0.6;
+    this.master.connect(this.under).connect(this.comp).connect(ctx.destination);
     const bus = () => { const g = ctx.createGain(); g.connect(this.master); return g; };
     this.bus = { music: bus(), sfx: bus(), ambience: bus(), others: bus() };
     this.musicDuck = ctx.createGain();
@@ -201,6 +203,14 @@ export class AudioEngine {
       case 'yawn': this.tone({ freq: 300, to: 180, type: 'triangle', dur: 0.8, vol: 0.05, attack: 0.2, out }); break;
       case 'cheer': [660, 880, 990].forEach((f, i) => this.tone({ freq: f, type: 'triangle', dur: 0.15, vol: 0.06, when: i * 0.07, out })); break;
       case 'firework': this.tone({ freq: r(200, 400), to: r(1200, 2000), type: 'triangle', dur: 0.6, vol: 0.03, out: this.bus.ambience }); this.noise({ dur: 0.9, vol: 0.12, buf: 'brown', freq: 600, to: 120, when: 0.6, out: this.bus.ambience }); for (let i = 0; i < 8; i++) this.noise({ dur: 0.03, vol: 0.05, type: 'highpass', freq: 4000, when: 0.7 + i * 0.06, out: this.bus.ambience }); break;
+      // v1.15 Open Waters
+      case 'horn': for (const [f, d] of [[110, 0], [165, 0.02]]) { this.tone({ freq: f, type: 'sawtooth', dur: 1.5, vol: 0.022, attack: 0.12, when: d, out }); this.tone({ freq: f, type: 'triangle', dur: 1.5, vol: 0.05, attack: 0.1, when: d, out }); } break;
+      case 'run': for (let i = 0; i < 26; i++) this.noise({ dur: 0.02, vol: 0.11, type: 'highpass', freq: 4200, when: i * 0.03, out }); this.tone({ freq: 2300, to: 2700, type: 'sawtooth', dur: 0.8, vol: 0.006, attack: 0.05, out }); break;
+      case 'gaff': this.noise({ dur: 0.18, vol: 0.32, type: 'lowpass', freq: 600, to: 150, out }); this.tone({ freq: 95, to: 55, dur: 0.18, vol: 0.18, out }); this.noise({ dur: 0.5, vol: 0.1, freq: 1400, to: 300, when: 0.08, out }); break;
+      case 'whaleBlow': { const v = opts.vol ?? 1; this.noise({ dur: 1.7, vol: 0.09 * v, type: 'bandpass', freq: 900, to: 260, q: 0.6, attack: 0.08, out: this.bus.ambience, buf: 'pink' }); this.noise({ dur: 1.2, vol: 0.05 * v, type: 'lowpass', freq: 300, attack: 0.05, out: this.bus.ambience }); break; }
+      case 'whaleSplash': this.noise({ dur: 2.2, vol: 0.22, type: 'lowpass', freq: 1600, to: 180, attack: 0.02, out: this.bus.ambience }); this.tone({ freq: 70, to: 40, dur: 0.6, vol: 0.12, out: this.bus.ambience }); break;
+      case 'dolphin': { const v = opts.vol ?? 1, pan = Math.random() * 1.2 - 0.6; for (let i = 0; i < 7; i++) this.tone({ freq: 5200 + Math.random() * 1500, dur: 0.012, vol: 0.02 * v, when: i * 0.045, out: this.bus.ambience, pan }); this.tone({ freq: 3600, to: 5600, type: 'sine', dur: 0.32, vol: 0.018 * v, attack: 0.04, when: 0.4, out: this.bus.ambience, pan }); this.tone({ freq: 5600, to: 4200, type: 'sine', dur: 0.25, vol: 0.016 * v, when: 0.72, out: this.bus.ambience, pan }); break; }
+      case 'gulls': this.gull(); setTimeout(() => this.gull(), 380); break;
       case 'meteor': this.noise({ dur: 1.1, vol: 0.05, type: 'bandpass', freq: 3000, to: 600, q: 2, attack: 0.2, out: this.bus.ambience }); break;
       case 'derby': this.tone({ freq: 392, type: 'sawtooth', dur: 0.35, vol: 0.05, out }); this.tone({ freq: 523, type: 'sawtooth', dur: 0.6, vol: 0.05, when: 0.3, out }); break;
       case 'step': this.step(opts.surface, opts.vol); break;
@@ -211,6 +221,25 @@ export class AudioEngine {
       case 'shutter': this.noise({ dur: 0.04, vol: 0.2, type: 'highpass', freq: 2400, out }); this.tone({ freq: 600, type: 'square', dur: 0.03, vol: 0.05, out }); this.noise({ dur: 0.05, vol: 0.14, type: 'highpass', freq: 1800, when: 0.08, out }); break;
       case 'pop': this.tone({ freq: 520, to: 880, type: 'sine', dur: 0.08, vol: 0.12, out }); this.noise({ dur: 0.05, vol: 0.06, type: 'bandpass', freq: 1600, out }); break;
       case 'place': this.noise({ dur: 0.18, vol: 0.18, type: 'lowpass', freq: 600, to: 200, out }); this.tone({ freq: 140, to: 90, dur: 0.12, vol: 0.1, out }); break;
+      // v1.17.1 Skye's Air Races: the start lights (a clean two-layer beep with a short echo off the stands) and the crowd
+      case 'lightRed': case 'lightYellow': case 'lightGreen': {
+        const go = id === 'lightGreen', f = go ? 880 : id === 'lightYellow' ? 523.25 : 440, d = go ? 1.1 : 0.42;
+        for (const [k, w, dl] of [[1, 1, 0], [0.32, 0.4, 0.13], [0.12, 0.16, 0.26]]) {
+          this.tone({ freq: f, type: 'sine', dur: d, vol: 0.13 * k, attack: 0.006, when: dl, out });
+          this.tone({ freq: f * 2, type: 'triangle', dur: d * 0.8, vol: 0.035 * k, attack: 0.006, when: dl, out });
+          this.tone({ freq: f, type: 'square', dur: 0.05, vol: 0.02 * w, attack: 0.002, when: dl, out }); // (the click of the relay)
+        }
+        if (go) { this.tone({ freq: f * 1.5, type: 'sine', dur: d, vol: 0.06, attack: 0.01, out }); this.tone({ freq: f * 1.25, type: 'sine', dur: d, vol: 0.05, attack: 0.01, out }); }
+        break;
+      }
+      case 'crowd': {
+        const v = opts.vol ?? 1, len = opts.dur ?? 3.2;
+        this.noise({ dur: len, vol: 0.09 * v, type: 'bandpass', freq: 850, q: 0.5, attack: 0.35, buf: 'pink', out });
+        this.noise({ dur: len * 0.9, vol: 0.05 * v, type: 'bandpass', freq: 2300, q: 0.9, attack: 0.25, buf: 'pink', out });
+        for (let i = 0; i < 26; i++) this.noise({ dur: 0.035, vol: (0.012 + 0.04 * Math.random()) * v, type: 'bandpass', freq: 1200 + Math.random() * 1400, q: 1.2, when: 0.15 + Math.random() * len * 0.8, out, pan: Math.random() * 1.4 - 0.7 });
+        for (let i = 0; i < 2; i++) { const w = 0.3 + Math.random() * len * 0.5; this.tone({ freq: 1900, to: 2600, dur: 0.22, vol: 0.025 * v, when: w, out }); this.tone({ freq: 2600, to: 1700, dur: 0.3, vol: 0.022 * v, when: w + 0.25, out }); }
+        break;
+      }
       case 'tick': this.tone({ freq: 1800 + Math.random() * 300, type: 'square', dur: 0.025, vol: 0.025, out }); break;
       case 'splashRemote': this.tone({ freq: r(400, 520), to: 160, dur: 0.12, vol: 0.12, out: this.bus.others }); break;
       default: break;
@@ -265,7 +294,9 @@ export class AudioEngine {
     this.ambTimer = setInterval(() => this.ambienceTick(), 250);
   }
 
-  setScene({ phase, weather, nearFire, nearFalls, region }) {
+  setUnderwater(on) { if (this.under && this.ctx) this.under.frequency.setTargetAtTime(on ? 650 : 20000, this.ctx.currentTime, 0.15); }
+  setScene({ phase, weather, nearFire, nearFalls, region, sea }) {
+    this.sea = sea || null; // v1.15: out at sea: { swell, wind } from the sea state
     // a new time of day (or rain) brings a new song: let the current one end at the next phrase
     const mood = weather === 'rain' || weather === 'storm' ? 'rain' : phase;
     this.mood = mood;
@@ -288,6 +319,18 @@ export class AudioEngine {
     set('fire', this.nearFire * 0.18 * (0.8 + Math.random() * 0.4));
     const R = Math.random();
     const reg = this.region || '';
+    // v1.15 Open Waters: the sea's own voice. Swell washing along the hull (bigger seas, deeper wash), wind in the
+    // rigging that rises to a howl in a storm, gulls by day, the boat creaking as she works. No land critters.
+    if (this.sea) {
+      const S = this.sea;
+      set('water', 0.16 + Math.min(0.3, S.swell * 0.11) + Math.sin(t * (0.7 + S.swell * 0.15)) * (0.04 + S.swell * 0.03));
+      this.amb.water.f.frequency.setTargetAtTime(380 + S.swell * 160, t, 2);
+      set('breeze', 0.05 + Math.min(0.32, S.wind * 0.22) * (0.85 + Math.sin(t * 0.37) * 0.15));
+      this.amb.breeze.f.frequency.setTargetAtTime(600 + S.wind * 500 + Math.sin(t * 0.9) * 120 * S.wind, t, 1);
+      if ((phase === 'day' || phase === 'dawn') && !rain && R < 0.045) this.gull();
+      if (R > 0.985 - S.swell * 0.01) this.sfx('creak');
+      return;
+    }
     // Each place has its own voice: loons on Frostpine, frogs in Lilymarsh, drips in the quarry,
     // babbling water along Willow River, chatter and an axe at the lodge.
     if (reg === 'Frostpine Lake') { set('breeze', 0.12 + Math.sin(t * 0.21) * 0.05); if (R > (phase === 'night' || phase === 'dawn' ? 0.97 : 0.988)) this.loon(); }
@@ -305,6 +348,7 @@ export class AudioEngine {
     if (this.nearFire > 0.3 && Math.random() < 0.5) this.noise({ dur: 0.03, vol: 0.05 * this.nearFire, type: 'highpass', freq: 2500, out: this.bus.ambience, when: Math.random() * 0.2 });
   }
 
+  gull() { const pan = Math.random() * 1.4 - 0.7, f = 1250 + Math.random() * 300; this.tone({ freq: f, to: f * 1.35, type: 'triangle', dur: 0.16, vol: 0.022, out: this.bus.ambience, pan }); this.tone({ freq: f * 1.35, to: f * 0.8, type: 'triangle', dur: 0.3, vol: 0.02, when: 0.16, out: this.bus.ambience, pan }); }
   chirp() {
     const f = 2400 + Math.random() * 1800, n = 2 + Math.floor(Math.random() * 3);
     const pan = Math.random() * 1.6 - 0.8;

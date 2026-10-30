@@ -8,7 +8,7 @@
 import * as THREE from 'three';
 import { Kit, noisy, planksAlong, planksAcross, bark, stone } from './softprops.js';
 import { tone, hash } from '../render/soft.js';
-import { LAKES, RIVERS, heightAt, surfaceY, WATER_Y, trailDist, onDock, deckHit, mainland, addWalkway, gentleAt } from './terrain.js';
+import { LAKES, RIVERS, CLEARINGS, heightAt, surfaceY, WATER_Y, trailDist, onDock, deckHit, mainland, addWalkway, gentleAt } from './terrain.js';
 import { addCircle, addBox, blocked } from './colliders.js';
 import { mulberry32 } from '../core/rng.js';
 import { splitByTiles } from '../render/cull.js';
@@ -88,6 +88,7 @@ function frostpine(k, r) {
   for (let i = 0; i < 18; i++) {
     const s = shore(L, r() * Math.PI * 2, 1.5 + r() * 5);
     if (!s || !dryOk(s.x, s.z, 1.2)) continue;
+    if (Math.hypot(s.x - CLEARINGS.seabase.x, s.z - CLEARINGS.seabase.z) < CLEARINGS.seabase.r + 8) continue; // (v1.17.1: none in the seaplane base's yard or on its dock path)
     const sz = 0.8 + r() * 1.2, y = y0(s.x, s.z);
     k.box(sz * 1.3, sz, sz, sz * 0.3, { all: noisy('#8a8f96', 0.08, 5), top: (f) => f.fill((x, yy) => (hash(x, yy, 93) > 0.85 ? '#e8f2f8' : '#ffffff')) }, s.x, y + sz * 0.35, s.z, 0, r() * 3, 0);
     addCircle(s.x, s.z, sz * 0.62, { top: y + sz * 0.85 });

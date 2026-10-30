@@ -58,8 +58,36 @@ export function loadGear() {
 
 export const gearReady = () => state === 'ready';
 
-/** A fresh instance (shared geometry and materials) of a modelled rod or lure, or null. */
-export function gearModel(id) {
-  const m = models.get(id);
+/** A fresh instance (shared geometry and materials) of a modelled rod or lure, or null.
+ *  lite (v1.16 perf, for villagers): every part merged into one vertex-coloured mesh, one draw call instead of five. */
+export function gearModel(id, lite = false) {
+  const m = lite ? liteModel(id) : models.get(id);
   return m ? m.clone(true) : null;
+}
+const lites = new Map();
+let liteMat = null;
+function liteModel(id) {
+  if (lites.has(id)) return lites.get(id);
+  const m = models.get(id); if (!m) return null;
+  const node = m.children[0], parts = node.children.filter((o) => o.isMesh);
+  let n = 0; for (const o of parts) n += o.geometry.attributes.position.count;
+  const pos = new Float32Array(n * 3), nrm = new Float32Array(n * 3), col = new Float32Array(n * 3), idx = [];
+  let at = 0;
+  for (const o of parts) {
+    const g = o.geometry, P = g.attributes.position, N = g.attributes.normal, c = o.material.color, cnt = P.count;
+    for (let i = 0; i < cnt; i++) {
+      pos.set([P.getX(i), P.getY(i), P.getZ(i)], (at + i) * 3); nrm.set([N.getX(i), N.getY(i), N.getZ(i)], (at + i) * 3); col.set([c.r, c.g, c.b], (at + i) * 3);
+    }
+    const I = g.index; for (let i = 0; i < I.count; i++) idx.push(I.getX(i) + at);
+    at += cnt;
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(pos, 3)); geo.setAttribute('normal', new THREE.BufferAttribute(nrm, 3)); geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+  geo.setIndex(idx);
+  liteMat ||= new THREE.MeshLambertMaterial({ vertexColors: true });
+  const mesh = new THREE.Mesh(geo, liteMat); mesh.castShadow = true; mesh.receiveShadow = false;
+  const node2 = new THREE.Group(); node2.name = node.name; node2.position.copy(node.position); node2.quaternion.copy(node.quaternion); node2.scale.copy(node.scale); node2.add(mesh);
+  const wrap = new THREE.Group(); wrap.name = m.name; wrap.add(node2);
+  lites.set(id, wrap);
+  return wrap;
 }

@@ -31,8 +31,9 @@ export const ACTIONS = [
   { id: 'camLeft', label: 'Turn camera left', key: 'q' },
   { id: 'camRight', label: 'Turn camera right', key: 'x' },
   { id: 'bait', label: 'Switch bait', key: 'v' },
-  { id: 'bike', label: 'Get on / off your bike', key: 'n' },
+  { id: 'bike', label: 'Get on / off your bike, snowmobile, sled or jet ski', key: 'n' },
   { id: 'social', label: 'Friends & party', key: 'o' },
+  { id: 'crew', label: 'Crew call at sea (gaff, chase, call it)', key: 'y' }, // v1.15 Open Waters
 ];
 export const ACTION_BY_ID = Object.fromEntries(ACTIONS.map((a) => [a.id, a]));
 

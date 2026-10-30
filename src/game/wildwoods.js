@@ -17,11 +17,10 @@
 //                fairy rings that glow after dark, pumpkins in autumn.
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
-import { WOODS, buildWoods, cullWoods, campable, RING_GLOW, wmat, bakeLoose } from '../world/woods.js';
+import { WOODS, buildWoods, cullWoods, campable, RING_GLOW, wmat, bakeLoose, hollisSeat } from '../world/woods.js';
 import { POOLS, CREEKS, HALF, groundY, surfaceY, isWater, trailDist, heightAt, grassAt, WATER_Y, zoneAt, CLEARINGS, LAKES, regionName } from '../world/terrain.js';
 import { shoot } from '../ui/polaroid.js';
-import { buildNode } from '../entities/meshNodes.js';
-import { CAMP_MATS, CAMP_NODES } from '../data/campMesh.js';
+import { placeModels } from '../world/polyfork.js';
 import { addCircle } from '../world/colliders.js';
 import { PLACES } from './places.js';
 import { FORAGE, PANTRY, STEW, GUIDE, GUIDE_SETS, GUIDE_ALL, PAGES, PAGES_ALL, SECRET_WATERS, RANGER_TASKS, WAGON_HOURS, WAGON_DISCOUNT, RHEA, HOLLIS, WREN, RHEA_LOOK, HOLLIS_LOOK, WREN_LOOK } from '../data/woodsdata.js';
@@ -134,7 +133,8 @@ export class WildWoods {
     const T = WOODS.tower, a = 0.4;
     this.rhea = g.npcs?.add({ id: 'woods-rhea', name: 'Ranger Rhea', title: 'Ridge Lookout', look: look(RHEA_LOOK), kind: 'stand', x: T.x - Math.cos(a) * 3.6 + Math.sin(a) * 1.6, z: T.z + Math.sin(a) * 3.6 + Math.cos(a) * 1.6, yaw: a + Math.PI, hello: RHEA.hello, mutter: RHEA.mutter });
     const H = WOODS.hollis;
-    this.hollis = g.npcs?.add({ id: 'woods-hollis', name: 'Old Hollis', title: 'Lives in the oak', look: look(HOLLIS_LOOK), kind: 'stand', x: H.x - 2.2, z: H.z + 2.8, yaw: 0.3, hello: HOLLIS.hello, mutter: HOLLIS.mutter, idlePose: 'sit' });
+    const HS = hollisSeat(); // (v1.17.1: on his bench, not standing in it)
+    this.hollis = g.npcs?.add({ id: 'woods-hollis', name: 'Old Hollis', title: 'Lives in the oak', look: look(HOLLIS_LOOK), kind: 'stand', x: HS.x, z: HS.z, yaw: HS.yaw, seat: HS.h, seatYaw: HS.yaw, hello: HOLLIS.hello, mutter: HOLLIS.mutter });
     const W = this.wagonStop();
     this.wren = g.npcs?.add({ id: 'woods-wren', name: 'Wren', title: "Wren's Wagon", look: look(WREN_LOOK), kind: 'stand', x: W.x + 2.2, z: W.z + 1.4, yaw: 0, hello: WREN.hello, mutter: WREN.mutter });
     this.placeWagon(true);
@@ -195,7 +195,7 @@ export class WildWoods {
       mirrortarn: { x: POOLS.mirrortarn.cx - POOLS.mirrortarn.rx - 2.5, z: POOLS.mirrortarn.cz + 1 },
       moonwell: { x: POOLS.moonwell.cx, z: POOLS.moonwell.cz + POOLS.moonwell.rz + 2.5 },
       dam: { x: WOODS.dam.x + WOODS.dam.uz * 3.2, z: WOODS.dam.z - WOODS.dam.ux * 3.2 },
-      plane: { x: WOODS.plane.x - 3, z: WOODS.plane.z + 3 },
+      plane: { x: WOODS.plane.x + 2.5, z: WOODS.plane.z + 2.0 }, // (v1.17.1: beside the fuselage, under the wing)
       hollis: { x: WOODS.hollis.x + 2.6, z: WOODS.hollis.z - 2.2 },
       gate: { x: WOODS.gate.x + WOODS.gate.uz * 4, z: WOODS.gate.z - WOODS.gate.ux * 4 },
     };
@@ -330,6 +330,8 @@ export class WildWoods {
       b.rotation.y = -a; b.userData.tail.rotation.z = Math.sin(t * 6 + b.userData.ph) * 0.25;
       b.visible = true;
     } else for (const b of this.beavers) b.visible = false;
+    // v1.17.1: a camp you've left (30 m away or more, or gone to another map) for five minutes is packed up for you
+    { const mine = this.d.camp; if (mine) { const away = Math.hypot(mine.x - p.x, mine.z - p.z) > 30; this.campAway = away ? (this.campAway || 0) + dt : 0; if (this.campAway > 300) { this.campAway = 0; this.packCamp(); this.game.ui.toast('You were gone a while, so your camp got packed up. Pitch a new one any time.', { icon: 'leaf', ms: 5000 }); } } }
     for (const c of this.camps.values()) for (const [k, f] of (c.group.userData.flames || []).entries()) f.scale.set(1, 0.85 + Math.sin(t * (9 + k * 4) + k) * 0.15 + Math.sin(t * 23) * 0.05, 1);
     { const night = g.engine.sky.night || 0; for (const c of this.camps.values()) { const gl = c.group.userData.glow; if (gl) gl.material.opacity = 0.06 + night * 0.26; } } // (v1.14.10: the fire's glow shows after dark)
     // v1.14.10: embers and a wisp of smoke off camps you're near
@@ -403,7 +405,7 @@ export class WildWoods {
     const fade = document.createElement('div'); fade.className = 'travel-fade'; g.ui.root.append(fade);
     g.audio.sfx('step', { vol: 0.6 });
     setTimeout(() => {
-      this.up = up;
+      this.up = up; T.up = up;
       if (up) { pl.pos.set(T.x, T.deckY, T.z); pl.baseY = T.deckY; this.change((w) => { w.climbs = (w.climbs || 0) + 1; }); }
       else { const x = T.x + Math.cos(0.4) * 3.2, z = T.z - Math.sin(0.4) * 3.2, y = groundY(x, z) ?? surfaceY(x, z); pl.pos.set(x, y, z); pl.baseY = y; }
       pl.air = 0; pl.vy = 0; pl.target = null;
@@ -417,7 +419,7 @@ export class WildWoods {
     const g = this.game, T = WOODS.tower, pl = g.player;
     if (!this.up) return;
     // left some other way (a waystone, the menu's home button): you're not up there any more
-    if (Math.hypot(pl.pos.x - T.x, pl.pos.z - T.z) > 6 || pl.mode !== 'shore') { this.up = false; return; }
+    if (Math.hypot(pl.pos.x - T.x, pl.pos.z - T.z) > 6 || pl.mode !== 'shore') { this.up = false; T.up = false; return; }
     const c = Math.cos(0.4), s = Math.sin(0.4), dx = pl.pos.x - T.x, dz = pl.pos.z - T.z;
     let u = dx * c - dz * s, v = dx * s + dz * c; const lim = 1.8;
     if (Math.abs(u) > lim || Math.abs(v) > lim) {
@@ -753,21 +755,27 @@ function buildCamp(c) {
   const g = new THREE.Group();
   const y = groundY(c.x, c.z) ?? surfaceY(c.x, c.z);
   g.position.set(c.x, y, c.z); g.rotation.y = c.yaw;
-  const put = (name, x, z, ry = 0) => { const n = buildNode(CAMP_MATS, CAMP_NODES, name, { shadow: true }); n.position.set(x, 0, z); n.rotation.y = ry; g.add(n); return n; };
   const FX = 1.1; // the fire, in front of the tent and to one side
-  put('camp_tent', -1.5, -0.7, Math.atan2(FX + 1.5, 0.7) * 0.5 + 0.25);
-  put('camp_fire', FX, 0, 0.4);
-  put('camp_chair', FX - 1.25, 0.95, Math.atan2(1.25, -0.95));
-  put('camp_chair_red', FX + 1.2, 0.85, Math.atan2(-1.2, -0.85));
-  put('camp_woodpile', -0.2, -2.1, 0.2);
-  put('camp_cooler', -2.9, 0.9, 0.9);
+  // v1.17.1: the tent, fire pit, chairs, cooler and firewood are Polyfork models (src/world/polyfork.js), merged into
+  // one mesh that bakeLoose keeps as it is (it would drop the vertex colours), with a dutch oven warming by the fire
+  const face = (x, z) => Math.atan2(FX - x, -z);
+  const pf = placeModels('camp-polyfork', [
+    { m: 'dome-tent', x: -1.6, z: -1.2, ry: face(-1.6, -1.2), y: -0.03 },
+    { m: 'stone-fire-pit', x: FX, z: 0, ry: 0.4, y: -0.02 },
+    { m: 'folding-camp-chair', x: FX - 1.25, z: 0.95, ry: face(FX - 1.25, 0.95), y: 0 },
+    { m: 'folding-camp-chair', x: FX + 1.2, z: 0.85, ry: face(FX + 1.2, 0.85), y: 0 },
+    { m: 'cordwood-pile', x: 0.2, z: -2.5, ry: 0.2, y: -0.03 },
+    { m: 'camp-cooler', x: -3.1, z: 0.9, ry: 0.9, y: 0 },
+    { m: 'camp-dutch-oven', x: FX + 0.55, z: -0.75, ry: 0.6, y: 0 },
+  ], { colliders: false });
+  g.add(pf);
   const flame = new THREE.MeshBasicMaterial({ color: '#ffb040' }), flame2 = new THREE.MeshBasicMaterial({ color: '#ff6a20' }), flame3 = new THREE.MeshBasicMaterial({ color: '#fff0a0' });
   const f1 = new THREE.Mesh(new THREE.ConeGeometry(0.2, 0.55, 6), flame); f1.position.set(FX, 0.36, 0); g.add(f1);
   const f2 = new THREE.Mesh(new THREE.ConeGeometry(0.12, 0.4, 5), flame2); f2.position.set(FX + 0.07, 0.42, 0.06); g.add(f2);
   const f3 = new THREE.Mesh(new THREE.ConeGeometry(0.08, 0.3, 5), flame3); f3.position.set(FX - 0.05, 0.3, -0.04); g.add(f3);
   const glow = new THREE.Mesh(new THREE.CircleGeometry(1.7, 16), new THREE.MeshBasicMaterial({ color: '#ffb060', transparent: true, opacity: 0.25, depthWrite: false, blending: THREE.AdditiveBlending })); glow.rotation.x = -Math.PI / 2; glow.position.set(FX, 0.04, 0); g.add(glow); // (no real light: a light per camp would cost every material a recompile)
   const live = new Set([f1, f2, f3, glow]);
-  const baked = bakeLoose(g, (o) => live.has(o));
+  const baked = bakeLoose(g, (o) => live.has(o) || o.userData.polyfork);
   baked.position.copy(g.position); baked.rotation.copy(g.rotation);
   baked.userData.flames = baked.children.filter((o) => o.material === flame || o.material === flame2 || o.material === flame3);
   baked.userData.glow = baked.children.find((o) => o.geometry?.type === 'CircleGeometry');

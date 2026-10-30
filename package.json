@@ -13,7 +13,9 @@
     "test:rules": "node tests/rules.test.mjs",
     "test:e2e": "node tests/e2e.test.mjs && node tests/controls.test.mjs && node tests/social.test.mjs && node tests/valley.test.mjs && node tests/features.e2e.mjs && node tests/sprint.e2e.mjs",
     "models": "node scripts/gen-models.mjs",
+    "polyfork": "node scripts/fetch-polyfork.mjs",
     "build:artifact": "vite build --mode single && node scripts/make-artifact.mjs",
+    "build:test-artifact": "RT_TESTKIT=1 vite build --mode single && node scripts/make-artifact.mjs --test",
     "test:browser": "node tests/run-e2e.mjs"
   },
   "dependencies": {
@@ -21,7 +23,7 @@
     "@fontsource/nunito": "^5.3.0",
     "@fontsource/silkscreen": "^5.3.0",
     "lucide": "^1.55.0",
-    "three": "0.169.0"
+    "three": "0.187.0"
   },
   "devDependencies": {
     "playwright": "^1.56.0",

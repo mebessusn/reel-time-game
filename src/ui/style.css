@@ -633,6 +633,12 @@ textarea.bottle-input { width: 100%; font: inherit; font-size: var(--t-s); paddi
 .home-visit { background: var(--birch-50); color: var(--ink-900); padding: 10px; border-radius: var(--r); }
 .home-panel > .muted { color: var(--on-dark-2); padding: 4px 6px; }
 .home-pick { display: grid; grid-template-columns: repeat(auto-fill, minmax(56px, 1fr)); gap: 4px; margin-top: 6px; }
+.home-tier { display: flex; flex-direction: column; gap: 6px; margin-top: 6px; } /* v1.17.1: bigger homes */
+.home-tier .ttl { font-weight: 800; font-size: 15px; }
+.home-tier .meta { font-size: 13px; line-height: 1.35; }
+.home-need { display: flex; align-items: center; gap: 6px; font-size: 13px; opacity: 0.75; } .home-need svg { width: 14px; height: 14px; }
+.home-need.done { opacity: 1; color: #4a8a3a; }
+.home-buy { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 4px; } .home-buy .price { margin-left: 4px; }
 .home-fishbtn { border: 1px solid var(--birch-300); background: #fff; border-radius: 8px; padding: 3px; cursor: pointer; }
 .home-fishbtn.on { background: #e3f1f0; border-color: var(--lake-500); }
 .home-fishbtn img, .home-fish img { width: 48px; height: 30px; image-rendering: pixelated; }

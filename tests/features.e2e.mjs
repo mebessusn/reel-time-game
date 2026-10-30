@@ -167,6 +167,20 @@ try {
   await A.screenshot({ path: `${OUT}/f2-cabin.png` });
   await ev(A, () => window.__game.home.close());
   assert.equal(await ev(A, () => window.__game.meta().home.d.length), 4);
+  log('a bigger home: the Cottage needs a level and two collections, then opens a den you can walk into');
+  const cot = await ev(A, async () => {
+    const g = window.__game, H = g.home; H.open();
+    const lv = g.profile.level, cols = { ...(g.ext.d.collections || {}) }, before = await H.buyTier(1, { coins: 25000 }).then(() => g.ext.d.home.tier || 0);
+    g.profile.level = Math.max(lv, 10); g.profile.coins += 30000; g.ext.change((d) => { d.collections = { ...cols, cove: 1, frost: 1 }; });
+    await H.buyTier(1, { coins: 25000 }); await H.buyDecor('rug2');
+    H.setMode('walk'); H.me.x = 3.5; H.me.z = 0; H.me.target = { x: 8, z: 0.4 };
+    await new Promise((r) => setTimeout(r, 5000));
+    const out = { before: lv < 10 ? before : 0, tier: g.ext.d.home.tier, x: H.me.x, den: !!H.scene.items.rug2, presence: g.meta().home.h };
+    H.close(); g.profile.level = lv; g.ext.change((d) => { d.collections = cols; }); return out; // (put the level and the collections back for the rest of the run)
+  });
+  assert.equal(cot.before, 0, 'not before level 10 and two collections');
+  assert.equal(cot.tier, 1); assert.ok(cot.den, 'the den rug is down'); assert.equal(cot.presence, 1, 'visitors see a Cottage');
+  assert.ok(cot.x > 6, `walked through the doorway into the den (x ${cot.x.toFixed(2)})`);
 
   log('a bottle goes out, and bad ones are refused');
   assert.match(await ev(A, async () => (await window.__game.bottles.write('find me at www.spam.com')).error), /links/);
@@ -185,7 +199,8 @@ try {
   log("B visits A's cabin");
   await ev(B, () => { const g = window.__game; const p = [...g.net.peers.values()].find((x) => x.meta?.home); g.home.open({ id: p.id, name: p.meta.name, layout: p.meta.home }); });
   await B.waitForTimeout(1500);
-  assert.equal(await ev(B, () => window.__game.home.scene.layout.d.length), 4);
+  assert.equal(await ev(B, () => window.__game.home.scene.layout.d.length), 5); // (the four pieces and the den's rug)
+  assert.ok(await ev(B, () => window.__game.home.scene.tier === 1 && !!window.__game.home.scene.items.rug2), 'B sees A\'s den');
   await B.screenshot({ path: `${OUT}/f3-visit.png` });
   await ev(B, () => window.__game.home.close());
 

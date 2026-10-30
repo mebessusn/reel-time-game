@@ -14,7 +14,7 @@ function scan(scene) {
   scene.traverse((o) => {
     if (o.userData.lbDummy) return;
     if (o.isPointLight) lights.push(o);
-    else if (o.isSpotLight) spots.push(o);
+    else if (o.isSpotLight && !o.userData.lbSkip) spots.push(o);
   });
 }
 

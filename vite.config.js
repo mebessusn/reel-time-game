@@ -25,6 +25,8 @@ const base64Import = {
 // `npm run build:single` -> one self-contained HTML file in dist-single/ (offline / guest demo).
 export default defineConfig(({ mode }) => ({
   base: './',
+  // v1.15: the private Open Waters test build (RT_TESTKIT=1) gets a test kit: level 20, coins, a free trip again
+  define: { __RT_TESTKIT__: JSON.stringify(process.env.RT_TESTKIT === '1') },
   plugins: mode === 'single' ? [base64Import, viteSingleFile()] : [base64Import],
   build: {
     outDir: mode === 'single' ? 'dist-single' : 'dist',

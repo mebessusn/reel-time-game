@@ -5,6 +5,7 @@
 import * as THREE from 'three';
 import { Actor } from './actor.js';
 import { NEAR_RANGE } from './party.js';
+const MAX_SHOWN = 16, SHADOW_RANGE = 28;
 import { randomAvatar } from '../data/avatarOptions.js';
 import { mulberry32 } from '../core/rng.js';
 import { groundY, heightAt, isWater, zoneAt, LAKES, RIVER, WATER_Y, sc, dryAt, walkY, surfaceY, castClearance, onDock, onBridge, JETTIES } from '../world/terrain.js';
@@ -99,7 +100,7 @@ export class Npcs {
     let n = 0;
     const name = () => NAMES[(n++) % NAMES.length];
     const make = (kind, area, spot) => {
-      const actor = new Actor(game.engine.scene);
+      const actor = new Actor(game.engine.scene); actor.lite = true;
       const rods = ['rod_willow', 'rod_birch', 'rod_willow', 'rod_cherry'];
       actor.setLook(randomAvatar(r), { rod: rods[Math.floor(r() * rods.length)], lure: 'lure_classic', boat: 'boat_oak' });
       actor.root.visible = false;
@@ -143,7 +144,7 @@ export class Npcs {
     // the scene at the trailer park
     for (const [key, name, title, pose] of [['sundae', 'Sundae', 'Park owner', 'yell'], ['maria', 'Maria Lopez', 'Tenant', 'cry']]) {
       const at = SCENE[key];
-      const actor = new Actor(game.engine.scene);
+      const actor = new Actor(game.engine.scene); actor.lite = true;
       actor.setLook(SCENE_LOOKS[key], { rod: 'rod_willow', lure: 'lure_classic', boat: 'boat_oak' });
       actor.root.visible = false;
       this.list.push({ id: `scene-${key}`, kind: 'scene', area: 'park', name, title, scenePose: pose, lines: key === 'sundae' ? SUNDAE_LINES : MARIA_LINES, lineAt: key === 'sundae' ? 1500 : 4200, li: 0, actor,
@@ -152,14 +153,14 @@ export class Npcs {
   }
 
   /**
-   * v1.14.9: add a local from elsewhere (the Wild Woods' ranger, hermit and merchant). def: { id, name, title, look, kind: 'roamer' |
+   * v1.15.6: add a local from elsewhere (the Open Waters islanders). def: { id, name, title, look, kind: 'roamer' |
    * 'fisher' | 'stand', x, z, yaw, roam (metres), hello: [lines], bobber: { x, z } (fishers), catch: [species ids],
    * rod, talk }. Returns the local, or null with ?nonpc.
    */
   add(def) {
     if (this.off) return null;
     const r = mulberry32(this.list.length * 7919 + (def.name.length * 131));
-    const actor = new Actor(this.game.engine.scene);
+    const actor = new Actor(this.game.engine.scene); actor.lite = true;
     actor.setLook(def.look || randomAvatar(r), { rod: def.rod || 'rod_willow', lure: 'lure_classic', boat: 'boat_oak' });
     actor.root.visible = false;
     const npc = { ...def, kind: def.kind || 'roamer', actor, pos: new THREE.Vector3(def.x, walkY(def.x, def.z) ?? groundY(def.x, def.z) ?? 1, def.z), yaw: def.yaw ?? r() * 6.28, home: { x: def.x, z: def.z },
@@ -199,10 +200,17 @@ export class Npcs {
     const now = performance.now();
     const you = g.profile?.name || 'friend';
     const pick = (arr, npc) => arr[Math.floor(npc.r() * arr.length)].replace('{you}', you);
+    // v1.16 perf: only the nearest MAX_SHOWN people within 70 m are drawn (Hearthwick's green can hold two dozen)
+    const dist = new Map(); for (const npc of this.list) dist.set(npc, Math.hypot(npc.pos.x - me.x, npc.pos.z - me.z));
+    const inRange = this.list.filter((n) => dist.get(n) < 70);
+    const shown = inRange.length > MAX_SHOWN ? new Set(inRange.sort((a, b) => dist.get(a) - dist.get(b)).slice(0, MAX_SHOWN)) : null;
     for (const npc of this.list) {
-      const d = Math.hypot(npc.pos.x - me.x, npc.pos.z - me.z);
-      const near = d < 70;
+      const d = dist.get(npc);
+      const near = d < 70 && (!shown || shown.has(npc));
       npc.actor.root.visible = near;
+      // (perf: people further than SHADOW_RANGE drop their shadow: half the cost of drawing them)
+      const sh = near && d < SHADOW_RANGE;
+      if (near && npc.shadowOn !== sh) { npc.shadowOn = sh; npc.actor.root.traverse((o) => { if (o.isMesh && o.userData.cs !== false) { if (o.userData.cs == null) o.userData.cs = o.castShadow; o.castShadow = sh && o.userData.cs; } }); }
       if (npc.actor.line) npc.actor.line.line.visible = near && npc.kind === 'fisher';
       if (!near) { npc.actor.bobberObj && (npc.actor.bobberObj.visible = false); continue; }
       if (npc.kind === 'scene') { this.updateScene(npc, dt, t, now, d); continue; }
@@ -224,7 +232,7 @@ export class Npcs {
         }
         npc.target = null; npc.wait = 3;
       }
-      // ---- v1.14.9: talking to themselves while you're near (npc.mutter: their lines, dealt in a shuffled order so
+      // ---- v1.15.17: talking to themselves while you're near (npc.mutter: their lines, dealt in a shuffled order so
       // you hear them all before any repeats; a bubble over their head, not the chat log, so a long wait stays quiet)
       if (npc.mutter && d < 12 && !g.ui?.modalOpen && !npc.talking) {
         if (!npc.mutterAt) npc.mutterAt = now + 8000 + npc.r() * 4000;
@@ -250,7 +258,7 @@ export class Npcs {
       if (npc.talking) npc.bubble = null; // (their words are in the dialogue box)
       if (npc.kind === 'roamer') { if (!npc.talking) this.stroll(npc, dt); else npc.moving = false; } // talking: stand still and face you
       else if (npc.kind === 'stand') {
-        // v1.14.9: keeps their post (a shop, a tower, a lookout); turns to you when you come close, else looks about
+        // v1.15.6: keeps their post (a bar, a tent, a lookout); turns to you when you come close, else looks about
         npc.moving = false;
         if (!npc.talking && !npc.emote) {
           if (npc.homeYaw == null) npc.homeYaw = npc.yaw;
@@ -277,7 +285,7 @@ export class Npcs {
       }
       if (npc.emote) { pose = npc.emote.id; bobber = npc.kind === 'fisher' ? bobber : null; }
       npc.pos.y = walkY(npc.pos.x, npc.pos.z) ?? groundY(npc.pos.x, npc.pos.z) ?? npc.pos.y;
-      npc.actor.update(dt, t, { x: npc.pos.x, y: npc.pos.y, z: npc.pos.z, yaw: npc.yaw, mode: 'shore', pose, moving: npc.moving && !npc.emote, bobber: npc.emote ? null : bobber, tension, rod: npc.kind === 'fisher' ? 'hand' : 'back' });
+      npc.actor.update(dt, t, { x: npc.pos.x, y: npc.pos.y, z: npc.pos.z, yaw: npc.yaw, mode: 'shore', pose, moving: npc.moving && !npc.emote, bobber: npc.emote ? null : bobber, tension, rod: npc.kind === 'fisher' ? 'hand' : 'back', seat: npc.seat || 0, seatYaw: npc.seat ? npc.seatYaw : undefined }); // (v1.17.1: `seat` = sitting on a bench that high, facing seatYaw)
     }
   }
 

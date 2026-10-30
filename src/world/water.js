@@ -1,8 +1,13 @@
 // Animated lake surface: depth-tinted, lit by a moving wave field (swells + drifting wind ripples), shore foam,
 // rain rings, a sun/moon sheen and sparkles.
 import * as THREE from 'three';
-import { HALF, surfaceY, WATER_Y } from './terrain.js';
+import { HALF, surfaceY, WATER_Y, FAR_X } from './terrain.js';
+let westWave = null;
+/** Frostmere: its open water's own gentle waves (the floe edge, the springs, the holes). */
+export function setWestWave(fn) { westWave = fn; }
+import { oceanWave } from '../ocean/waves.js';
 import { CAUSTICS } from './caustics.js';
+import { RIPPLES_GLSL, bakePresetTextures, SWASH } from './waterfx.js';
 
 const MAX_RIPPLES = 12;
 
@@ -11,6 +16,8 @@ export const WAVES = { uniforms: null };
 const smooth = (a, b, x) => { const t = Math.max(0, Math.min(1, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
 /** Height of the wind swell at a point (world units above WATER_Y), matching the water shader. */
 export function waveAt(x, z) {
+  if (x > FAR_X) return oceanWave(x, z); // v1.15 Open Waters: the sea's own waves
+  if (x < -FAR_X) return westWave ? westWave(x, z) : 0; // Frostmere
   const u = WAVES.uniforms;
   if (!u) return 0;
   const t = u.uTime.value, w = u.uWind.value;
@@ -52,9 +59,12 @@ export function buildWater() {
       uRipples: { value: Array.from({ length: MAX_RIPPLES }, () => new THREE.Vector4(0, 0, -100, 0)) },
       uHalf: { value: HALF },
       uWind: { value: 0.3 },
+      uPreS: { value: null }, uPreD: { value: null }, // v1.17.1: each lake's own colours (waterfx.js WATER_PRESETS)
     },
   ]);
   uniforms.uDepth.value = depthTex;
+  const pre = bakePresetTextures();
+  uniforms.uPreS.value = pre.shallow; uniforms.uPreD.value = pre.deep;
 
   const mat = new THREE.ShaderMaterial({
     uniforms,
@@ -92,8 +102,9 @@ export function buildWater() {
     fragmentShader: /* glsl */ `
       uniform float uTime; uniform sampler2D uDepth; uniform vec3 uShallow; uniform vec3 uDeep; uniform vec3 uLight;
       uniform vec3 uSkyTint; uniform vec3 uSunDir; uniform float uGlitter; uniform float uRain; uniform float uHalf;
-      uniform vec4 uRipples[${MAX_RIPPLES}]; uniform float uWind;
+      uniform vec4 uRipples[${MAX_RIPPLES}]; uniform float uWind; uniform sampler2D uPreS; uniform sampler2D uPreD;
       varying vec3 vWorld; varying float vSwell;
+      ${RIPPLES_GLSL(MAX_RIPPLES)}
       // Wind swells: long rolling waves that grow with the wind (flat calm at dawn, choppy in a storm).
       // The same formula lives in waveAt() below so boats and bobbers ride them.
       float swellAmp(float w) { return 0.015 + 0.40 * smoothstep(0.2, 1.3, w); }
@@ -128,7 +139,10 @@ export function buildWater() {
         vec2 uv = (q + uHalf) / (uHalf * 2.0);
         vec4 dm = texture2D(uDepth, uv);
         float depth = dm.r;
-        vec3 col = mix(uShallow, uDeep, smoothstep(0.0, 0.7, depth));
+        // v1.17.1: each lake has its own water (clear and icy, peaty, weedy, turquoise...), blending along the inflows
+        vec4 ps = texture2D(uPreS, uv);
+        float murk = ps.a;
+        vec3 col = mix(ps.rgb, texture2D(uPreD, uv).rgb, smoothstep(0.0, mix(0.7, 0.3, murk), depth));
         // waves: a normal from the height field lights the surface
         float e = 0.12;
         float h0 = waveH(q, uTime);
@@ -136,7 +150,9 @@ export function buildWater() {
         float calm = mix(0.55, 1.0, smoothstep(0.0, 0.35, depth)); // the shallows are calmer
         float se = 0.35, s0 = swell(q, uTime, uWind);
         float sgx = (swell(q + vec2(se, 0.0), uTime, uWind) - s0) / se, sgz = (swell(q + vec2(0.0, se), uTime, uWind) - s0) / se;
-        vec3 N = normalize(vec3(-(hx - h0) / e * 0.24 * calm - sgx * 3.2 * calm, 1.0, -(hz - h0) / e * 0.24 * calm - sgz * 3.2 * calm));
+        // ripples (bobbers, splashes): rings that tilt the surface, so they catch the light
+        vec2 rg; float rr = ripples(q, uTime, rg);
+        vec3 N = normalize(vec3(-(hx - h0) / e * 0.24 * calm - sgx * 3.2 * calm - rg.x, 1.0, -(hz - h0) / e * 0.24 * calm - sgz * 3.2 * calm - rg.y));
         vec3 V = normalize(cameraPosition - vWorld);
         vec3 L = normalize(uSunDir);
         // troughs a touch darker, crests catch the light
@@ -144,7 +160,7 @@ export function buildWater() {
         col *= 0.74 + 0.36 * lit;
         col += vec3(0.07, 0.1, 0.12) * smoothstep(0.35, 1.0, h0) * calm;
         col -= vec3(0.03, 0.04, 0.03) * smoothstep(-0.2, -0.9, h0) * calm;
-        col = mix(col, uSkyTint, 0.16);
+        col = mix(col, uSkyTint, 0.16 * (1.0 - 0.5 * murk)); // (murky water shows its own colour more than the sky)
         // whitecaps on the crests when it blows
         float capK = smoothstep(0.55, 1.2, uWind) * calm;
         float cap = smoothstep(0.62, 0.95, vSwell) * step(0.5, vnoise(q * 1.7 + vec2(uTime * 0.6, 0.0))) * capK;
@@ -170,16 +186,7 @@ export function buildWater() {
         float sunPath = smoothstep(0.9, 0.995, dot(Rg, L));
         float glit = step(0.994 - sunPath * 0.02, g) * uGlitter * sunPath;
         col += vec3(1.0, 0.95, 0.8) * glit * 0.35;
-        // ripples (bobbers, splashes)
-        for (int i = 0; i < ${MAX_RIPPLES}; i++) {
-          vec4 r = uRipples[i];
-          float age = uTime - r.z;
-          if (age < 0.0 || age > 2.2) continue;
-          float d = length(q - r.xy);
-          float rad = age * (1.2 + r.w);
-          float ring = smoothstep(0.12, 0.0, abs(d - rad)) * (1.0 - age / 2.2);
-          col = mix(col, vec3(0.92, 0.97, 1.0), ring * 0.7);
-        }
+        col = mix(col, vec3(0.92, 0.97, 1.0), rr * 0.75);
         // rain rings
         if (uRain > 0.0) {
           vec2 cell = floor(q * 0.8);
@@ -192,9 +199,9 @@ export function buildWater() {
         col *= uLight;
         // clear in the shallows, murkier with depth, more mirror-like at grazing angles (tilted by the waves)
         float fres = pow(1.0 - clamp(dot(V, N), 0.0, 1.0), 3.0);
-        float alpha = mix(0.34, 0.86, smoothstep(0.0, 0.55, depth));
+        float alpha = mix(mix(0.34, 0.66, murk), mix(0.86, 0.95, murk), smoothstep(0.0, mix(0.55, 0.18, murk), depth)); // (murky water hides its bed sooner)
         alpha = mix(alpha, 0.94, fres * 0.7);
-        col = mix(col, uSkyTint * uLight * 1.08, fres * 0.45);
+        col = mix(col, uSkyTint * uLight * 1.08, fres * 0.45 * (1.0 - 0.45 * murk));
         alpha = max(alpha, foam * 0.92); // (foam is white water, not see-through)
         alpha *= 1.0 - smoothstep(0.3, 0.9, dm.g);
         gl_FragColor = vec4(col, alpha);
@@ -220,6 +227,7 @@ export function buildWater() {
     },
     update(t) {
       uniforms.uTime.value = t;
+      SWASH.uSwT.value = t; SWASH.uSwH.value = 0.09 + 0.16 * smooth(0.2, 1.3, uniforms.uWind.value); // (lapping in a calm, running well up the sand in a blow)
       CAUSTICS.uCTime.value = t;
       CAUSTICS.uWaterY.value = WATER_Y;
       const L = uniforms.uLight.value;

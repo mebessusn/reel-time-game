@@ -3,7 +3,7 @@ import { openFishViewer, viewerOpen, closeViewer } from './viewer.js';
 import { h, clear, fmt, lb } from './dom.js';
 import { icon, iconURL, WEATHER_ICON, PHASE_ICON } from './icons.js';
 import { fishThumb, junkThumb, avatarThumb } from './thumbs.js';
-import { TIER_INFO, ZONES, JUNK, SPECIES_BY_ID } from '../data/species.js';
+import { TIER_INFO, ZONES, JUNK, zoneName, SPECIES_BY_ID, tierOf } from '../data/species.js';
 import { ACH_TIER_COLOR } from '../data/achievements.js';
 import { PHASE_LABEL, WEATHER_LABEL, WEATHER_FISHING } from '../core/clock.js';
 import { xpForLevel, MAX_LEVEL, canTrade, tradePearls } from '../game/rules.js';
@@ -122,7 +122,7 @@ export class UI {
     const group = (label, ...btns) => h('div.hb-group', { role: 'group', 'aria-label': label }, btns);
     this.iconRow = h('div.icon-row.hotbar.plank', { role: 'toolbar', 'aria-label': 'Game menu' },
       group('Inventory', creelBtn, ib('package', 'Tackle box', 'tackle', () => this.sheets.open('tackle')), ib('book', 'Fishpedia', 'pedia', () => this.sheets.open('fishpedia')), journalBtn),
-      group('World', ib('map', 'Map', 'map', () => this.sheets.open('map')), ib('scroll', 'Notice board', 'board', () => this.sheets.open('board')), this.shopOff = ib('shop', 'Shop', 'shop-off', () => {}), ib('home', 'Your cabin', 'home', () => this.game.home.open()), ib('bike', 'Bike (hop on / off)', 'bike', () => this.game.bikes.toggle())),
+      group('World', ib('map', 'Map', 'map', () => this.sheets.open('map')), ib('scroll', 'Notice board', 'board', () => this.sheets.open('board')), this.shopOff = ib('shop', 'Shop', 'shop-off', () => {}), ib('home', 'Your cabin', 'home', () => this.game.home.open()), (this.rideBtn = ib('bike', 'Bike (hop on / off)', 'bike', () => this.game.toggleRide()))),
       group('Social', chatBtn, ib('users', 'Friends & party (O)', 'social', () => this.sheets.open('social')), ib('smile', 'Emotes', 'emotes', () => this.toggleWheel()), ib('camera', 'Camera (selfies and group shots)', 'selfie', () => this.game.selfie.start())),
       group('System', this.rodBtn, (this.adminBtn = ib('shield', 'Admin', 'admin', () => this.sheets.open('admin'))), ib('menu', 'Menu', 'pause', () => this.openPause())));
     this.adminBtn.hidden = true; // v1.10: shown to the lake's admins only (see showAdmin)
@@ -296,13 +296,24 @@ export class UI {
   setVisible(v) { this.hud.classList.toggle('hidden', !v); }
 
   // ---------- per-frame ----------
+  /** v1.17.2: the ride button shows what you'd ride here: the bike in the valley, your snowmobile or one-dog sled up north. */
+  updateRide() {
+    const g = this.game, B = this.rideBtn, want = g.rideInfo?.();
+    if (!B || !want || this.rideKey === want.key) return;
+    this.rideKey = want.key;
+    B.hidden = !want.icon;
+    if (!want.icon) return;
+    B.replaceChildren(icon(want.icon)); B.dataset.tip = want.tip; B.setAttribute('aria-label', want.tip);
+  }
   update() {
+    this.updateRide();
     const g = this.game, p = g.profile, wt = g.engine.sky.state;
     if (!p) return;
-    const season = g.living?.season;
-    const key = `${wt.phase}|${wt.weather}|${wt.fullMoon}|${wt.bloodMoon}|${season}`;
+    const north = !!g.north?.here; // Frostmere: always winter up there (and snow, not rain)
+    const season = north ? null : g.living?.season;
+    const key = `${wt.phase}|${wt.weather}|${wt.fullMoon}|${wt.bloodMoon}|${season}|${north}|${!!g.north?.sky?.auroraOn}`;
     if (key !== this.last.time) {
-      clear(this.timeChip).append(...[icon(PHASE_ICON[wt.phase]), wt.weather !== 'clear' ? icon(WEATHER_ICON[wt.weather]) : null].filter(Boolean), h('span', [PHASE_LABEL[wt.phase], wt.bloodMoon ? 'Blood Moon' : wt.fullMoon && wt.phase === 'night' ? 'Full moon' : '', season ? SEASONS[season].name : ''].filter(Boolean).join(', ')));
+      clear(this.timeChip).append(...[icon(PHASE_ICON[wt.phase]), wt.weather !== 'clear' ? icon(WEATHER_ICON[wt.weather]) : null].filter(Boolean), h('span', [PHASE_LABEL[wt.phase], wt.bloodMoon ? 'Blood Moon' : wt.fullMoon && wt.phase === 'night' ? 'Full moon' : '', season ? SEASONS[season].name : '', north ? (g.north.sky?.auroraOn ? 'Northern lights' : { rain: 'Snowing', storm: 'Blizzard', overcast: 'Flurries' }[wt.weather] || 'Winter') : ''].filter(Boolean).join(', ')));
       this.timeChip.classList.toggle('blood', !!wt.bloodMoon);
       const wf = WEATHER_FISHING[wt.bloodMoon ? 'bloodmoon' : wt.weather]?.note;
       this.timeChip.title = `${PHASE_LABEL[wt.phase]}, ${wt.bloodMoon ? 'Blood Moon' : WEATHER_LABEL[wt.weather]}.${wf ? ` ${wf}` : ''} One in-game day is 24 minutes.${season ? ` ${SEASONS[season].blurb}` : ''}`;
@@ -438,7 +449,7 @@ export class UI {
     const bw = this.contextBox.offsetWidth || 160, bh = this.contextBox.offsetHeight || 40;
     const x = s ? Math.max(bw / 2 + 8, Math.min(W - bw / 2 - 8, s.x)) : W / 2;
     let y = s ? Math.max(bh + 70, Math.min(H - 90, s.y)) : H - 120;
-    // v1.14.9: never sit on a speech bubble or a name tag (a local saying hello, a friend's chat):
+    // v1.15.18: never sit on a speech bubble or a name tag (an islander talking to themselves, a friend's chat):
     // lift the button clear above whatever it would cover
     y = this.clearOfBubbles(x, y, bw, bh);
     // a small dead zone, and no moving at all while the pointer is on it, so it is easy to click
@@ -578,9 +589,11 @@ export class UI {
     el.querySelector('.tug-stamina > i').style.width = `${r.stamina * 100}%`;
     el.classList.toggle('shake', r.strain > 0.05);
   }
-  tugCue(kind) {
-    if (kind !== 'leap') return;
-    const c = h('div.tug-cue', 'It leaps! Let go!');
+  tugCue(kind, who = '') {
+    // v1.15 Open Waters: a big fish's run, the gaff, a jump called by the spotter
+    const words = { leap: 'It leaps! Let go!', run: 'It\'s running! Let it go!', gaff: 'Alongside! Gaff it!', call: who ? `${who}: it's going to jump!` : 'Jump coming! Ease off!' };
+    if (!words[kind]) return;
+    const c = h(`div.tug-cue.cue-${kind}`, words[kind]);
     this.reelEl.append(c);
     setTimeout(() => c.remove(), 1100);
   }
@@ -630,7 +643,7 @@ export class UI {
     if (entry.kind === 'catch') {
       const sp = SPECIES_BY_ID[p.speciesId];
       if (!sp) return;
-      color = p.variant === 'diamond' ? '#7ae0f0' : p.variant === 'gold' ? '#f2c040' : TIER_INFO[sp.tier].color;
+      color = p.variant === 'diamond' ? '#7ae0f0' : p.variant === 'gold' ? '#f2c040' : TIER_INFO[tierOf(sp)].color;
       const vname = p.variant === 'normal' ? '' : `${p.variant === 'diamond' ? 'Diamond' : 'Gold'} `;
       text = [h('b', entry.name), ` landed a ${vname}${sp.name} (${lb(p.weight)})${p.record ? ' — lake record!' : ''}`];
     } else if (entry.kind === 'achievement') {
@@ -673,7 +686,7 @@ export class UI {
     let weightEl;
     return new Promise((resolve) => {
       const sp = summary.species;
-      const tier = TIER_INFO[sp.tier];
+      const tier = TIER_INFO[tierOf(sp)];
       const variant = c.variant;
       const vname = variant === 'diamond' ? 'Diamond ' : variant === 'gold' ? 'Gold ' : '';
       const bannerColor = variant === 'diamond' ? '#3ab0d0' : variant === 'gold' ? '#d89a20' : tier.color;
@@ -689,8 +702,8 @@ export class UI {
       for (const w of traitWords(c.traits)) tags.push([`One of a kind: ${w}`, '#7a5ac8']);
       if (c.bait && BAITS[c.bait]) tags.push([`on ${BAITS[c.bait].name}`, '#6e5640']);
       const filt = this.game.traits?.filter(c) || '';
-      const ti = ['common', 'uncommon', 'rare', 'epic', 'legendary', 'mythic'].indexOf(sp.tier);
-      const pic = h(`div.pic.zoomable${variant !== 'normal' ? `.${variant}` : ''}${ti >= 2 || variant !== 'normal' ? '.rays' : ''}`, { title: 'Look closer', on: { click: () => openFishViewer(this.root, { speciesId: sp.id, variant, weight: c.weight, sub: ZONES[c.zone]?.name }) } }, h('img', { src: fishThumb(sp.id, variant), style: filt ? { filter: filt } : {} }));
+      const ti = ['common', 'uncommon', 'rare', 'epic', 'legendary', 'trophy', 'mythic'].indexOf(tierOf(sp));
+      const pic = h(`div.pic.zoomable${variant !== 'normal' ? `.${variant}` : ''}${ti >= 2 || variant !== 'normal' ? '.rays' : ''}`, { title: 'Look closer', on: { click: () => openFishViewer(this.root, { speciesId: sp.id, variant, weight: c.weight, sub: zoneName(c.zone) }) } }, h('img', { src: fishThumb(sp.id, variant), style: filt ? { filter: filt } : {} }));
       const nameIn = h('input.name-fish', { placeholder: 'Name this fish (optional)', maxLength: 20, on: { change: (e) => { const n = this.game.traits.setName(c, e.target.value); if (n) this.game.ext.bump('named'); } } });
       const close = (action) => { this.game.audio.sfx('click'); card.remove(); scrim.remove(); resolve(action); };
       // One clear primary (keep), money choices beside each other, the rest as quiet extras.
@@ -704,17 +717,17 @@ export class UI {
         extras.push(h('button.btn.ghost.small.card-btn', { title: 'Make a shareable catch card', on: { click: () => openCatchCard(this.game, c) } }, icon('star'), 'Catch card'));
       } else actions.push(h('button.btn.green.large', { on: { click: () => close('keep') } }, `Sold for ${fmt(summary.autoSold || 0)} coins (backpack full)`));
       const card = h('div.reveal.paper', { role: 'dialog', 'aria-label': `You caught a ${vname}${sp.name}` },
-        h('div.banner', { style: { background: bannerColor }, 'data-mark': ({ common: '●', uncommon: '▲', rare: '◆', epic: '★', legendary: '♛', mythic: '✦' })[sp.tier] }, `${vname}${tier.name}`),
+        h('div.banner', { style: { background: bannerColor }, 'data-mark': ({ common: '●', uncommon: '▲', rare: '◆', epic: '★', legendary: '♛', trophy: '⚑', mythic: '✦' })[tierOf(sp)] }, `${vname}${tier.name}`),
         pic,
         h('h3', `${vname}${sp.name}`),
-        h('div.stats', (weightEl = h('span.weight', lb(c.weight))), h('span', ZONES[c.zone]?.name || ''), h('span', `+${summary.xp} XP`)),
+        h('div.stats', (weightEl = h('span.weight', lb(c.weight))), h('span', zoneName(c.zone) || ''), h('span', `+${summary.xp} XP`)),
         h('div.tags', tags.map(([t, col]) => h('span.pill', { style: { '--c': col } }, t))),
         summary.where === 'creel' || summary.where === 'storage' ? nameIn : null,
         h('div.actions', actions),
         extras.length ? h('div.more-acts', extras) : null);
       const scrim = h('div.scrim', { style: { background: 'rgba(20,12,6,0.15)' } });
       this.root.append(scrim, card);
-      if (variant !== 'normal' || ['legendary', 'mythic'].includes(sp.tier)) this.sparkles(pic, variant === 'diamond' ? '#a0f0ff' : '#ffe080');
+      if (variant !== 'normal' || ['legendary', 'trophy', 'mythic'].includes(tierOf(sp))) this.sparkles(pic, variant === 'diamond' ? '#a0f0ff' : '#ffe080');
       // big fish: the scale counts up like a slot machine
       const rel = (c.weight - sp.weight[0]) / (sp.weight[1] - sp.weight[0]);
       if (rel >= 0.6 || ti >= 3) this.countUp(weightEl, c.weight, summary.bigOne || rel >= 0.9);
@@ -923,13 +936,14 @@ export class UI {
 
   closeAll() {
     if (this.game.dialogue?.active) { this.game.dialogue.close(null); return; }
+    if (document.querySelector('.ow-modal')) { this.game.ocean?.ui.closeModal(); return; } // v1.15
     if (this.game.selfie?.active) { this.game.selfie.stop(); return; }
     if (viewerOpen()) { closeViewer(); return; }
     if (this.wheel) this.toggleWheel();
     this.sheets.close();
   }
 
-  get modalOpen() { return !!(this.game.dialogue?.active || this.game.menus?.open || document.querySelector('.menu-screen, .title-screen') || this.game.home?.active || this.game.selfie?.active || viewerOpen() || this.sheets.current || this.wheel || this.revealCard?.isConnected || document.querySelector('.creator') || document.querySelector('.splash')); }
+  get modalOpen() { return !!(this.game.dialogue?.active || document.querySelector('.ow-modal') || this.game.menus?.open || document.querySelector('.menu-screen, .title-screen') || this.game.home?.active || this.game.selfie?.active || viewerOpen() || this.sheets.current || this.wheel || this.revealCard?.isConnected || document.querySelector('.creator') || document.querySelector('.splash')); }
 }
 
 export { avatarThumb };

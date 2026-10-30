@@ -1,0 +1,60 @@
+// v1.17.2: Polyfork's animals (art/polyfork/north/*.glb) into src/data/polyanimalMesh.js. They're skinned models with long
+// animation clips (1.4 MB each); the game draws four-legged animals as instances with a body and swinging legs
+// (src/north/quads.js, dogs.js), so each is cut along its bones: everything weighted to a leg's bones goes to that leg,
+// and the rest is the body. Only the left legs are kept (the same mesh is drawn for the right ones). Clips are dropped.
+//   node scripts/animal-split.mjs
+import fs from 'node:fs';
+import { packNodes } from '../src/core/meshpack.js';
+
+const DIR = 'art/polyfork/north', CUT = 1000;
+// the dog is a collie in the kit: its tan goes husky grey (black and white stay), and the coat tint does the rest
+const RECOLOUR = { dog: ([r, g, b]) => { const y = 0.3 * r + 0.6 * g + 0.1 * b, sat = Math.max(r, g, b) - Math.min(r, g, b); return sat > 0.1 && y < 0.9 ? [y * 0.92, y * 0.95, y * 1.02] : [r, g, b]; } };
+
+function read(file) {
+  const b = fs.readFileSync(file), jl = b.readUInt32LE(12), j = JSON.parse(b.subarray(20, 20 + jl)), bin = b.subarray(20 + jl + 8);
+  const acc = (i) => {
+    const a = j.accessors[i], v = j.bufferViews[a.bufferView], off = (v.byteOffset || 0) + (a.byteOffset || 0), n = { SCALAR: 1, VEC2: 2, VEC3: 3, VEC4: 4 }[a.type];
+    const size = { 5120: 1, 5121: 1, 5122: 2, 5123: 2, 5125: 4, 5126: 4 }[a.componentType], st = v.byteStride || size * n, out = [];
+    const get = { 5121: (o) => bin[o] / (a.normalized ? 255 : 1), 5123: (o) => bin.readUInt16LE(o) / (a.normalized ? 65535 : 1), 5125: (o) => bin.readUInt32LE(o), 5126: (o) => bin.readFloatLE(o) }[a.componentType];
+    for (let i2 = 0; i2 < a.count; i2++) { const row = []; for (let k = 0; k < n; k++) row.push(get(off + i2 * st + k * size)); out.push(row); }
+    return out;
+  };
+  return { j, acc };
+}
+
+const nodes = [], hips = {};
+for (const f of fs.readdirSync(DIR).filter((x) => x.endsWith('.glb') && x !== 'snowmobile.glb').sort()) {
+  const key = f.replace('.glb', '').replace(/-/g, '_'), { j, acc } = read(`${DIR}/${f}`);
+  const p = j.meshes[0].primitives[0], skin = j.skins[0];
+  const pos = acc(p.attributes.POSITION), col = acc(p.attributes.COLOR_0), joi = acc(p.attributes.JOINTS_0), wei = acc(p.attributes.WEIGHTS_0);
+  const idx = p.indices != null ? acc(p.indices).map((r) => r[0]) : pos.map((_, i) => i);
+  // each bone's bind position: walk the hierarchy adding translations (the rig has no bind rotations that move a hip much)
+  const world = new Map(), walk = (i, base) => { const n = j.nodes[i], t = n.translation || [0, 0, 0], w = [base[0] + t[0], base[1] + t[1], base[2] + t[2]]; world.set(i, w); for (const c of n.children || []) walk(c, w); };
+  for (const i of j.scenes[0].nodes) walk(i, [0, 0, 0]);
+  const name = (ji) => j.nodes[skin.joints[ji]].name, GROUP = [['LeftFront', 'lf'], ['RightFront', 'rf'], ['LeftHind', 'lh'], ['RightHind', 'rh']];
+  const part = pos.map((_, v) => { let best = 0; for (let k = 1; k < 4; k++) if (wei[v][k] > wei[v][best]) best = k; const n = name(joi[v][best]); const g = GROUP.find(([s]) => n.startsWith(s)); return g ? g[1] : 'body'; });
+  const hip = (s) => world.get(j.nodes.findIndex((n) => n.name === `${s}UpLeg`));
+  const H = { lf: hip('LeftFront'), rf: hip('RightFront'), lh: hip('LeftHind'), rh: hip('RightHind') };
+  hips[key] = [H.lf, H.rf, H.lh, H.rh].map((a) => a.map((x) => +x.toFixed(3)));
+  const tint = RECOLOUR[f.replace('.glb', '')] || ((c) => c);
+  const toS = (u) => Math.round(255 * (u <= 0.0031308 ? u * 12.92 : 1.055 * u ** (1 / 2.4) - 0.055));
+  const out = { body: new Map(), lf: new Map(), lh: new Map() }, tris = { body: [], lf: [], lh: [] }, vals = { body: [], lf: [], lh: [] }, cols = { body: [], lf: [], lh: [] };
+  for (let t = 0; t < idx.length; t += 3) {
+    const tri = [idx[t], idx[t + 1], idx[t + 2]], cnt = {};
+    for (const v of tri) cnt[part[v]] = (cnt[part[v]] || 0) + 1;
+    const g = Object.keys(cnt).sort((a, b) => cnt[b] - cnt[a])[0];
+    if (g === 'rf' || g === 'rh') continue;
+    const o = g === 'lf' || g === 'lh' ? H[g] : [0, 0, 0];
+    for (const v of tri) {
+      const q = [Math.round((pos[v][0] - o[0]) * CUT), Math.round((pos[v][1] - o[1]) * CUT), Math.round((pos[v][2] - o[2]) * CUT)], c = tint(col[v].slice(0, 3)).map(toS), k = `${q}|${c}`;
+      let n = out[g].get(k);
+      if (n == null) { n = out[g].size; out[g].set(k, n); vals[g].push(q[0] / CUT, q[1] / CUT, q[2] / CUT); cols[g].push(...c); }
+      tris[g].push(n);
+    }
+  }
+  for (const [g, nm] of [['body', 'body'], ['lf', 'leg'], ['lh', 'hind']]) nodes.push({ name: `pa_${key}_${nm}`, t: [0, 0, 0], r: [0, 0, 0, 1], s: [1, 1, 1], prims: [{ m: 0, pos: vals[g], idx: tris[g], col: cols[g] }] });
+  console.log(key, 'body', tris.body.length / 3, 'leg', tris.lf.length / 3, 'hind', tris.lh.length / 3, 'hips', JSON.stringify(hips[key]));
+}
+const mats = [{ name: 'vertex', color: [1, 1, 1], rough: 1, metal: 0 }];
+fs.writeFileSync('src/data/polyanimalMesh.js', `// Generated by scripts/animal-split.mjs from art/polyfork/north/*.glb: bodies and legs, cut along the bones.\nimport { unpackNodes } from '../core/meshpack.js';\nexport const POLYANIMAL_HIPS = ${JSON.stringify(hips)};\nexport const POLYANIMAL_MATS = ${JSON.stringify(mats)};\nexport const POLYANIMAL_NODES = unpackNodes(${JSON.stringify(packNodes(nodes))});\n`);
+console.log('bytes', fs.statSync('src/data/polyanimalMesh.js').size);

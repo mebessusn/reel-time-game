@@ -16,6 +16,9 @@ export class Remotes {
   }
 
   attach(net) {
+    // v1.15: only the net you're on right now draws anglers (a charter's crew room, or the lake)
+    const real = net;
+    net = { on: (type, fn) => real.on(type, (e) => { if (this.game.net === real) fn(e); }) };
     net.on('peer:join', (p) => this.add(p));
     net.on('peer:leave', (p) => this.remove(p.id));
     // v1.14.7: looks are built when an angler is first drawn (update() notices the change), not for everyone on the lake
@@ -79,6 +82,12 @@ export class Remotes {
     this.list.set(peer.id, r);
   }
 
+  /** Swap to another net's anglers (going to sea and back): drop everyone, add whoever that net knows. */
+  resync(net) {
+    for (const id of [...this.list.keys()]) this.remove(id);
+    for (const p of net?.peers?.values?.() || []) this.add(p);
+  }
+
   remove(id) {
     const r = this.list.get(id);
     if (!r) return;
@@ -92,7 +101,8 @@ export class Remotes {
     const sorted = [...this.list.values()].sort((a, b) => a.pos.distanceToSquared(me) - b.pos.distanceToSquared(me));
     sorted.forEach((r, i) => {
       const s = r.peer.state;
-      const visible = i < MAX_RENDERED && !!s;
+      const oc = s ? this.game.ocean?.remoteAt(r, s) : null; // v1.15: at sea, only my crew, on my copy of the boat
+      const visible = i < MAX_RENDERED && !!s && !oc?.hide && !s.hid; // (hid: aboard Skye's plane, Frostmere)
       r.actor.root.visible = visible;
       if (!s) return;
       if (visible) {
@@ -112,6 +122,11 @@ export class Remotes {
       if (r.pos.distanceTo(new THREE.Vector3(s.x, s.y, s.z)) > 8) r.pos.set(s.x, s.y, s.z);
       r.pos.x += (s.x - r.pos.x) * k; r.pos.y += (s.y - r.pos.y) * k; r.pos.z += (s.z - r.pos.z) * k;
       let dy = s.yaw - r.yaw; dy = Math.atan2(Math.sin(dy), Math.cos(dy)); r.yaw += dy * k;
+      if (oc && oc.x != null) {
+        const kk = Math.min(1, dt * 10), ox = oc.x - r.pos.x, oz = oc.z - r.pos.z;
+        if (ox * ox + oz * oz > 25) r.pos.set(oc.x, oc.y, oc.z); else { r.pos.x += ox * kk; r.pos.z += oz * kk; r.pos.y = oc.y; }
+        let d2 = oc.yaw - r.yaw; d2 = Math.atan2(Math.sin(d2), Math.cos(d2)); r.yaw += d2 * kk;
+      }
       // v1.8.2: a passenger sits on the front seat of the boat as THIS screen draws it (the host's own
       // rendered position and heading), never at their own lagging broadcast position, so it never
       // trails behind the boat or spins in the seat
@@ -145,7 +160,7 @@ export class Remotes {
       if (r.pet) r.pet.update(dt, t, { x: r.pos.x, y: r.pos.y, z: r.pos.z, yaw: r.yaw, mode: s.mode, fishing: !!s.bobber, visible, root: r.actor.root, passenger: rideOk, guest: !!(r.peer.meta?.id && (this.hasPassenger(r.peer.meta.id) || this.game.riding === r.peer.meta.id)), bike: bike?.id && r.actor.bikeObj?.visible ? r.actor.bikeObj : null });
       if (!visible) return;
       r.shown = true;
-      r.actor.update(dt, t, { x: r.pos.x, y: r.pos.y, z: r.pos.z, yaw: r.yaw, mode: s.mode, pose, moving: s.moving, bobber: s.bobber, tension: s.tension, rod: s.rod || (s.mode === 'boat' && !s.bobber ? 'back' : 'hand'), seat: s.seat && s.mode === 'shore' ? (s.seat === 1 || s.seat === true ? SEAT_H : Math.min(0.8, +s.seat || SEAT_H)) : 0, seatYaw: s.seat && s.mode === 'shore' && typeof s.seatYaw === 'number' ? s.seatYaw : undefined, running: !!s.run, passenger: rideOk, bike });
+      r.actor.update(dt, t, { x: r.pos.x, y: r.pos.y, z: r.pos.z, yaw: r.yaw, mode: s.mode, pose, moving: s.moving, bobber: s.bobber, tension: s.tension, rod: s.rod || (s.mode === 'boat' && !s.bobber ? 'back' : 'hand'), seat: s.seat && s.mode === 'shore' ? (s.seat === 1 || s.seat === true ? SEAT_H : Math.min(0.8, +s.seat || SEAT_H)) : 0, seatYaw: s.seat && s.mode === 'shore' && typeof s.seatYaw === 'number' ? s.seatYaw : undefined, running: !!s.run, passenger: rideOk, bike, swim: s.sw || 0, dg: typeof s.dg === 'string' ? s.dg.slice(0, 5) : '', skate: s.sk === 1 || s.sk === 2 ? s.sk : 0, blades: !!s.bl, sled: s.sl ? 1 : 0 });
       if (r.bubble && now > r.bubble.until) r.bubble = null;
       if (s.afk) r.bubble = { kind: 'zzz', text: 'z z z', until: now + 1000, key: 'z' };
       else if (r.bubble?.kind === 'zzz') r.bubble = null;

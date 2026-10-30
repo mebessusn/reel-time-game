@@ -7,19 +7,21 @@ import { buildLodgeLamps } from './lodgelamps.js';
 import { buildHutWindows, nightWindows } from './nightwindows.js';
 import { buildCave, caveRockAt } from './cave.js';
 import { buildShipwreck } from './shipwreck.js';
-import { buildCampers, FERNVIEW_FIRE } from './campers.js';
+import { buildCampers, FERNVIEW_FIRE, camperAt } from './campers.js';
 import { buildDressing } from './dressing.js';
 import { buildLeviathan, leviathanAt } from './frostbones.js';
 import { buildLakePOIs } from './lakepois.js';
 import { splitByTiles } from '../render/cull.js';
 import { dryAt, heightAt, surfaceY, isWater, groundY, DOCK, FALLS_C, DEEP_C, LIGHTHOUSE_ISLE, HALF, LAKE_R, scatterSpots, WATER_Y, JETTIES, BRIDGES, bridgeYAlong, sc, scAround, LAKES, CLEARINGS, TRAILS, trailDist, valleyWater, riverSd, zoneAt, gentleAt, onBridge } from './terrain.js';
 import { buildGus as buildGusModel } from '../entities/gus.js';
-import { softCabin, softDock, softTrees, softPlants, softLilyPads, softLanterns, softCampfire, softBoard, softRack, softLighthouse, softRuins, softTrophyBoard, TROPHY_SLOTS, softJetties, softBridge, softHut, softSignposts, softTent } from './softprops.js';
+import { softCabin, softDock, softTrees, softPlants, softLilyPads, softLanterns, softCampfire, softBoard, softRack, softLighthouse, softRuins, softTrophyBoard, TROPHY_SLOTS, softJetties, softBridge, softHut, softSignposts } from './softprops.js';
 import { buildFish, shellModel } from '../entities/fish.js';
 import { SPECIES_BY_ID } from '../data/species.js';
 import { softFishModel } from '../entities/softfish.js';
 import { addBox, addCircle, addSolidFn, clearColliders, blocked } from './colliders.js';
 import { natureTrees } from './nature.js';
+import { buildLogCabin, placeModels } from './polyfork.js';
+import { buildCampground } from './campground.js';
 
 // Gus's shop (the cabin). v1.10: turned 15° and set 2.5 m further inland so no part of it hangs over the water.
 // The cabin is laid out in its own frame (walls x 0..7, z 0..6, porch to x 8.7); CABIN_POSE puts that frame's
@@ -62,7 +64,7 @@ const blockSurf = (x, z) => surfaceY(Math.floor(x) + 0.5, Math.floor(z) + 0.5) -
 
 function buildDock() {
   // the end rail stops walkers stepping past it (the deck runs a little beyond it, to z0)
-  addBox(DOCK.x0 - 0.2, DOCK.z0 - 0.3, DOCK.x1 + 1.2, DOCK.z0 + 0.32);
+  addBox(DOCK.x0 - 0.2, DOCK.z0 - 0.3, DOCK.x1 + 1.2, DOCK.z0 + 0.32, { top: DOCK.deckY + 1.1 }); // (v1.17.1: a rail's height, so a cast goes over it)
   return softDock(DOCK, heightAt);
 }
 
@@ -119,6 +121,7 @@ function buildTrees() {
     for (const c of Object.values(CLEARINGS)) if (Math.hypot(x - c.x, z - c.z) < c.r + 3) return false;
     if (Math.hypot(x - TROPHY.x, z - TROPHY.z) < 4) return false;
     if (Math.hypot(x - 9, z - 58) < 7.5) return false; // your cottage and its yard
+    if (camperAt(x + 0.5, z + 0.5, 1)) return false; // v1.17.1: off the campgrounds' tents, tables and boats
     if (caveRockAt(x, z) > -0.6) return false; // nothing grows on (or through) the cavern's rock
     if (leviathanAt(x + 0.5, z + 0.5, 2)) return false; // v1.9.11: the Frozen Leviathan's frozen pool
     if (!gentleAt(x + 0.5, z + 0.5, 0.7)) return false; // v1.9.1: no trees on cliffs and rock faces
@@ -143,8 +146,8 @@ function buildPlants() {
   };
   const reeds = scatterSpots(7, 240, reedy);
   const flowers = scatterSpots(31, 280, (x, z) => { const h = heightAt(x, z); return h >= 2 && h < 7 && Math.hypot(x - CABIN.door.x, z - CABIN.door.z) > 3.5 && trailDist(x + 0.5, z + 0.5) > 1.2; });
-  // the fallen log, off the trail between the bridge and Gus's cabin (moved toward the shore in v1.9.3)
-  const LOG = { x: -30.8, z: 33.1 };
+  // the fallen log on the sand between the bridge and Pip's spot (moved toward the shore in v1.9.3, and again in v1.17.1)
+  const LOG = { x: -31.8, z: 30.15 }; // (v1.17.1: out on the sand toward the shore, where Megan marked it)
   addBox(LOG.x, LOG.z + 0.05, LOG.x + 4, LOG.z + 0.95);
   return softPlants(reeds, flowers, { ...LOG, y: surfaceY(LOG.x + 0.5, LOG.z + 0.5) }, blockSurf);
 }
@@ -349,7 +352,7 @@ function buildTrophyBoard() {
     mounts.clear();
     list.slice(0, 3).forEach((t, i) => {
       const fish = buildFish(t.speciesId, t.variant, t.weight);
-      fish.scale.setScalar(0.84 / (SPECIES_BY_ID[t.speciesId]?.shell ? shellModel(t.speciesId).length : softFishModel(t.speciesId).length));
+      fish.scale.setScalar(0.84 / ((SPECIES_BY_ID[t.speciesId]?.shell || SPECIES_BY_ID[t.speciesId]?.mesh) ? shellModel(t.speciesId).length : softFishModel(t.speciesId).length));
       fish.position.set(TROPHY_SLOTS[slotFor[i]], 1.92, 0.3);
       fish.rotation.set(0, 0, 0.08);
       fish.castShadow = true;
@@ -438,7 +441,14 @@ function buildValley(scene) {
     const ex = (hut.w * c + hut.d * s) / 2, ez = (hut.w * s + hut.d * c) / 2;
     addBox(hut.x - ex + 0.2, hut.z - ez + 0.2, hut.x + ex - 0.2, hut.z + ez - 0.2);
   }
-  for (const t of TENTS) { scene.add(softTent(t, heightAt(t.x, t.z))); addCircle(t.x, t.z, 0.9); }
+  // v1.17.1: Fern Camp's tents are Polyfork models (src/world/polyfork.js), doors to the fire, with chairs, a cooler
+  // and a stack of firewood
+  {
+    const F = CAMP_FIRE, face = (x, z) => Math.atan2(F.x - x, F.z - z);
+    const pf = TENTS.map((t, i) => ({ m: ['dome-tent', 'canvas-ridge-tent', 'canvas-wall-tent'][i], x: t.x, z: t.z, ry: face(t.x, t.z) }));
+    for (const [m, dx, dz] of [['folding-camp-chair', 0.2, -2.4], ['folding-camp-chair', 1.6, 2.1], ['camp-cooler', 3.2, -2.6], ['cordwood-pile', -1.5, -5.5]]) pf.push({ m, x: F.x + dx, z: F.z + dz, ry: m === 'cordwood-pile' ? 0.3 : face(F.x + dx, F.z + dz) });
+    scene.add(placeModels('fern-camp-polyfork', pf));
+  }
   scene.add(softCampfire(CAMP_FIRE, heightAt(CAMP_FIRE.x, CAMP_FIRE.z)));
   addCircle(CAMP_FIRE.x, CAMP_FIRE.z, 0.8);
   for (const ox of [-2.25, 2.25]) addBox(CAMP_FIRE.x + ox - 0.22, CAMP_FIRE.z - 0.75, CAMP_FIRE.x + ox + 0.22, CAMP_FIRE.z + 1.0);
@@ -524,6 +534,8 @@ export function buildProps(scene) {
   for (const ox of [-2.25, 2.25]) addBox(FERNVIEW_FIRE.x + ox - 0.22, FERNVIEW_FIRE.z - 0.75, FERNVIEW_FIRE.x + ox + 0.22, FERNVIEW_FIRE.z + 1.0);
   out.campfire3 = new THREE.Vector3(FERNVIEW_FIRE.x, heightAt(FERNVIEW_FIRE.x, FERNVIEW_FIRE.z) + 0.3, FERNVIEW_FIRE.z);
   { const f = buildFire(out.campfire3); out.fires.push(f); scene.add(f); }
+  out.logCabin = buildLogCabin(scene); // v1.17.1: the first Polyfork model, a log cabin in the woods off the Lilymarsh trail
+  out.campground = buildCampground(scene); // v1.17.1: the ranger station and the Frostpine A-frame (Polyfork models)
   out.groundCover = buildGroundCover(scene, WIND, { cabinPt, cabinLocal, y: heightAt(CABIN.x, CABIN.z) });
   return out;
 }

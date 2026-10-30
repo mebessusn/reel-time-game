@@ -5,6 +5,7 @@ import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js
 import { SPECIES_BY_ID } from '../data/species.js';
 import { softFishModel } from './softfish.js';
 import { SHELL_MATS, SHELL_NODES } from '../data/shellfishMesh.js';
+import { CEPH_MATS, CEPH_NODES } from '../data/cephMesh.js'; // v1.15: the giant squid and the octopus
 import { Atlas, softBox, tone, hash, atlasMaterial } from '../render/soft.js';
 
 // ---------------------------------------------------------------- v1.12 shellfish (art/shellfish.blend)
@@ -15,7 +16,9 @@ const lin = (a) => new THREE.Color().setRGB(a[0], a[1], a[2], THREE.LinearSRGBCo
 export function shellModel(id, variant = 'normal') {
   const key = `${id}:${variant}`;
   if (shellCache.has(key)) return shellCache.get(key);
-  const n = SHELL_NODES.find((x) => x.name === id);
+  const ceph = SPECIES_BY_ID[id]?.mesh === 'ceph';
+  const NODES = ceph ? CEPH_NODES : SHELL_NODES, MATS = ceph ? CEPH_MATS : SHELL_MATS;
+  const n = NODES.find((x) => x.name === id);
   if (!n) return null;
   const geos = [], mats = [];
   n.prims.forEach((p) => {
@@ -24,7 +27,7 @@ export function shellModel(id, variant = 'normal') {
     geo.setAttribute('normal', new THREE.BufferAttribute(new Float32Array(Array.from(p.nrm, (v) => v / 127)), 3));
     geo.setIndex(p.idx);
     geos.push(geo);
-    const m = SHELL_MATS[p.m];
+    const m = MATS[p.m];
     let color = lin(m.color);
     const emissive = lin(m.emissive);
     if (variant === 'gold') color = color.clone().lerp(new THREE.Color('#e8b830'), 0.75);
@@ -44,7 +47,7 @@ export function shellModel(id, variant = 'normal') {
 // World size: roughly proportional to log(weight), clamped.
 export function fishScale(speciesId, weight) {
   const sp = SPECIES_BY_ID[speciesId];
-  const base = sp.shell ? shellModel(speciesId).length * 0.6 : softFishModel(speciesId).length;
+  const base = sp.shell || sp.mesh ? shellModel(speciesId).length * (sp.mesh ? 1 : 0.6) : softFishModel(speciesId).length;
   const [mn, mx] = sp.weight;
   const rel = (weight - mn) / (mx - mn);
   const lenBlocks = 0.45 + Math.log10(1 + mx) * 0.35 + rel * 0.25; // ~0.5..1.6 blocks
@@ -53,7 +56,7 @@ export function fishScale(speciesId, weight) {
 
 export function buildFish(speciesId, variant = 'normal', weight = null) {
   const sp = SPECIES_BY_ID[speciesId];
-  const model = sp.shell ? shellModel(speciesId, variant) : softFishModel(speciesId, variant);
+  const model = sp.shell || sp.mesh ? shellModel(speciesId, variant) : softFishModel(speciesId, variant);
   const mesh = new THREE.Mesh(model.geometry, model.material);
   mesh.castShadow = true;
   mesh.receiveShadow = false;

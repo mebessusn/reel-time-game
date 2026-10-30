@@ -56,7 +56,7 @@ function tileNoise(size, period, seed) {
 }
 const hex = (c) => [parseInt(c.slice(1, 3), 16), parseInt(c.slice(3, 5), 16), parseInt(c.slice(5, 7), 16)];
 
-function paintTexture(kind, size = 128) {
+function paintTexture(kind, size = 256) { // (v1.17.1: 256 px a tile, was 128: crisper ground up close)
   const cv = document.createElement('canvas');
   cv.width = cv.height = size;
   const ctx = cv.getContext('2d');
@@ -111,32 +111,58 @@ function paintTexture(kind, size = 128) {
   return t;
 }
 
+/** v1.17.1: four channels of soft tileable noise (for breaking up the ground blends and big light/dark drifts). */
+function noiseTexture(size = 256) {
+  const cv = document.createElement('canvas'); cv.width = cv.height = size;
+  const ctx = cv.getContext('2d'), img = ctx.createImageData(size, size);
+  const ch = [0, 1, 2, 3].map((c) => [tileNoise(size, 6, 101 + c), tileNoise(size, 16, 131 + c), tileNoise(size, 40, 171 + c)]);
+  for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
+    const i = (y * size + x) * 4;
+    for (let c = 0; c < 4; c++) { const [a, b, d] = ch[c]; img.data[i + c] = Math.round(255 * Math.min(1, Math.max(0, a(x, y) * 0.5 + b(x, y) * 0.32 + d(x, y) * 0.18))); }
+  }
+  ctx.putImageData(img, 0, 0);
+  const t = new THREE.CanvasTexture(cv); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.colorSpace = THREE.NoColorSpace; t.premultiplyAlpha = false;
+  return t;
+}
+
 // ---------------------------------------------------------------- material
 function splatMaterial() {
   const texs = Array.from({ length: NK }, (_, k) => paintTexture(k));
+  const noise = noiseTexture();
   const mat = new THREE.MeshLambertMaterial({ vertexColors: true });
   mat.userData.splat = (shader) => {
     texs.forEach((t, k) => { shader.uniforms[`tSplat${k}`] = { value: t }; });
+    shader.uniforms.tGroundNoise = { value: noise };
     shader.vertexShader = shader.vertexShader
       .replace('#include <common>', '#include <common>\nattribute vec4 aW0; attribute vec4 aW1; varying vec4 vW0; varying vec4 vW1; varying vec2 vTP;')
       .replace('#include <begin_vertex>', '#include <begin_vertex>\nvW0 = aW0; vW1 = aW1; vTP = (modelMatrix * vec4(position, 1.0)).xz;');
     shader.fragmentShader = shader.fragmentShader
-      .replace('#include <common>', `#include <common>\nvarying vec4 vW0; varying vec4 vW1; varying vec2 vTP;\n${texs.map((_, k) => `uniform sampler2D tSplat${k};`).join('\n')}`)
+      .replace('#include <common>', `#include <common>\nvarying vec4 vW0; varying vec4 vW1; varying vec2 vTP;\nuniform sampler2D tGroundNoise;\n${texs.map((_, k) => `uniform sampler2D tSplat${k};`).join('\n')}`)
       .replace('#include <map_fragment>', /* glsl */ `
         {
           // one rotated scale (cheap on low-end GPUs); the vertex tint breaks up any repeats
           vec2 p1 = mat2(0.8, -0.6, 0.6, 0.8) * vTP / 4.0;
+          // v1.17.1 (fidelity pass): the blend weights come per metre-grid vertex, so a plain blend shows the grid's
+          // triangles (diamond-shaped patches along trails and shores). Small-scale noise nudges each ground's weight
+          // up or down and the result is sharpened, so edges between grounds are ragged and natural instead.
+          vec4 nf = texture2D(tGroundNoise, vTP / 2.3);
+          vec4 a0 = vW0 * (0.35 + 1.3 * nf), a1 = vW1 * (0.35 + 1.3 * nf.yzwx);
+          a0 *= a0; a1 *= a1;
+          float as = dot(a0, vec4(1.0)) + dot(a1, vec4(1.0));
+          if (as < 0.0001) { a0 = vW0; a1 = vW1; as = dot(vW0, vec4(1.0)) + dot(vW1, vec4(1.0)); }
           vec3 g = vec3(0.0);
-          if (vW0.x > 0.002) g += vW0.x * texture2D(tSplat0, p1).rgb;
-          if (vW0.y > 0.002) g += vW0.y * texture2D(tSplat1, p1).rgb;
-          if (vW0.z > 0.002) g += vW0.z * texture2D(tSplat2, p1).rgb;
-          if (vW0.w > 0.002) g += vW0.w * texture2D(tSplat3, p1).rgb;
-          if (vW1.x > 0.002) g += vW1.x * texture2D(tSplat4, p1).rgb;
-          if (vW1.y > 0.002) g += vW1.y * texture2D(tSplat5, p1).rgb;
-          if (vW1.z > 0.002) g += vW1.z * texture2D(tSplat6, p1).rgb;
-          if (vW1.w > 0.002) g += vW1.w * texture2D(tSplat7, p1).rgb;
-          float ws = dot(vW0, vec4(1.0)) + dot(vW1, vec4(1.0));
-          diffuseColor.rgb *= g / max(ws, 0.001);
+          if (a0.x > 0.002 * as) g += a0.x * texture2D(tSplat0, p1).rgb;
+          if (a0.y > 0.002 * as) g += a0.y * texture2D(tSplat1, p1).rgb;
+          if (a0.z > 0.002 * as) g += a0.z * texture2D(tSplat2, p1).rgb;
+          if (a0.w > 0.002 * as) g += a0.w * texture2D(tSplat3, p1).rgb;
+          if (a1.x > 0.002 * as) g += a1.x * texture2D(tSplat4, p1).rgb;
+          if (a1.y > 0.002 * as) g += a1.y * texture2D(tSplat5, p1).rgb;
+          if (a1.z > 0.002 * as) g += a1.z * texture2D(tSplat6, p1).rgb;
+          if (a1.w > 0.002 * as) g += a1.w * texture2D(tSplat7, p1).rgb;
+          g /= max(as, 0.0001);
+          // broad light and dark drifts (tens of metres), so the repeat of the 4 m tiles doesn't read from afar
+          float macro = texture2D(tGroundNoise, vTP / 37.0 + 0.31).x;
+          diffuseColor.rgb *= g * (0.9 + macro * 0.2);
         }`);
   };
   mat.onBeforeCompile = (shader) => mat.userData.splat(shader);

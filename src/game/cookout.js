@@ -49,14 +49,14 @@ export class Cookout {
     if (camp) return camp;
     const s = this.game.chairs?.seat;
     if (!s || s.kind !== 'log') return null;
-    const fires = [CAMPFIRE, CAMP_FIRE, FERNVIEW_FIRE];
+    const fires = [CAMPFIRE, CAMP_FIRE, FERNVIEW_FIRE, ...(this.game.ocean?.islands?.fires || []), ...(this.game.north?.village?.fires || [])]; // (v1.17.1: and Hearthwick's bonfire) // (v1.15.10: and the island fire pits)
     return fires.sort((a, b) => Math.hypot(a.x - s.x, a.z - s.z) - Math.hypot(b.x - s.x, b.z - s.z))[0];
   }
 
   contextActions() {
     const f = this.fire();
     if (!f || this.active || this.panel) return [];
-    const out = [{ id: 'roast', label: 'Roast a fish', color: 'gold', at: { x: f.x, z: f.z, y: heightAt(f.x, f.z), h: 1.4 }, fn: () => this.openPicker() }];
+    const out = [{ id: 'roast', label: 'Roast a fish', color: 'gold', at: { x: f.x, z: f.z, y: (f.y ?? heightAt(f.x, f.z)), h: 1.4 }, fn: () => this.openPicker() }];
     // v1.14.9: a forest stew, from what you picked in the woods
     const W = this.game.woods;
     if (W?.canStew?.() && !this.eating) out.push({ id: 'stew', label: 'Cook forest stew', color: 'green', fn: () => W.cookStew() });
@@ -119,7 +119,7 @@ export class Cookout {
     // got up from the log mid-roast: it goes in the bag as it is
     if (!this.fire()) { this.closePanel(); if (a.done) this.packFromStick(); else this.cancel(); return; }
     // the stick: from your hands out over the middle of the fire
-    const pl = g.player.pos, f = a.fire, fy = heightAt(f.x, f.z);
+    const pl = g.player.pos, f = a.fire, fy = (f.y ?? heightAt(f.x, f.z));
     const yaw = Math.atan2(f.x - pl.x, f.z - pl.z);
     g.player.yaw = yaw;
     // held just above the flame tips, where you can see it brown (the stick is placed after the avatar poses, in afterActor)
@@ -236,7 +236,11 @@ export class Cookout {
   }
 
   fedNow(s) {
-    const g = this.game, name = SPECIES_BY_ID[s.sp]?.name || 'fish', secs = fedSeconds(s.w);
+    const g = this.game, name = SPECIES_BY_ID[s.sp]?.name || 'fish';
+    // v1.15.10: a meal cooked round an island fire with your crew lasts half as long again
+    const company = g.ocean?.evenings?.company?.() || 0;
+    const secs = Math.round(fedSeconds(s.w) * (company ? 1.5 : 1));
+    if (company) { g.ext?.bump('fireMeals'); setTimeout(() => g.chat?.system(`Cooked together round the fire with ${company === 1 ? 'a crewmate' : `${company} of your crew`}: Well Fed lasts half as long again.`, 'catch'), 400); }
     this.fed = { sp: s.sp, w: s.w, until: performance.now() + secs * 1000, secs };
     g.audio.sfx('buff');
     g.juice?.pop('Yum!', { color: '#ffd890', size: 30 });

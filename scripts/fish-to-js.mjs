@@ -4,11 +4,14 @@
 // The module keeps fish.py's compact form: per fish a palette and grid parts with delta-coded, 12-bit positions;
 // src/entities/softfish.js rebuilds the triangles and normals.
 import fs from 'node:fs';
-import { SPECIES } from '../src/data/species.js';
+import { SPECIES as VALLEY } from '../src/data/species.js';
+import { OCEAN_SPECIES } from '../src/data/oceanSpecies.js';
+import { NORTH_SPECIES } from '../src/data/northSpecies.js';
+const SPECIES = [...VALLEY, ...OCEAN_SPECIES, ...NORTH_SPECIES]; // v1.15: the sea's fish are modelled with the rest
 
 if (process.argv.includes('--species')) {
   fs.mkdirSync('art/_build', { recursive: true });
-  fs.writeFileSync('art/_build/species.json', JSON.stringify(SPECIES.map((s) => ({ id: s.id, name: s.name, shape: s.shape, tier: s.tier, colors: s.colors, pattern: s.pattern, eye: s.eye, glow: s.glow, shell: !!s.shell }))));
+  fs.writeFileSync('art/_build/species.json', JSON.stringify(SPECIES.map((s) => ({ id: s.id, name: s.name, shape: s.shape, tier: s.tier, colors: s.colors, pattern: s.pattern, eye: s.eye, glow: s.glow, shell: !!s.shell, mesh: s.mesh || null }))));
   console.log(`art/_build/species.json: ${SPECIES.length} species`);
 } else {
   const src = process.argv[2] || 'art/_build/fish.json';

@@ -7,9 +7,9 @@ import { gearModel } from './gearModels.js';
 
 const ROD_TIP = 1.625;
 
-export function buildRod(itemId) {
+export function buildRod(itemId, lite = false) {
   const item = ITEMS_BY_ID[itemId] || ITEMS_BY_ID.rod_willow;
-  const model = gearModel(item.id);
+  const model = gearModel(item.id, lite);
   if (model) {
     const tip = new THREE.Object3D();
     tip.position.set(0, ROD_TIP, 0);

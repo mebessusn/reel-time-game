@@ -14,7 +14,11 @@ export const TIER_INFO = {
   epic:      { name: 'Epic',      color: '#8E5BC4', coins: 80,  xp: 90,  points: 20,  pearlsTrade: 0 },
   legendary: { name: 'Legendary', color: '#E8A317', coins: 250, xp: 200, points: 60,  pearlsTrade: 2 },
   mythic:    { name: 'Mythic',    color: '#D9467A', coins: 800, xp: 500, points: 200, pearlsTrade: 6 },
+  // v1.15 Open Waters: big-game fish show as Trophy, above Legendary (their rarity for bites stays their own tier)
+  trophy:    { name: 'Trophy',    color: '#C8452E', coins: 600, xp: 400, points: 120, pearlsTrade: 3 },
 };
+/** The tier a fish shows as: big-game fish are Trophies; everything else is its own tier. */
+export const tierOf = (sp) => (sp?.big ? 'trophy' : sp?.tier);
 
 export const VARIANTS = {
   normal:  { name: 'Normal',  coinMult: 1,  pointMult: 1 },
@@ -23,7 +27,7 @@ export const VARIANTS = {
 };
 
 // Pearls for trading a Diamond fish in, by tier.
-export const DIAMOND_PEARLS = { common: 5, uncommon: 5, rare: 10, epic: 10, legendary: 25, mythic: 25 };
+export const DIAMOND_PEARLS = { common: 5, uncommon: 5, rare: 10, epic: 10, legendary: 25, mythic: 25, trophy: 25 };
 
 export const BASE_TIER_ODDS = { common: 55, uncommon: 25, rare: 12, epic: 5.5, legendary: 2, mythic: 0.5 };
 
@@ -214,7 +218,13 @@ export const SPECIES = [
     { base: '#2a1a40', belly: '#5a3a80', accent: '#ffd060', fin: '#4a2a70' }, 'glow', { glow: '#ffd060' }),
 ];
 
-export const SPECIES_BY_ID = Object.fromEntries(SPECIES.map((s) => [s.id, s]));
+// v1.15 Open Waters: the sea's fish are looked up like any other (but stay out of SPECIES, the valley's list)
+import { OCEAN_SPECIES } from './oceanSpecies.js';
+import { NORTH_SPECIES, NORTH_ZONES } from './northSpecies.js'; // Frostmere's fish, the same way
+import { OCEAN_ZONES } from './oceanSpecies.js';
+/** A fishing zone's display name, wherever it is (the valley, the sea, Frostmere). */
+export const zoneName = (z) => (ZONES[z] || OCEAN_ZONES[z] || NORTH_ZONES[z])?.name;
+export const SPECIES_BY_ID = Object.fromEntries([...SPECIES, ...OCEAN_SPECIES, ...NORTH_SPECIES].map((s) => [s.id, s]));
 
 // Junk and treasure (8% of bites).
 export const JUNK = [

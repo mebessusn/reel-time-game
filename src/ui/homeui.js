@@ -3,7 +3,7 @@ import { h, clear, fmt, lb } from './dom.js';
 import { icon, iconURL } from './icons.js';
 import { fishThumb } from './thumbs.js';
 import * as THREE from 'three';
-import { HomeScene, DECOR, WALLS, FLOORS, MOVABLE, WALL_ITEMS, ROOM, clampWall, homeLayout, sanitizeLayout } from '../game/home.js';
+import { HomeScene, DECOR, WALLS, FLOORS, MOVABLE, WALL_ITEMS, ROOM, clampWall, clampFloor, homeLayout, sanitizeLayout, HOME_TIERS, tierNeeds } from '../game/home.js';
 import { buildAvatar, animateAvatar } from '../entities/avatar2.js';
 import { HOME_DOOR } from '../world/props.js';
 import { SPECIES_BY_ID } from '../data/species.js';
@@ -263,8 +263,7 @@ export class HomeUI {
         const p = floorAt(e); if (!p) return;
         const m = MOVABLE[drag.item.userData.decorId];
         const snap = (v) => (this.snap ? Math.round(v / 0.25) * 0.25 : v);
-        drag.item.position.x = this.clampItem(m, drag.item.rotation.y, snap(p.x + drag.off.x), 'x');
-        drag.item.position.z = this.clampItem(m, drag.item.rotation.y, snap(p.z + drag.off.z), 'z');
+        [drag.item.position.x, drag.item.position.z] = this.clampXZ(m, drag.item.rotation.y, snap(p.x + drag.off.x), snap(p.z + drag.off.z));
         this.syncPlace();
         return;
       }
@@ -272,7 +271,7 @@ export class HomeUI {
         // pan along the floor, in the direction you drag
         const k = sc.dist * 0.0016;
         const cx = Math.cos(sc.yaw), sx = Math.sin(sc.yaw);
-        sc.panX = Math.max(-4, Math.min(4, drag.pan.x - (dx * cx + dy * sx) * k));
+        sc.panX = Math.max(-4, Math.min(sc.tier >= 1 ? 9 : 4, drag.pan.x - (dx * cx + dy * sx) * k)); // (v1.17.1: over to the den, in a Cottage)
         sc.panZ = Math.max(-3.5, Math.min(3.5, drag.pan.z - (-dx * sx + dy * cx) * k));
         return;
       }
@@ -317,10 +316,10 @@ export class HomeUI {
 
   // ---------------- v1.10: fine furniture placement ----------------
   /** Keeps a piece inside the room, allowing for how it's turned. */
-  clampItem(m, r, v, axis) {
+  clampXZ(m, r, x, z) {
     const c = Math.abs(Math.cos(r)), sn = Math.abs(Math.sin(r));
     const hw = (c * m.size[0] + sn * m.size[1]) / 2, hd = (sn * m.size[0] + c * m.size[1]) / 2;
-    return axis === 'x' ? Math.max(ROOM.x0 + hw, Math.min(ROOM.x1 - hw, v)) : Math.max(ROOM.z0 + hd, Math.min(ROOM.z1 - hd, v));
+    return clampFloor(x, z, hw, hd, this.scene?.tier || 0); // (v1.17.1: the main room, or the den you've dragged it into)
   }
   /** v1.12: a warm glow on the piece under the pointer (and a softer one on the piece you've picked). Each piece
    * gets its own copies of its materials the first time, so pieces that share a material don't light up together. */
@@ -380,8 +379,8 @@ export class HomeUI {
     // move along whichever world axis is closest, so a nudge never drifts diagonally
     const ax = Math.abs(wx) >= Math.abs(wz);
     const m = MOVABLE[this.selected];
-    if (ax) it.position.x = this.clampItem(m, it.rotation.y, Math.round((it.position.x + Math.sign(wx) * step) * 100) / 100, 'x');
-    else it.position.z = this.clampItem(m, it.rotation.y, Math.round((it.position.z + Math.sign(wz) * step) * 100) / 100, 'z');
+    const nx = ax ? Math.round((it.position.x + Math.sign(wx) * step) * 100) / 100 : it.position.x, nz = ax ? it.position.z : Math.round((it.position.z + Math.sign(wz) * step) * 100) / 100;
+    [it.position.x, it.position.z] = this.clampXZ(m, it.rotation.y, nx, nz);
     this.commitSoon(it);
   }
   turnItem(deg, abs = false) {
@@ -390,8 +389,7 @@ export class HomeUI {
     a = ((Math.round(a) % 360) + 360) % 360;
     it.rotation.y = a * Math.PI / 180;
     const m = MOVABLE[this.selected];
-    it.position.x = this.clampItem(m, it.rotation.y, it.position.x, 'x');
-    it.position.z = this.clampItem(m, it.rotation.y, it.position.z, 'z');
+    [it.position.x, it.position.z] = this.clampXZ(m, it.rotation.y, it.position.x, it.position.z);
     this.commitSoon(it);
   }
   setItemPos(axis, v) {
@@ -402,7 +400,7 @@ export class HomeUI {
       this.commitSoon(it);
       return;
     }
-    it.position[axis] = this.clampItem(MOVABLE[this.selected], it.rotation.y, v, axis);
+    [it.position.x, it.position.z] = this.clampXZ(MOVABLE[this.selected], it.rotation.y, axis === 'x' ? v : it.position.x, axis === 'z' ? v : it.position.z);
     this.commitSoon(it);
   }
   commitSoon(it) {
@@ -528,7 +526,7 @@ export class HomeUI {
   renderBody() {
     const g = this.game, d = g.ext.d;
     clear(this.tabs); clear(this.body);
-    for (const [id, label] of [['decor', 'Decor'], ['tank', 'Aquarium'], ['style', 'Colours'], ['visit', 'Visit']]) {
+    for (const [id, label] of [['decor', 'Decor'], ['tank', 'Aquarium'], ['style', 'Colours'], ['grow', 'Bigger home'], ['visit', 'Visit']]) {
       this.tabs.append(h(`button.tab${this.tab === id ? '.on' : ''}`, { on: { click: () => { this.tab = id; g.audio.sfx('page'); this.renderBody(); } } }, label));
     }
     const B = this.body;
@@ -539,9 +537,10 @@ export class HomeUI {
         const placed = d.home.decor.includes(id);
         let btn;
         if (owned) btn = h(`button.btn.small${placed ? '' : '.green'}`, { on: { click: () => { g.ext.change((x) => { x.home.decor = placed ? x.home.decor.filter((k) => k !== id) : [...x.home.decor, id]; x.home.owned = [...new Set([...(x.home.owned || []), id])]; }); this.rebuild(); } } }, placed ? 'Put away' : 'Place');
-        else if (it.earned) btn = h('span.muted', 'Complete the collection');
+        else if (it.earned) btn = h('span.muted', it.how ? 'Not earned yet' : 'Complete the collection');
+        else if ((it.tier || 0) > (d.home.tier || 0)) btn = h('button.btn.small', { on: { click: () => { this.tab = 'grow'; this.renderBody(); } } }, `Needs the ${HOME_TIERS[it.tier].name}`);
         else btn = h('button.btn.gold.small', { on: { click: () => this.buyDecor(id) } }, 'Buy');
-        return h('div.list-row', h('div.grow', h('div.ttl', it.name), h('div.meta', it.desc || (it.earned ? 'Earned from a lake collection' : '')), owned || it.earned ? null : priceEl(it.price)), btn);
+        return h('div.list-row', h('div.grow', h('div.ttl', it.name), h('div.meta', it.desc || (it.earned ? it.how || 'Earned from a lake collection' : '')), owned || it.earned ? null : priceEl(it.price)), btn);
       })));
     } else if (this.tab === 'tank') {
       const cap = d.home.decor.includes('tank2') ? 8 : 4;
@@ -565,6 +564,23 @@ export class HomeUI {
     } else if (this.tab === 'style') {
       B.append(h('div.section-title', 'Walls'), h('div.chooser', Object.entries(WALLS).map(([id, col]) => h(`button${d.home.wall === id ? '.on' : ''}`, { style: { borderBottom: `6px solid ${col}` }, on: { click: () => { g.ext.change((x) => { x.home.wall = id; }); this.rebuild(); } } }, id))));
       B.append(h('div.section-title', 'Floor'), h('div.chooser', Object.entries(FLOORS).map(([id, col]) => h(`button${d.home.floor === id ? '.on' : ''}`, { style: { borderBottom: `6px solid ${col}` }, on: { click: () => { g.ext.change((x) => { x.home.floor = id; }); this.rebuild(); } } }, id))));
+    } else if (this.tab === 'grow') {
+      // v1.17.1: bigger homes. The next tier up: what it adds, what it needs, and the price (coins, or pearls instead)
+      const cur = d.home.tier || 0, next = HOME_TIERS[cur + 1];
+      B.append(h('div.muted', `Your home: the ${HOME_TIERS[cur].name}.`));
+      if (!next) B.append(h('div.empty', 'This is the biggest home there is for now. The Lodge and the Lakehouse are on their way.'));
+      else {
+        const needs = tierNeeds(cur + 1, g.profile, d), ok = !needs.length;
+        const tick = (done, text) => h(`div.home-need${done ? '.done' : ''}`, icon(done ? 'check' : 'lock'), text);
+        B.append(h('div.home-tier',
+          h('div.ttl', `The ${next.name}`), h('div.meta', next.desc),
+          tick((g.profile.level || 1) >= next.level, `Level ${next.level}`),
+          tick(Object.keys(d.collections || {}).length >= next.collections, `${next.collections} lake collections (Fishpedia, Collections)`),
+          h('div.home-buy',
+            h('button.btn.gold.small', { disabled: !ok, on: { click: () => this.buyTier(cur + 1, next.price) } }, 'Build it for ', priceEl(next.price)),
+            h('button.btn.small', { disabled: !ok, title: 'Pearls can stand in for the coins (never for the level or the collections)', on: { click: () => this.buyTier(cur + 1, next.alt) } }, 'or ', priceEl(next.alt))),
+          ok ? null : h('div.meta', `Still to do: ${needs.join('; ')}.`)));
+      }
     } else if (this.tab === 'visit') {
       const peers = [...(g.net?.peers?.values?.() || [])].filter((p) => p.meta?.home);
       B.append(h('div.muted', 'Anglers on the lake right now. Their cabins are open while they play.'));
@@ -574,8 +590,22 @@ export class HomeUI {
     }
   }
 
+  /** v1.17.1: build the next home tier (the level and the collections are checked again here, not just on the button). */
+  async buyTier(tier, price) {
+    const g = this.game, T = HOME_TIERS[tier], d = g.ext.d;
+    if (!T || (d.home.tier || 0) !== tier - 1 || tierNeeds(tier, g.profile, d).length) return;
+    const r = await g.save.spend('home', T.id, price);
+    if (!r.ok) { g.ui.toast(price.pearls ? 'Not enough pearls yet.' : 'Not enough coins yet.'); return; }
+    g.ext.change((x) => { x.home.tier = tier; });
+    g.audio.sfx('purchase');
+    g.ui.toast(`Your ${T.name} is built! Walk through the new doorway in the east wall.`, { icon: 'home', title: 'Bigger home', ms: 5000 });
+    g.ext.bump('homeTier');
+    this.rebuild();
+  }
+
   async buyDecor(id) {
     const g = this.game, it = DECOR[id];
+    if ((it.tier || 0) > (g.ext.d.home.tier || 0)) return;
     const r = await g.save.spend('decor', id, it.price);
     if (!r.ok) { g.ui.toast(r.reason || 'Not enough yet.'); return; }
     g.ext.change((x) => { x.home.owned = [...new Set([...(x.home.owned || []), id])]; if (!x.home.decor.includes(id)) x.home.decor.push(id); });

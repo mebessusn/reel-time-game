@@ -10,6 +10,8 @@ import { CAMPER_MATS, CAMPER_NODES } from '../data/camperMesh.js';
 import { surfaceY } from './terrain.js';
 import { addCircle, addBox } from './colliders.js';
 import { nightWindows } from './nightwindows.js';
+import { placeModels } from './polyfork.js';
+import { campgroundAt } from './campground.js';
 
 /** The two clearings (terrain.js flattens them; see CLEARINGS.park / CLEARINGS.fernview). */
 export const PARK = { x: -100, z: 156 };
@@ -36,6 +38,18 @@ export const SCENE = (() => {
 })();
 // Tents, relative to the campground: kind, offset, yaw (turned to face the fire)
 const TENTS = [['tentA', -5.5, -3], ['dome', 5, -4.5], ['tentB', 6.5, 4], ['bell', -5.5, 5.5]];
+// v1.17.1: the tents are Polyfork models now (src/world/polyfork.js; door toward +z, turned to face the fire)
+const PF_TENT = { tentA: 'canvas-ridge-tent', tentB: 'canvas-ridge-tent', dome: 'dome-tent', bell: 'canvas-wall-tent' };
+// ...and the campground has the rest of a campground (Polyfork's Campground & Lake kit), relative to CAMPGROUND:
+// model, offset, yaw (0 = front toward +z), keep-out radius for ferns and grass
+const EXTRAS = [
+  ['camp-kitchen-table', -9, 1.2, Math.PI / 2, 1.2], ['bear-proof-food-locker', -4.5, -9.5, 0.3, 1],
+  ['camp-notice-board', 9.6, -2.6, Math.PI / 2, 1.3], ['hammock-on-posts', -0.5, 9.5, 0.15, 2.2],
+  ['cordwood-pile', 2.5, -8, 0.15, 1.2], ['canoe-rack', 6, 10.5, 0.35, 2.8], ['wooden-rowboat', 15, 12.6, 1.9, 2], ['camp-canoe', 10.5, 12.9, 1.75, 2.6],
+  ['folding-camp-chair', 1, -0.6, 0, 0.6], ['folding-camp-chair', 1.2, 4.6, Math.PI, 0.6], ['folding-camp-chair', 3.1, 4.1, -2.36, 0.6],
+  ['campground-rail-fence-run', 9.6, 4.6, Math.PI / 2, 0.7], ['campground-rail-fence-run', 9.6, 6.6, Math.PI / 2, 0.7],
+  ['campground-rail-fence-run', 9.6, -4.6, Math.PI / 2, 0.7], ['campground-rail-fence-run', 9.6, -6.6, Math.PI / 2, 0.7],
+];
 const PARTS = { airstream: ['airstream_body'], ham: ['ham_body', 'ham_trim'], tear: ['tear_body', 'tear_trim'], tentA: ['tentA_body'], tentB: ['tentB_body'], dome: ['dome_body'], bell: ['bell_body'] };
 // footprint along the model's x (for colliders): [from, to, radius]
 const FOOT = { airstream: [-2.4, 3.2, 1.15], ham: [-1.9, 2.7, 1.05], tear: [-1.3, 2.1, 0.9], tentA: [-1.3, 1.9, 1.15], tentB: [-1.3, 1.9, 1.15], dome: [-1, 1.4, 1.15], bell: [-0.9, 0.9, 1.75] };
@@ -57,10 +71,12 @@ const KEEP_OUT = (() => {
     along(x, z, yaw, FOOT[kind], 0.8);
   }
   out.push({ x: FERNVIEW_FIRE.x, z: FERNVIEW_FIRE.z, r: 3.4 }); // the fire ring and log benches
+  for (const [, ox, oz, , r] of EXTRAS) out.push({ x: CAMPGROUND.x + ox, z: CAMPGROUND.z + oz, r });
   out.push({ x: SCENE.sundae.x, z: SCENE.sundae.z, r: 1 }, { x: SCENE.maria.x, z: SCENE.maria.z, r: 1 });
   return out;
 })();
 export function camperAt(x, z, pad = 0) {
+  if (campgroundAt(x, z, pad)) return true; // (v1.17.1: and the ranger station's and the A-frame's yards)
   for (const c of KEEP_OUT) { const dx = x - c.x, dz = z - c.z, rr = c.r + pad; if (dx * dx + dz * dz < rr * rr) return true; }
   return false;
 }
@@ -135,17 +151,8 @@ function block(parent, mat, w, h, d, x, y, z, ry = 0) {
   parent.add(m);
   return m;
 }
-function picnicTable(parent, x, y, z, ry) {
-  const t = new THREE.Group();
-  t.position.set(x, y, z); t.rotation.y = ry;
-  block(t, M.wood, 1.8, 0.07, 0.8, 0, 0.74, 0);
-  for (const s of [-1, 1]) {
-    block(t, M.wood, 1.8, 0.06, 0.28, 0, 0.44, s * 0.62);
-    for (const e of [-0.7, 0.7]) block(t, M.woodDark, 0.07, 0.8, 0.07, e, 0.37, s * 0.3).rotation.x = s * 0.45;
-  }
-  parent.add(t);
-  addBox(x - 0.95, z - 0.95, x + 0.95, z + 0.95);
-}
+// v1.17.1: the picnic tables are Polyfork's Heavy Timber Picnic Table (benches along the model's x, like the old ones)
+const picnicTable = (pf, x, z, ry) => pf.push({ m: 'heavy-timber-picnic-table', x, z, ry });
 export function signBoard(text, w = 4.2, h = 0.8) {
   const cv = document.createElement('canvas');
   cv.width = 1024; cv.height = Math.round(1024 * h / w);
@@ -168,6 +175,7 @@ export function signBoard(text, w = 4.2, h = 0.8) {
 export function buildCampers(scene) {
   const group = new THREE.Group();
   group.name = 'fern-campers';
+  const pf = []; // (Polyfork pieces, merged into one mesh at the end)
   // ---- Sundae's Trailer Park
   const bulbMat = new THREE.MeshBasicMaterial({ color: '#ffd890' });
   const bulbs = [];
@@ -183,7 +191,7 @@ export function buildCampers(scene) {
     // a picnic table on the door side (+Z in the model)
     const sx = Math.sin(yaw), sz = Math.cos(yaw);
     const px = x + sx * 3.4 - ux * 0.6, pz = z + sz * 3.4 - uz * 0.6;
-    picnicTable(group, px, surfaceY(px, pz), pz, yaw);
+    picnicTable(pf, px, pz, yaw);
     // a post at the pad's corner for the string lights, and a site number
     const qx = x + sx * 2.6 + ux * 3.4, qz = z + sz * 2.6 + uz * 3.4, qy = surfaceY(qx, qz);
     block(group, M.post, 0.12, 2.6, 0.12, qx, qy + 1.3, qz);
@@ -220,20 +228,26 @@ export function buildCampers(scene) {
   for (const [kind, ox, oz] of TENTS) {
     const x = CAMPGROUND.x + ox, z = CAMPGROUND.z + oz, y = surfaceY(x, z);
     const yaw = Math.atan2(-(FERNVIEW_FIRE.z - z), FERNVIEW_FIRE.x - x); // door (+X) toward the fire
-    const t = buildCamper(kind);
-    t.position.set(x, y, z); t.rotation.y = yaw;
-    group.add(t);
-    solidAlong(x, z, yaw, kind);
+    pf.push({ m: PF_TENT[kind], x, z, ry: yaw + Math.PI / 2 }); // (+X door in the old models, +z in Polyfork's)
   }
   {
     const x = CAMPGROUND.x - 1, z = CAMPGROUND.z - 6.5;
-    picnicTable(group, x, surfaceY(x, z), z, 0.2);
+    picnicTable(pf, x, z, 0.2);
+    pf.push({ m: 'camping-lantern', x: x + 0.3, z: z - 0.1, ry: 0.4, on: pf[pf.length - 1], dy: 0.76, solid: false });
     const sx = CAMPGROUND.x + 9.5, sz = CAMPGROUND.z + 1, sy = surfaceY(sx, sz);
     block(group, M.post, 0.18, 2.2, 0.18, sx, sy + 1.1, sz); addCircle(sx, sz, 0.12);
     const board = signBoard('FERNVIEW CAMPGROUND', 3.2, 0.6);
     board.position.set(sx + 0.1, sy + 1.9, sz); board.rotation.y = Math.PI / 2;
     group.add(board);
   }
+  // v1.17.1: the rest of the campground (EXTRAS), a cooking grate and a dutch oven over the fire, a jug on the kitchen table
+  for (const [m, ox, oz, ry] of EXTRAS) pf.push({ m, x: CAMPGROUND.x + ox, z: CAMPGROUND.z + oz, ry });
+  const kitchen = pf.find((p) => p.m === 'camp-kitchen-table');
+  pf.push({ m: 'camp-water-jug', x: kitchen.x - 0.05, z: kitchen.z + 0.5, ry: 1.2, on: kitchen, dy: 0.85, solid: false });
+  pf.push({ m: 'camp-dutch-oven', x: kitchen.x + 0.05, z: kitchen.z - 0.35, ry: 0.5, on: kitchen, dy: 0.85, solid: false });
+  const grate = { m: 'campfire-cooking-grate', x: FERNVIEW_FIRE.x, z: FERNVIEW_FIRE.z - 0.1, ry: Math.PI / 2, solid: false };
+  pf.push(grate);
+  group.add(placeModels('fern-campers-polyfork', pf));
   scene.add(group);
   return { group, bulbMat };
 }

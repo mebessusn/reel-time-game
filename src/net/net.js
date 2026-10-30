@@ -66,7 +66,15 @@ class BaseNet extends Emitter {
   emitEvent(type, data) { this._send({ t: 'ev', id: this.me.id, type, data }); }
   // Chat: m = { n, x: text, to: userId|null, me: bool (action), at, nm: sender name }
   sendChat(m) { this._send({ t: 'chat', id: this.me.id, m }); }
+  // v1.15 Open Waters: a named side room for a group (a charter's crew). joinRoom returns another net (same
+  // interface, same events) whose peers are only the others who joined that name; the game switches to it while
+  // the group is together and back with leaveRoom(). Transports without side rooms give a quiet (solo) one.
+  joinRoom(name) { this.leaveRoom(); this.sub = this._subNet(roomName(name)); return this.sub; }
+  leaveRoom() { const s = this.sub; this.sub = null; try { s?.leave(); } catch { /* already gone */ } }
+  _subNet() { return new NullNet(); }
 }
+/** A side room's name: lowercase letters, digits, dot, dash and underscore (the artifact room's rule). */
+export const roomName = (name) => String(name || '').toLowerCase().replace(/[^a-z0-9_.-]/g, '').replace(/^[^a-z0-9]+/, '').slice(0, 44) || 'crew';
 
 export class LocalNet extends BaseNet {
   constructor(room = 'main') { super(); this.room = room; this.kind = 'local'; }
@@ -82,6 +90,7 @@ export class LocalNet extends BaseNet {
   }
   _send(msg) { try { this.bc?.postMessage(msg); } catch { /* ignore */ } }
   leave() { this._send({ t: 'bye', id: this.me?.id }); clearInterval(this.sweepTimer); this.bc?.close(); this.connected = false; this.left = true; }
+  _subNet(name) { return new LocalNet(`${this.room}~${name}`); }
 }
 
 export class NullNet extends BaseNet {
@@ -95,10 +104,11 @@ export class NullNet extends BaseNet {
 // artifact runtime's `room` presence. State and the latest event ride in each viewer's presence,
 // so even view-only viewers (who cannot emit room topics) are seen fishing.
 export class RoomNet extends BaseNet {
-  constructor() { super(); this.kind = 'room'; this.evN = 0; this.seenEv = new Map(); this.chatRing = []; this.seenChat = new Map(); }
+  constructor(parent = null, name = null) { super(); this.kind = 'room'; this.evN = 0; this.seenEv = new Map(); this.chatRing = []; this.seenChat = new Map(); this.parent = parent; this.subName = name; }
   async connect(me) {
     this.me = me;
-    const room = await window.claude?.use?.('room').catch(() => null);
+    // a side room (joinRoom) is a named room inside the lake's room; the lake itself is the artifact's room
+    const room = this.parent ? await this.parent.join(`rt-${this.subName}`).catch(() => null) : await window.claude?.use?.('room').catch(() => null);
     // A viewer the platform doesn't admit to the room (here by an "Anyone with the link" share, or signed out)
     // gets null or a not_granted error: they fish solo. `solo` lets the UI say so instead of failing silently.
     if (!room) { this.solo = true; this.soloReason = 'room-null'; this.emit('solo', {}); return false; }
@@ -156,5 +166,11 @@ export class RoomNet extends BaseNet {
     });
     push(this.chatRing);
   }
-  leave() { clearInterval(this.sweepTimer); this.room?.presence({ meta: null, s: null, ev: null, chat: null, best: null }).catch(() => {}); this.connected = false; this.left = true; }
+  leave() {
+    clearInterval(this.sweepTimer);
+    this.room?.presence({ meta: null, s: null, ev: null, chat: null, best: null }).catch(() => {});
+    if (this.parent) this.room?.leave?.().catch?.(() => {});
+    this.connected = false; this.left = true;
+  }
+  _subNet(name) { return this.room ? new RoomNet(this.room, name) : new NullNet(); }
 }

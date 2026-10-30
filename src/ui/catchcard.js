@@ -2,7 +2,7 @@
 // ready to save and post anywhere.
 import { h } from './dom.js';
 import { fishThumb } from './thumbs.js';
-import { SPECIES_BY_ID, TIER_INFO, ZONES } from '../data/species.js';
+import { SPECIES_BY_ID, TIER_INFO, ZONES, tierOf, zoneName } from '../data/species.js';
 import { album } from './selfie.js';
 
 function loadImg(src) { return new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = src; }); }
@@ -10,7 +10,7 @@ function loadImg(src) { return new Promise((res, rej) => { const i = new Image()
 /** Pure-ish: draw the card on a canvas and return a PNG data URL. */
 export async function drawCatchCard(c, { angler = 'Angler', label = '', filter = '' } = {}) {
   const sp = SPECIES_BY_ID[c.speciesId];
-  const tier = TIER_INFO[sp.tier];
+  const tier = TIER_INFO[tierOf(sp)];
   const W = 600, H = 760;
   const cv = document.createElement('canvas');
   cv.width = W; cv.height = H;
@@ -48,7 +48,7 @@ export async function drawCatchCard(c, { angler = 'Angler', label = '', filter =
   x.fillText(`${c.weight < 10 ? c.weight.toFixed(2) : c.weight.toFixed(1)} lb`, W / 2, 560);
   x.fillStyle = '#6e5640'; x.font = '22px "Nunito", system-ui, sans-serif';
   const when = new Date(c.ts || Date.now()).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
-  x.fillText(`${ZONES[c.zone]?.name || 'Five Lakes Valley'} · ${when}`, W / 2, 600);
+  x.fillText(`${zoneName(c.zone) || 'Five Lakes Valley'} · ${when}`, W / 2, 600);
   x.fillText(`Caught by ${angler}`, W / 2, 634);
   // footer logo
   x.fillStyle = '#8a5a32'; x.fillRect(28, H - 92, W - 56, 64);

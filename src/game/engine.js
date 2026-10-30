@@ -89,7 +89,7 @@ export class Engine {
       c.fit = want < (c.fit ?? 1) ? want : (c.fit ?? 1) + (want - (c.fit ?? 1)) * Math.min(1, dt * 2.5);
       if (c.fit < 0.999) { x = c.target.x + (x - c.target.x) * c.fit; y = c.target.y + (y - c.target.y) * c.fit; z = c.target.z + (z - c.target.z) * c.fit; }
     }
-    this.camera.position.set(x, Math.max(y, WATER_Y + 1.2), z);
+    this.camera.position.set(x, Math.max(y, this.camFloor ? this.camFloor(x, z) : WATER_Y + 1.2), z); // v1.15: at sea, above the waves
     if (look > 0) {
       const tilt = Math.min(1.45, look * 1.1);
       const hx = c.target.x - x, hz = c.target.z - z, hl = Math.hypot(hx, hz) || 1;

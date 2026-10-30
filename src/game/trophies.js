@@ -93,6 +93,7 @@ export class Trophies extends Emitter {
   // Called after one of your own catches is recorded.
   async onCatch(c) {
     const g = this.game;
+    if (SPECIES_BY_ID[c.speciesId]?.ocean) return; // v1.15: Lake Legends are the lake's fish (the sea keeps its own log)
     const entry = sanitizeTrophy({ id: c.id, speciesId: c.speciesId, variant: c.variant, weight: c.weight, name: g.profile.name, userId: g.save.userId, ts: c.ts || Date.now(), zone: c.zone });
     if (!entry) return;
     const score = trophyScore(entry);

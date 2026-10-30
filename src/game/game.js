@@ -15,7 +15,7 @@ import { CABIN, BOARD, RACK, TROPHY, HOME_DOOR } from '../world/props.js';
 import { Trophies } from './trophies.js';
 import { Npcs } from './npcs.js';
 import { ClaudeLink } from './claudelink.js';
-import { ZONES, SPECIES_BY_ID } from '../data/species.js';
+import { ZONES, SPECIES_BY_ID, zoneName } from '../data/species.js';
 import * as R from './rules.js';
 
 /** v1.8.1: the buff a Super Cast lights up. Another Super Cast tops it back up. */
@@ -71,6 +71,9 @@ import { NightLights } from './nightlights.js';
 import { Places } from './places.js';
 import { Waypoint } from './waypoint.js';
 import { bindUiSounds } from '../ui/nav.js';
+import { OpenWaters } from '../ocean/openwaters.js';
+import { Frostmere } from '../north/frostmere.js';
+import { toggleRide } from '../north/sno.js';
 import { onDock, heightAt } from '../world/terrain.js';
 
 export class Game {
@@ -152,6 +155,8 @@ export class Game {
     this.bikes = new Bikes(this);
     this.buzz = new Buzz(this); // v1.13.8: the buzz-cut pig
     this.dialogue = new Dialogue(this);
+    this.ocean = new OpenWaters(this); // v1.15 Open Waters: Captain Marlowe's charters
+    this.north = new Frostmere(this); // Frostmere (map 3): Skye's bush plane to the frozen north
     this.wildlife = new URLSearchParams(location.search).has('nonpc') ? null : new Wildlife(this.engine.scene);
     this.fauna = new URLSearchParams(location.search).has('nonpc') ? null : new Fauna(this.engine.scene); // v1.9.7 deer, rabbits, raccoons, gulls, hawks
     this.uiRoot = uiRoot;
@@ -248,6 +253,8 @@ export class Game {
     this.pet.init();
     this.bikes.init();
     this.buzz.init();
+    this.ocean.init();
+    this.north.init();
     this.testerGift();
     this.ui.captions.on = !!p.settings.captions;
     this.audio.onSound = (id) => this.ui.captions.show(id);
@@ -265,7 +272,7 @@ export class Game {
 
   meta() {
     const p = this.profile;
-    return { id: this.save.userId, name: p.name, avatar: p.avatar, equipped: p.equipped, lvl: p.level, title: p.title, crown: (p.stats.weeklyWins || 0) > 0 && p.title === 'Champion', home: this.ext ? homeLayout(this.ext.d, p) : null, derby: this.derby?.myEntry() || null, pet: this.ext?.d.pet || null, ...(this.party ? this.party.meta() : {}), ...(this.woods?.built ? this.woods.meta() : {}) };
+    return { id: this.save.userId, name: p.name, avatar: p.avatar, equipped: p.equipped, lvl: p.level, title: p.title, crown: (p.stats.weeklyWins || 0) > 0 && p.title === 'Champion', home: this.ext ? homeLayout(this.ext.d, p) : null, derby: this.derby?.myEntry() || null, pet: this.ext?.d.pet || null, ...(this.party ? this.party.meta() : {}), ...(this.ocean && this.ext ? this.ocean.meta() : {}), ...(this.north && this.ext ? this.north.meta() : {}), ...(this.woods?.built ? this.woods.meta() : {}) };;
   }
   pushMeta() { if (this.started) this.net?.setMeta(this.meta()); this.actor.setLook(this.profile.avatar, this.profile.equipped); }
 
@@ -276,12 +283,16 @@ export class Game {
   async attachNet(net) {
     net.isBlocked = (peer) => this.mod.blockedPeer(peer);
     this.remotes.attach(net);
+    // v1.15: while you're in a side room (a charter's crew), the lake's own net stays connected in the background;
+    // its joins, leaves and chat wait until you're back (nets swap, listeners stay)
+    const on = (type, fn) => net.on(type, (e) => { if (this.net === net) fn(e); });
     const announce = (peer) => { peer.announced = true; this.ui.addFeed({ kind: 'join', name: peer.meta.name }); this.chat.system(`${peer.meta.name} paddled in.`, 'join'); };
-    net.on('peer:join', (peer) => { if (peer.meta?.name) announce(peer); });
-    net.on('peer:meta', (peer) => { if (peer && !peer.announced && peer.meta?.name) announce(peer); });
-    net.on('peer:leave', (peer) => { if (!peer.announced) return; this.ui.addFeed({ kind: 'leave', name: peer.meta?.name || 'Someone' }); this.chat.system(`${peer.meta?.name || 'Someone'} headed home.`, 'leave'); });
-    net.on('chat', (e) => this.chat.receive(e));
-    net.on('solo', () => {
+    on('peer:join', (peer) => { if (peer.meta?.name) announce(peer); });
+    on('peer:meta', (peer) => { if (peer && !peer.announced && peer.meta?.name) announce(peer); });
+    on('peer:leave', (peer) => { if (!peer.announced) return; this.ui.addFeed({ kind: 'leave', name: peer.meta?.name || 'Someone' }); this.chat.system(`${peer.meta?.name || 'Someone'} headed home.`, 'leave'); });
+    on('chat', (e) => this.chat.receive(e));
+    on('solo', () => {
+      if (this.ocean?.crewNet === net) return; // a charter's side room: Open Waters says so itself
       this.chat.system('You are fishing solo: this copy of the game can\'t reach the shared lake. To play together, ask whoever shared it to invite you by email from Claude\'s Share menu, then open it signed in to Claude.', 'info');
       this.ui.toast('Fishing solo. Open Play with friends to see how to join others.', { icon: 'users', ms: 6000 });
     });
@@ -372,9 +383,19 @@ export class Game {
       if ((e.buttons & 3) === 3) { syncWalk(e); return; }
       if (e.button === 2 || pointers.size > 1) { down = { orbit: true, x: e.clientX, y: e.clientY }; this.fishing.state === 'charge' && this.fishing.cancel(); return; }
       if (e.button === 0 && this.bikes.riding) { this.bikes.ring(); down = { consumed: true }; return; }
+      if (this.north?.camera()) { down = { orbit: true, x: e.clientX, y: e.clientY }; return; } // v1.17.1: on the plane's take-off and landing, any drag looks round
+      // v1.15 Open Waters: in the water a left click fires the speargun and a drag turns the camera (no casting);
+      // in a beach game a left press is the game's button (bump, cheer, throw, bounce, build), and dragging still turns the camera
+      if (e.button === 0 && this.ocean?.dive.on) { down = { x: e.clientX, y: e.clientY, moved: false, swim: true }; if (this.ocean.dive.gun) { down.fired = true; this.ocean.dive.shoot(); } return; } // (v1.15.8: the speargun fires on the press; a drag still turns the view)
+      if (e.button === 0 && this.ocean?.games.busy) { down = { x: e.clientX, y: e.clientY, moved: false, game: true }; this.ocean.games.primary(true); return; }
       // Hook / reel / reel-in take any press
       if (this.fishing.press()) { down = { consumed: true }; return; }
       const hit = this.engine.pick(e.clientX, e.clientY);
+      // v1.17.1 Frostmere: in a snowball fight every left click throws, at the spot you clicked (it used to need a held
+      // press: a quick click walked you there instead). A drag still turns the camera.
+      if (e.button === 0 && this.fishing.state === 'idle' && this.north?.snowballs?.clickThrows?.()) {
+        this.north.snowballs.tryThrow(hit?.point || null); down = { x: e.clientX, y: e.clientY, moved: false, thrown: true }; return;
+      }
       down = { x: e.clientX, y: e.clientY, t: performance.now(), hit, moved: false };
       // Left mouse is the fishing button: hold it to charge a cast (aimed at the water you pressed on,
       // or straight ahead when you pressed on land). A quick click on the ground still walks there.
@@ -409,6 +430,9 @@ export class Game {
       if (e.pointerType === 'mouse') syncWalk(e);
       if (!down) return;
       if (down.walk) { if (!(e.buttons & 3)) down = null; return; }
+      if (down.swim) { if (!down.moved && !down.fired && this.ocean?.dive.on) this.ocean.dive.shoot(); down = null; return; }
+      if (down.game) { this.ocean?.games.primary(false); down = null; return; }
+      if (down.thrown) { down = null; return; }
       clearTimeout(down.timer);
       if (down.charging) this.fishing.releaseCharge();
       else if (down.consumed) this.fishing.releasePress();
@@ -449,6 +473,8 @@ export class Game {
       const SHEET_KEYS = { map: 'map', creel: 'creel', tackle: 'tackle', pedia: 'fishpedia', board: 'board', journal: 'journal', social: 'social' };
       if (SHEET_KEYS[act] && this.ui.sheets.current && !e.repeat) { e.preventDefault(); this.ui.sheets.open(SHEET_KEYS[act]); return; }
       if (this.ui.modalOpen && act !== 'jump') return;
+      if (act === 'jump' && this.ocean?.dive.on) { e.preventDefault(); this.ocean.dive.upKey = true; return; } // v1.15: swim up
+      if (act === 'jump' && !e.repeat && this.ocean?.games.jump()) { e.preventDefault(); return; } // v1.15: beach games
       if (act === 'jump') { e.preventDefault(); if (!e.repeat && !this.ui.modalOpen && !this.fishing.busy) this.player.jump(); return; }
       if (act === 'sprint') { this.player.sprint = true; return; }
       if (['up', 'down', 'left', 'right'].includes(act)) { this.player.keys.add(k); e.preventDefault(); return; }
@@ -470,7 +496,8 @@ export class Game {
         case 'rod': this.toggleRod(); break;
         case 'selfie': this.selfie.start(); break;
         case 'bait': this.tackle.cycle(); break;
-        case 'bike': this.bikes.toggle(); break;
+        case 'bike': this.toggleRide(); break;
+        case 'crew': this.ocean.fight.crewKey(true); break;
         default: break;
       }
     });
@@ -479,7 +506,9 @@ export class Game {
       this.player.keys.delete(k);
       const act = this.keymap?.action(k);
       if (act === 'sprint') this.player.sprint = false;
+      if (act === 'jump' && this.ocean) this.ocean.dive.upKey = false;
       if (act === 'cast') this.primaryUp();
+      if (act === 'crew') this.ocean?.fight.crewKey(false);
     });
     window.addEventListener('blur', () => { this.player.keys.clear(); this.player.sprint = false; });
   }
@@ -510,10 +539,14 @@ export class Game {
 
   primaryDown(aim) {
     if (this.bikes?.riding) { this.bikes.ring(); return; } // on a bike the fishing button rings the bell
+    if (this.ocean?.games.primary(true)) return; // v1.15: beach games (bump, throw, bounce, build)
+    if (this.ocean?.dive.on) { this.ocean.dive.shoot(); return; } // v1.15: the speargun
+    if (this.north?.primary(true)) return; // Frostmere: cranking the auger
     if (this.fishing.press()) return;
     if (this.fishing.state === 'idle') { this.player.target = null; this.fishing.startCharge(aim); }
   }
   primaryUp() {
+    if (this.ocean?.games.primary(false)) return;
     if (this.fishing.state === 'charge') this.fishing.releaseCharge();
     this.fishing.releasePress();
   }
@@ -529,9 +562,13 @@ export class Game {
       if (steer) this.rodAim = Math.max(-1, Math.min(1, (this.rodAim || 0) + steer * dt * 2.6));
     }
     this.pads.update(dt);
+    this.ocean.preUpdate(dt); // v1.15: the charter boat moves first and carries you with it
     const seated = this.chairs.hold(dt);
     this.bikes.drive(dt);
-    pl.update(dt, this.engine.cam.yaw, lock || this.home.active || seated || !!this.riding || !!this.treasure.dig || this.bikes.riding);
+    if (this.ocean.jetski?.control(dt)) { /* v1.17.2: riding the jet ski */ }
+    else if (this.north.control(dt, t)) { /* Frostmere: the plane trip has the controls */ }
+    else if (this.ocean.dive.on) this.ocean.dive.update(dt, this.engine.cam.yaw, this.engine.cam.pitch, lock); // v1.15: swimming
+    else if (!this.ocean.games.control(dt)) pl.update(dt, this.engine.cam.yaw, lock || this.home.active || seated || !!this.riding || !!this.treasure.dig || this.bikes.riding);
     this.updateRide();
     this.chairs.pin();
     if ((this.player.keys.size || this.player.stick) && this.fishing.state === 'waiting') this.fishing.reelIn();
@@ -561,11 +598,13 @@ export class Game {
     if (this.selfie.active) pose = this.selfie.pose;
     if (this.cookout.active) pose = 'roast';
     if (this.cookout.eating) pose = 'eat';
+    const gp = this.ocean.games.pose() || this.north.pose?.(); // v1.15 beach games: bump, tuck, throw... (and Frostmere's snowballs and auger)
+    if (gp) pose = gp;
     this.pose = pose;
     // The rod is in your hands while fishing (or if you took it out with T); otherwise it rides on your back.
     const fishingNow = this.fishing.state !== 'idle';
-    this.rodPlace = fishingNow || (!this.rodStowed && pl.mode === 'shore') ? 'hand' : 'back';
-    this.actor.update(dt, t, { x: pl.pos.x, y: pl.pos.y, z: pl.pos.z, yaw: pl.yaw, mode: pl.mode, pose, moving: pl.moving, bobber: this.fishing.bobberState(), power: this.fishing.power, tension: this.tugTension(), lean: this.fishing.state === 'reeling' ? this.rodAim || 0 : 0, rod: this.rodPlace, seat: this.chairs.seat ? this.chairs.seat.h || SEAT_H : 0, seatYaw: this.chairs.seat?.yaw, running: pl.sprint && pl.moving && pl.mode === 'shore' && !this.bikes.riding, passenger: !!this.riding, bike: this.bikes.state() });
+    this.rodPlace = fishingNow || (!this.rodStowed && pl.mode === 'shore' && !this.ocean.games.busy) ? 'hand' : 'back';
+    this.actor.update(dt, t, { shiver: this.north?.warmth?.shiver || 0, x: pl.pos.x, y: pl.pos.y, z: pl.pos.z, yaw: pl.yaw, mode: pl.mode, pose, moving: pl.moving, bobber: this.fishing.bobberState(), power: this.fishing.power, tension: this.tugTension(), lean: this.fishing.state === 'reeling' ? this.rodAim || 0 : 0, rod: this.rodPlace, seat: this.rideSeat()?.h ?? (this.chairs.seat ? this.chairs.seat.h || SEAT_H : 0), seatYaw: this.rideSeat()?.yaw ?? this.chairs.seat?.yaw, running: pl.sprint && pl.moving && pl.mode === 'shore' && !this.bikes.riding, passenger: !!this.riding, bike: this.bikes.state(), swim: this.ocean.dive.on ? (this.ocean.dive.under ? 2 : 1) : 0, swimPitch: this.engine.cam.pitch, dg: this.ocean.dive.on ? this.ocean.dive.wearing : '', skate: this.north.skate?.pose() || 0, blades: !!(this.north.skate?.on && this.north.here), sled: this.north.sleds?.riding ? 1 : 0 });
     this.cookout.afterActor(dt);
 
     this.places.update(dt);
@@ -644,8 +683,13 @@ export class Game {
     this.ui.setPatient?.(this.patientAngler() ? this.claude.elapsed() : null); // v1.12.1
     this.fx.update(dt);
     const focus = new THREE.Vector3(pl.pos.x, pl.pos.y + 0.8, pl.pos.z);
+    // v1.15.15: swimming with a speargun, the camera looks over your right shoulder, so the crosshair in the middle of
+    // the screen is on the water ahead of you, not on your swimmer
+    if (this.ocean?.dive.on && this.ocean.dive.gun) { const y = this.engine.cam.yaw; focus.x += Math.cos(y) * 0.9; focus.z -= Math.sin(y) * 0.9; focus.y += 0.35; }
     const sky = this.engine.sky.update(dt, t, focus, this.engine.water, this.engine.props);
     this.events.update(dt, t);
+    this.ocean.update(dt, t);
+    this.north.update(dt, t);
     this.living.update(dt, t);
     this.engine.props?.groundCover?.update(dt, this.player.pos);
     this.engine.props?.cave?.update(dt, t, this.player.pos, this.engine.sky);
@@ -662,14 +706,16 @@ export class Game {
     this.fauna?.update(dt, t, pl.pos, this.engine.camera);
     this.skyNews(sky.wt);
     this.engine.cam.dist = (this.fishing.state === 'reeling' ? 9 : pl.mode === 'boat' ? 13 : 11.5);
-    if (this.dialogue.active || this.dialogue.hold) this.dialogue.updateCamera(dt) || this.engine.updateCamera(dt, focus); // (v1.14.10: hold covers the gap between two lines)
+    if (this.north.camera()) { /* Frostmere: the take-off and landing cameras */ }
+    else if (this.dialogue.active || this.dialogue.hold) this.dialogue.updateCamera(dt) || this.engine.updateCamera(dt, focus); // (v1.14.10: hold covers the gap between two lines)
     else if (this.selfie.active) this.selfie.updateCamera(dt);
     else this.engine.updateCamera(dt, focus);
     this.audio.setScene({
       phase: sky.wt.phase, weather: sky.wt.weather,
-      nearFire: Math.max(0, 1 - pl.pos.distanceTo(this.engine.props.campfire) / 9),
+      nearFire: Math.max(0, 1 - pl.pos.distanceTo(this.engine.props.campfire) / 9, this.ocean.evenings?.nearFire() || 0, this.north.nearFire?.() || 0),
       nearFalls: Math.max(0, 1 - Math.hypot(pl.pos.x - FALLS_C.x, pl.pos.z - FALLS_C.z) / 18),
-      region: this.lastRegion,
+      region: this.north.musicRegion?.() || this.ocean.evenings?.musicRegion() || this.lastRegion, // (v1.15.10: by the Palm Key fire after dusk; Frostmere's own music)
+      sea: this.ocean.audioScene(), // v1.15: swell, wind and gulls at sea
     });
     this.audio.setDuck(this.fishing.state === 'reeling' || this.ui.revealCard?.isConnected);
     this.ui.update();
@@ -677,8 +723,8 @@ export class Game {
     // Network state at 5 Hz (1 Hz when AFK)
     this.sendTimer -= dt;
     if (this.net?.connected && this.sendTimer <= 0) {
-      this.sendTimer = pl.afk ? 1 : 0.2;
-      this.net.sendState({ x: +pl.pos.x.toFixed(2), y: +pl.pos.y.toFixed(2), z: +pl.pos.z.toFixed(2), yaw: +pl.yaw.toFixed(2), mode: pl.mode, pose, rod: this.rodPlace, moving: pl.moving, bobber: this.fishing.bobberState(), tension: +this.tugTension().toFixed(2), lean: this.fishing.state === 'reeling' ? +(this.rodAim || 0).toFixed(2) : 0, afk: pl.afk, seat: this.chairs.seat ? +(this.chairs.seat.h || SEAT_H).toFixed(2) : 0, seatYaw: this.chairs.seat ? +this.chairs.seat.yaw.toFixed(3) : undefined, run: pl.sprint && pl.moving && pl.mode === 'shore' && !this.bikes.riding ? 1 : 0, ride: this.riding || undefined, bk: this.bikes.riding ? this.bikes.equipped : undefined, bs: this.bikes.riding ? +this.bikes.steer.toFixed(2) : undefined, bv: this.bikes.riding ? +this.bikes.v.toFixed(1) : undefined });
+      this.sendTimer = this.north?.air?.racing ? 0.1 : pl.afk ? 1 : 0.2; // (10 Hz while air racing)
+      this.net.sendState({ x: +pl.pos.x.toFixed(2), y: +pl.pos.y.toFixed(2), z: +pl.pos.z.toFixed(2), yaw: +pl.yaw.toFixed(2), mode: pl.mode, pose, rod: this.rodPlace, moving: pl.moving, bobber: this.fishing.bobberState(), tension: +this.tugTension().toFixed(2), lean: this.fishing.state === 'reeling' ? +(this.rodAim || 0).toFixed(2) : 0, afk: pl.afk, seat: this.rideSeat()?.h ?? (this.chairs.seat ? +(this.chairs.seat.h || SEAT_H).toFixed(2) : 0), seatYaw: this.chairs.seat ? +this.chairs.seat.yaw.toFixed(3) : undefined, run: pl.sprint && pl.moving && pl.mode === 'shore' && !this.bikes.riding ? 1 : 0, ride: this.riding || undefined, bk: this.bikes.riding ? this.bikes.equipped : undefined, bs: this.bikes.riding ? +this.bikes.steer.toFixed(2) : undefined, bv: this.bikes.riding ? +this.bikes.v.toFixed(1) : undefined, sw: this.ocean.dive.on ? (this.ocean.dive.under ? 2 : 1) : undefined, dg: this.ocean.dive.on ? this.ocean.dive.wearing || undefined : undefined, ...(this.ocean.stateExtra() || {}), ...(this.north.stateExtra() || {}) });
     }
   }
 
@@ -731,6 +777,8 @@ export class Game {
   nearRack() { return false; } // the boat rack is gone: boats launch from any shore
 
   currentZoneLabel() {
+    const oc = this.ocean?.zoneLabel(); // v1.15 Open Waters
+    if (oc != null) return oc;
     const b = this.fishing.bobber;
     if (b && !b.flying) {
       const z = zoneAt(b.x, b.z);
@@ -738,6 +786,7 @@ export class Game {
       if (!z) return '';
       const sp = spotAt(b.x, b.z);
       if (sp && sp.lake === z) return sp.tier === 'deep' ? `Deep end · ${ZONES[z]?.name || ''}` : `${sp.name.replace(/^the /, 'The ')} · ${ZONES[z]?.name || ''}`;
+      if (!ZONES[z]) return zoneName(z) || ''; // (Frostmere's zones)
       if (eff !== z) return `${ZONES[z].name} (fishing like ${ZONES[eff].name} until level ${z === 'ruins' ? R.RUINS_LEVEL : R.DEEP_LEVEL})`;
       if (swirlAt(b.x, b.z)) return this.player.mode === 'boat' ? `${ZONES[z].name} · Feeding school! Rare odds up` : ZONES[z].name;
       return ZONES[z].name;
@@ -768,6 +817,8 @@ export class Game {
     if (this.nearCabin()) acts.push({ id: 'shop', label: "Gus's shop", color: 'gold', at: { x: CABIN.door.x, z: CABIN.door.z, y: heightAt(CABIN.door.x, CABIN.door.z), h: 2.6 }, fn: () => this.ui.sheets.open('shop') });
     acts.push(...this.bikes.contextActions());
     acts.push(...this.buzz.contextActions());
+    acts.unshift(...this.ocean.contextActions());
+    acts.unshift(...this.north.contextActions());
     if (this.nearTrophy()) acts.push({ id: 'legends', label: 'Lake Legends', color: 'gold', at: { x: TROPHY.x, z: TROPHY.z, y: heightAt(TROPHY.x, TROPHY.z), h: 3.2 }, fn: () => this.ui.sheets.open('legends') });
     if (this.nearBoard()) acts.push({ id: 'board', label: 'Notice board', at: { x: BOARD.x, z: BOARD.z, y: heightAt(BOARD.x, BOARD.z), h: 2.9 }, fn: () => this.ui.sheets.open('board') });
     if (this.launchSpot()) {
@@ -956,6 +1007,8 @@ export class Game {
     this.community.onCatch().catch(() => {});
     this.lakeFlag.onCatch(c);
     this.collections.check(c);
+    this.ocean.fight.onCatch(c, sp);
+    this.north.onCatch?.(c, sp); // Frostmere: the Ice Derby, quests, the legends
     this.social.onCatch(c);
     this.social.onLanded(c);
     this.actor.showHeld(c.speciesId, c.variant, c.weight, 30);
@@ -963,7 +1016,7 @@ export class Game {
     this.audio.sfx('reveal', { tier: sp.tier, variant: c.variant });
     if (c.variant !== 'normal' || ['legendary', 'mythic'].includes(sp.tier)) this.fx.sparkle(this.actor.headWorld(), c.variant === 'diamond' ? '#a0f0ff' : '#ffe080', 30);
     if (c.variant === 'diamond' || sp.tier === 'mythic') this.fx.column(new THREE.Vector3(this.player.pos.x, WATER_Y, this.player.pos.z), c.variant === 'diamond' ? '#a0f0ff' : '#ff9ae8');
-    this.netEvent('catch', { speciesId: c.speciesId, variant: c.variant, weight: c.weight, tier: sp.tier, zone: c.zone });
+    this.netEvent('catch', { speciesId: c.speciesId, variant: c.variant, weight: c.weight, tier: sp.big ? 'legendary' : sp.tier, zone: c.zone }); // (a trophy announces like a legendary)
     if (R.isGreatCatch(c)) {
       this.lastGreat = { id: c.id, at: Date.now(), label: `${c.variant === 'diamond' ? 'Diamond ' : c.variant === 'gold' ? 'Gold ' : ''}${sp.name}` };
       this.ext.change((d) => { d.stats.lastGreatLabel = this.lastGreat.label; });
@@ -992,6 +1045,7 @@ export class Game {
     const next = nextUnlock(level);
     this.chat.system(`You reached level ${level}!${opened.length ? ` New: ${opened.map((u) => u.what).join(', ')}.` : ''}`, 'level');
     this.ui.levelCard?.(level, opened, next);
+    this.ocean?.checkUnlock();
     for (let L = from + 1; L <= level; L++) if (LEVEL_REWARDS[L]) this.claimLevelReward(L);
     this.pushMeta();
   }
@@ -1130,6 +1184,19 @@ export class Game {
   }
 
   // Quest, derby, festival, collection and tutorial rewards all come through here.
+  /** v1.17.2: the ride key and the navbar's ride button: whichever ride this map has. */
+  toggleRide() { if (this.north?.here && this.north.builtExtras) toggleRide(this.north); else if (this.ocean?.atSea) this.ocean.jetski.toggle(); else this.bikes.toggle(); }
+  rideSeat() { return this.north?.rideSeat?.() || this.ocean?.jetski?.seat() || null; }
+  rideInfo() {
+    const N = this.north;
+    if (N?.here) {
+      const d = N.d, r = d.ride || (d.sno ? 'sno' : d.pup ? 'pup' : null), on = N.sno?.on || N.sleds?.riding?.mode === 'solo';
+      if (r === 'pup') return { key: `pup${on}`, icon: 'dog', tip: on ? 'Step off the sled' : 'One-dog sled (hop on / off)' };
+      return { key: `sno${on}`, icon: 'snow', tip: on ? 'Hop off the snowmobile' : r ? 'Snowmobile (hop on / off)' : 'Snowmobile: buy one at Pell\'s' };
+    }
+    if (this.ocean?.atSea) { const J = this.ocean.jetski; return { key: `jet${J.on}${J.owned}`, icon: 'waves', tip: J.on ? 'Hop off the jet ski' : J.owned ? 'Jet ski (hop on / off)' : 'Jet ski: Kai sells them at the tiki bar' }; }
+    return { key: 'bike', icon: 'bike', tip: 'Bike (hop on / off)' };
+  }
   async reward(kind, key, reward, label = '') {
     let r;
     try { r = await this.save.grant(kind, key, reward); } catch (e) { this.ui.toast(`Couldn't claim that: ${e.message}`); return { ok: false }; }
@@ -1187,6 +1254,7 @@ export class Game {
     const busy = ['bite', 'reeling', 'landed'].includes(this.fishing.state) || !!this.ui.revealCard?.isConnected;
     const where = busy ? `will circle your line once this fish is in` : 'is circling your line';
     this.chat.system(`Claude's done${took ? ` (${took})` : ''}! Your answer is ready. ${tierWord} ${where}.${waited ? ` You caught ${waited} fish while you waited.` : ''}`, 'claude', { popup: true, inline: true });
+    this.ocean?.voyage.fishOn(); // v1.15.9 at sea: Marlowe calls it, and it's a big one
     if (busy) { this.pendingAnswer = seconds; return; }
     this.releaseAnswerFish(seconds);
   }

@@ -23,6 +23,10 @@ const SUITES = [
   ['sprint', 'tests/sprint.e2e.mjs'],
   ['party', 'tests/party.e2e.mjs'],
   ['woods', 'tests/woods.e2e.mjs'], // v1.14.9 The Wild Woods
+  ['charter', 'tests/charter.e2e.mjs'], // v1.15 Open Waters
+  ['deepblue', 'tests/deepblue.e2e.mjs'], // v1.15.19 Deep Blue
+  ['north', 'tests/north.e2e.mjs'], // v1.16 Frostmere
+  ['frontier', 'tests/frontier.e2e.mjs'], // v1.17.2 Frostmere's frontier
 ];
 const pick = (process.env.RT_SUITES || '').split(',').map((s) => s.trim()).filter(Boolean);
 const suites = pick.length ? SUITES.filter(([n]) => pick.includes(n)) : SUITES;

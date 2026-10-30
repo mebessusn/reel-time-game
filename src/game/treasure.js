@@ -43,6 +43,20 @@ export class Treasure {
     return this.grant();
   }
 
+  /** v1.15.5 Open Waters: a smugglers' map to a fixed spot at sea (Smuggler's Rock's grotto), with richer loot. */
+  grantAt(at, place) {
+    if (this.map) return false;
+    const id = Date.now().toString(36);
+    const ox = (Math.random() - 0.5) * 20, oz = (Math.random() - 0.5) * 20;
+    this.game.ext.change((d) => { d.treasure = { active: true, id, x: at.x, z: at.z, ox, oz, place, wrong: 0, found: d.treasure?.found || 0, sea: true }; });
+    this.mark();
+    this.game.audio.sfx('reveal', { tier: 'epic' });
+    this.game.chat?.system(`A smugglers' map! The X is somewhere on ${place}. ${this.hasShovel ? 'Bring your shovel.' : 'You\'ll need a shovel to dig: Gus sells one at Cozy Cove.'}`, 'quest', { popup: true });
+    const show = () => { if (this.game.ui.revealCard?.isConnected || this.game.fishing.state === 'landed') setTimeout(show, 300); else this.open(); };
+    setTimeout(show, 50);
+    return true;
+  }
+
   grant() {
     const at = this.pickSpot();
     if (!at) return false;
@@ -75,12 +89,12 @@ export class Treasure {
     const m = this.map;
     if (!m) { this.game.ui.toast('You have no treasure map right now. Keep fishing: maps turn up on hooks now and then.', { icon: 'map' }); return; }
     const g = this.game;
-    const src = baseMap(), S = src.width / (HALF * 2);
     const span = 90; // blocks across the sketch
     const cx = m.x + m.ox, cz = m.z + m.oz;
     const cv = document.createElement('canvas'); cv.width = cv.height = 360;
     const c = cv.getContext('2d');
-    c.drawImage(src, (cx - span / 2 + HALF) * S, (cz - span / 2 + HALF) * S, span * S, span * S, 0, 0, 360, 360);
+    if (m.sea && this.seaSketch) this.seaSketch(c, cx, cz, span); // a sea map (Open Waters draws the island)
+    else { const src = baseMap(), S = src.width / (HALF * 2); c.drawImage(src, (cx - span / 2 + HALF) * S, (cz - span / 2 + HALF) * S, span * S, span * S, 0, 0, 360, 360); }
     // age it: sepia, faded, stained edges
     const img = c.getImageData(0, 0, 360, 360);
     for (let i = 0; i < img.data.length; i += 4) {
@@ -182,13 +196,15 @@ export class Treasure {
     g.engine.scene.add(chest);
     void hx; void hz;
     // what's inside: coins and pearls, and sometimes a piece of gear you don't have
-    const coins = 150 + Math.floor(Math.random() * 300), pearls = 1 + Math.floor(Math.random() * 4); // v1.13.9: was 300-900 coins, 3-10 pearls
+    const sea = !!m.sea; // v1.15.5: the smugglers' hoard pays better
+    const coins = sea ? 900 + Math.floor(Math.random() * 600) : 150 + Math.floor(Math.random() * 300), pearls = sea ? 6 + Math.floor(Math.random() * 5) : 1 + Math.floor(Math.random() * 4); // v1.13.9: was 300-900 coins, 3-10 pearls
     const loot = ITEMS.filter((it) => ['lure', 'rod', 'hat', 'accessory'].includes(it.kind) && it.source === 'shop' && !g.profile.owned.includes(it.id) && it.price?.coins && it.price.coins < 1500);
     const item = Math.random() < 0.35 && loot.length ? loot[Math.floor(Math.random() * loot.length)].id : null;
     this.chest = { mesh: chest, t: 0, phase: 'rise', groundY: chest.position.y + 0.6, loot: { coins, pearls, item, id: m.id } };
     g.ext.change((s) => { s.treasure.active = false; s.treasure.markedUntil = 0; s.treasure.found = (s.treasure.found || 0) + 1; if (s.waypoint?.name === 'Treasure X') s.waypoint = null; });
     g.waypoint?.sync?.();
     g.ext.bump('treasures');
+    if (sea) g.ext.bump('smugglerHoards');
     g.quests?.progress('treasure', {});
     this.lastFound = { coins, pearls, item };
   }

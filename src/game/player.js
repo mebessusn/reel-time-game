@@ -1,6 +1,6 @@
 // Local player controller: walking, rowing, facing, AFK.
 import * as THREE from 'three';
-import { groundY, walkY, surfaceY, boatable, deckHit, onBridge, railBlocks, SPAWN, HALF, onDock, WATER_Y, DOCK, COVE_LAUNCH, WADE_DEPTH, zoneAt, isWater } from '../world/terrain.js';
+import { groundY, walkY, surfaceY, boatable, deckHit, onBridge, railBlocks, SPAWN, HALF, onDock, WATER_Y, DOCK, COVE_LAUNCH, WADE_DEPTH, zoneAt, isWater, FAR_X, inValley } from '../world/terrain.js';
 import { blocked, solidTopAt, STEP } from '../world/colliders.js';
 
 const WALK = 3.6, ROW = 3.0, SPRINT = 1.35, SWIM = 2.0;
@@ -48,6 +48,15 @@ export class Player {
   get afk() { return performance.now() - this.lastInput > 180000; }
 
   canStand(x, z) {
+    if (!inValley(x)) { // v1.15 Open Waters: the deck, or an island (and Frostmere's ice and snow)
+      const ok = this.mode === 'shore' && walkY(x, z, WADE_DEPTH) != null;
+      if (!ok && this.mode === 'shore') this.onFarEdge?.(x, z); // (v1.15.6: wading out past your depth starts you swimming)
+      if (!ok) return false;
+      // v1.15.8: the islands' huts, palms, rocks and furniture are solid (not on a deck or a jetty; and if you're
+      // somehow inside one already, any step is allowed so you can walk out)
+      if (!onDock(x, z) && blocked(x, z, 0.28, 'shore', this.pos.y) && !blocked(this.pos.x, this.pos.z, 0.28, 'shore', this.pos.y)) return false;
+      return true;
+    }
     if (Math.abs(x) > HALF - 2 || Math.abs(z) > HALF - 2) return false;
     if (this.mode === 'boat') {
       if (!boatable(x, z) || blocked(x, z, 0.8, 'boat')) return false;
@@ -146,7 +155,7 @@ export class Player {
     // in a waterway the boat picks up speed, eased in and out over about half a second
     const inRiver = this.mode === 'boat' && zoneAt(this.pos.x, this.pos.z) === 'river';
     this.riverK = (this.riverK || 0) + ((inRiver ? 1 : 0) - (this.riverK || 0)) * Math.min(1, dt * 4);
-    const speed = (this.mode === 'boat' ? ROW * this.rowMult * (1 + (RIVER_ROW - 1) * this.riverK) : this.mode === 'swim' ? SWIM : WALK * (wade > 0.15 ? 0.6 : 1)) * (this.sprint ? SPRINT : 1);
+    const speed = (this.mode === 'boat' ? ROW * this.rowMult * (1 + (RIVER_ROW - 1) * this.riverK) : this.mode === 'swim' && inValley(this.pos.x) ? SWIM : WALK * (wade > 0.15 ? 0.6 : 1)) * (this.sprint ? SPRINT : 1) * (this.speedMult ?? 1); // (speedMult: Frostmere's cold and snow)
     let mx = 0, mz = 0;
     if (!locked) {
       let f = (this.held('up') ? 1 : 0) - (this.held('down') ? 1 : 0);
@@ -167,7 +176,8 @@ export class Player {
     }
     const len = Math.hypot(mx, mz);
     this.moving = false;
-    if (len > 0) {
+    if (this.skating && this.mode === 'shore') this.skateStep(dt, mx, mz, len); // Frostmere: skates on the ice
+    else if (len > 0) {
       mx /= len; mz /= len;
       const step = Math.min(speed * dt, this.target ? this.target.distanceTo(new THREE.Vector3(this.pos.x, 0, this.pos.z)) : 99);
       let nx = this.pos.x + mx * step, nz = this.pos.z + mz * step;
@@ -182,7 +192,8 @@ export class Player {
       this.dir.set(mx, 0, mz);
     }
     // into the water and out again
-    if (this.mode === 'shore' && !this.airborne && walkY(this.pos.x, this.pos.z, WADE_DEPTH) == null && this.swimmable(this.pos.x, this.pos.z)) { this.mode = 'swim'; this.target = null; this.onSwim?.(true); }
+    // (the valley only: Open Waters' diving runs its own swim, out past FAR_X)
+    if (!inValley(this.pos.x)) { /* */ } else if (this.mode === 'shore' && !this.airborne && walkY(this.pos.x, this.pos.z, WADE_DEPTH) == null && this.swimmable(this.pos.x, this.pos.z)) { this.mode = 'swim'; this.target = null; this.onSwim?.(true); }
     else if (this.mode === 'swim' && !onBridge(this.pos.x, this.pos.z) && walkY(this.pos.x, this.pos.z, WADE_DEPTH) != null) {
       this.mode = 'shore'; this.baseY = walkY(this.pos.x, this.pos.z, WADE_DEPTH); this.air = 0; this.vy = 0; this.onSwim?.(false);
     }
@@ -195,7 +206,7 @@ export class Player {
         // mid-jump: re-base on the rock without changing your height in the air, so you land on top
         if (this.airborne && this.baseY < top) { const y = this.pos.y; this.baseY = top; this.air = Math.max(0, y - top); if (!this.air && this.vy < 0) this.vy = 0; }
       }
-      if (g != null) this.baseY += (g - this.baseY) * Math.min(1, dt * 14);
+      if (g != null) this.baseY += (g - this.baseY) * (onDock(this.pos.x, this.pos.z) ? 1 : Math.min(1, dt * 14)); // (v1.15.23: on a deck, feet stay on the planks as a boat heaves)
       if (this.airborne) {
         this.air += this.vy * dt;
         this.vy -= GRAVITY * dt;
@@ -203,6 +214,39 @@ export class Player {
       }
       this.pos.y = this.baseY + this.air;
     } else { this.pos.y = WATER_Y; this.baseY = WATER_Y; this.air = 0; this.vy = 0; }
+  }
+
+  /** Frostmere: skating. Momentum and long curving turns; pull back hard against your glide for a hockey stop. */
+  skateStep(dt, mx, mz, len) {
+    const v = this.skateV || (this.skateV = new THREE.Vector3());
+    const max = this.sprint ? 12.5 : 9, sp0 = Math.hypot(v.x, v.z);
+    this.hockeyStop = false;
+    if (len > 0) {
+      mx /= len; mz /= len;
+      const dot = sp0 > 0.1 ? (v.x * mx + v.z * mz) / sp0 : 1;
+      if (dot < -0.55 && sp0 > 3) { v.multiplyScalar(Math.max(0, 1 - dt * 5)); this.hockeyStop = true; } // the stop: blades sideways, ice spraying
+      else {
+        v.x += mx * dt * (this.sprint ? 9 : 6.5); v.z += mz * dt * (this.sprint ? 9 : 6.5);
+        // carving: the glide swings round toward where you steer
+        const sp = Math.hypot(v.x, v.z);
+        if (sp > 0.5) { const k = Math.min(1, dt * 2.2); v.x += (mx * sp - v.x) * k; v.z += (mz * sp - v.z) * k; }
+      }
+    }
+    v.multiplyScalar(Math.max(0, 1 - dt * (len > 0 ? 0.25 : 0.55))); // the ice barely slows you
+    const sp = Math.hypot(v.x, v.z);
+    if (sp > max) v.multiplyScalar(max / sp);
+    if (sp < 0.05 && len === 0) { v.set(0, 0, 0); return; } // (only when you've let go: at 144 Hz one frame's push is under 0.05, and zeroing it froze you in place)
+    const nx = this.pos.x + v.x * dt, nz = this.pos.z + v.z * dt;
+    if (this.canStand(nx, nz)) { this.pos.x = nx; this.pos.z = nz; }
+    else if (this.canStand(nx, this.pos.z)) { this.pos.x = nx; v.z *= -0.3; }
+    else if (this.canStand(this.pos.x, nz)) { this.pos.z = nz; v.x *= -0.3; }
+    else { v.multiplyScalar(-0.25); this.bumped = true; }
+    this.moving = sp > 0.4; this.pushing = len > 0 && !this.hockeyStop;
+    const targetYaw = Math.atan2(v.x, v.z);
+    let d = targetYaw - this.yaw; d = Math.atan2(Math.sin(d), Math.cos(d));
+    this.yaw += d * Math.min(1, dt * 6);
+    this.dir.set(v.x / Math.max(sp, 1e-3), 0, v.z / Math.max(sp, 1e-3));
+    if (this.target && Math.hypot(this.target.x - this.pos.x, this.target.z - this.pos.z) < 1.2) this.target = null; // (click-to-move: coast in)
   }
 
   get onDock() { return onDock(this.pos.x, this.pos.z); }

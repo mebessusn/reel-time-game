@@ -127,6 +127,60 @@ SHAPES = {
     'lantern': dict(D=0.44, W=0.24, peak=0.30, ped=0.24, blunt=0.95, hump=0.04, mouth='gape', jaw=0.06, eye=0.05, eyeX=0.16, eyeY=0.36,
                     dorsal=[dict(a=0.50, b=0.72, h=0.11, kind='round')], anal=dict(a=0.60, b=0.80, h=0.10, kind='round'),
                     caudal=dict(kind='fan', h=0.36, span=0.16), teeth=dict(kind='fangs', n=7), extras=['lure']),
+    # v1.15 Open Waters: the big-game fish
+    'mahi': dict(D=0.30, W=0.11, peak=0.16, ped=0.16, blunt=0.97, hump=0.16, eye=0.045, eyeX=0.10, eyeY=0.36, mouth='terminal',
+                 dorsal=[dict(a=0.05, b=0.90, h=0.12, kind='long')], anal=dict(a=0.48, b=0.90, h=0.09, kind='long'),
+                 caudal=dict(kind='fork', h=0.56, span=0.20), pect=dict(len=0.13, w=0.05), pelv=dict(len=0.08, a=0.30)),
+    'wahoo': dict(D=0.13, W=0.10, peak=0.45, ped=0.20, blunt=0.34, hump=0.0, eye=0.035, eyeX=0.12, eyeY=0.36, mouth='terminal', jaw=0.02,
+                  dorsal=[dict(a=0.18, b=0.58, h=0.05, kind='long'), dict(a=0.66, b=0.74, h=0.07, kind='pointed')],
+                  anal=dict(a=0.66, b=0.75, h=0.07, kind='pointed'), caudal=dict(kind='lunate', h=0.46, span=0.14), pect=dict(len=0.08, w=0.04)),
+    'tuna': dict(D=0.30, W=0.24, peak=0.42, ped=0.08, blunt=0.6, hump=0.02, eye=0.045, eyeX=0.12, eyeY=0.32,
+                 dorsal=[dict(a=0.30, b=0.42, h=0.10, kind='spiny'), dict(a=0.46, b=0.56, h=0.24, kind='pointed')],
+                 anal=dict(a=0.58, b=0.66, h=0.22, kind='pointed'), caudal=dict(kind='lunate', h=0.66, span=0.16),
+                 pect=dict(len=0.22, w=0.05), pelv=dict(len=0.06, a=0.34)),
+    'jack': dict(D=0.44, W=0.16, peak=0.34, ped=0.10, blunt=0.82, hump=0.12, eye=0.06, eyeX=0.12, eyeY=0.33, mouth='big', jaw=0.02,
+                 dorsal=[dict(a=0.28, b=0.40, h=0.10, kind='spiny'), dict(a=0.44, b=0.82, h=0.17, kind='pointed')],
+                 anal=dict(a=0.54, b=0.82, h=0.15, kind='pointed'), caudal=dict(kind='fork', h=0.62, span=0.20),
+                 pect=dict(len=0.2, w=0.05), pelv=dict(len=0.07, a=0.34)),
+    'billfish': dict(D=0.20, W=0.11, peak=0.36, ped=0.10, blunt=0.30, hump=0.02, snout=0.30, mouth='needle', eye=0.035, eyeX=0.11, eyeY=0.36,
+                     dorsal=[dict(a=0.12, b=0.62, h=0.30, kind='sail')], anal=dict(a=0.62, b=0.72, h=0.12, kind='pointed'),
+                     caudal=dict(kind='lunate', h=0.58, span=0.17), pect=dict(len=0.13, w=0.04), pelv=dict(len=0.16, a=0.30)),
+    'shark': dict(D=0.22, W=0.20, peak=0.36, ped=0.14, blunt=0.5, hump=0.03, mouth='under', eye=0.03, eyeX=0.10, eyeY=0.40,
+                  dorsal=[dict(a=0.34, b=0.48, h=0.24, kind='pointed'), dict(a=0.78, b=0.83, h=0.05, kind='pointed')],
+                  anal=dict(a=0.78, b=0.84, h=0.05, kind='pointed'), caudal=dict(kind='lunate', h=0.62, span=0.17),
+                  pect=dict(len=0.26, w=0.09), pelv=dict(len=0.07, a=0.60)),
+    # v1.15 Open Waters stage 2: the other big-game fish and the reef fish
+    'sword': dict(D=0.18, W=0.13, peak=0.36, ped=0.09, blunt=0.3, snout=0.42, mouth='needle', eye=0.05, eyeX=0.11, eyeY=0.36,
+                  dorsal=[dict(a=0.22, b=0.32, h=0.26, kind='pointed')], anal=dict(a=0.66, b=0.74, h=0.1, kind='pointed'),
+                  caudal=dict(kind='lunate', h=0.62, span=0.16), pect=dict(len=0.16, w=0.04), pelv=None),
+    'hammer': dict(D=0.2, W=0.2, peak=0.36, ped=0.14, blunt=0.8, hump=0.03, flat=1.4, mouth='under', eye=0.03, eyeX=0.04, eyeY=0.40,
+                   dorsal=[dict(a=0.30, b=0.44, h=0.34, kind='pointed'), dict(a=0.78, b=0.83, h=0.05, kind='pointed')],
+                   anal=dict(a=0.76, b=0.82, h=0.06, kind='pointed'), caudal=dict(kind='hetero', h=0.6, span=0.2), pect=dict(len=0.22, w=0.08), pelv=dict(len=0.07, a=0.6)),
+    'tarpon': dict(D=0.28, W=0.13, peak=0.36, ped=0.16, blunt=0.6, mouth='super', jaw=0.05, eye=0.06, eyeX=0.12, eyeY=0.32,
+                   dorsal=[dict(a=0.46, b=0.58, h=0.2, kind='pointed')], anal=dict(a=0.64, b=0.76, h=0.12, kind='pointed'),
+                   caudal=dict(kind='fork', h=0.55, span=0.22), extras=['glitter']),
+    'cuda': dict(D=0.12, W=0.1, peak=0.45, ped=0.32, blunt=0.34, mouth='big', jaw=0.04, eye=0.045, eyeX=0.14, eyeY=0.34,
+                 dorsal=[dict(a=0.36, b=0.44, h=0.1, kind='spiny'), dict(a=0.66, b=0.74, h=0.1, kind='pointed')],
+                 anal=dict(a=0.68, b=0.76, h=0.09, kind='pointed'), caudal=dict(kind='fork', h=0.4, span=0.18)),
+    'parrot': dict(D=0.42, W=0.16, peak=0.38, ped=0.26, blunt=0.85, hump=0.08, mouth='beak', eye=0.05, eyeX=0.12, eyeY=0.34,
+                   dorsal=[dict(a=0.26, b=0.82, h=0.1, kind='long')], anal=dict(a=0.6, b=0.82, h=0.09, kind='long'),
+                   caudal=dict(kind='fan', h=0.42, span=0.16), pect=dict(len=0.14, w=0.07)),
+    'tang': dict(D=0.66, W=0.11, peak=0.42, ped=0.18, blunt=0.85, hump=0.05, mouth='beak', eye=0.06, eyeX=0.14, eyeY=0.36,
+                 dorsal=[dict(a=0.2, b=0.86, h=0.1, kind='long')], anal=dict(a=0.44, b=0.86, h=0.09, kind='long'),
+                 caudal=dict(kind='lunate', h=0.42, span=0.12), pect=dict(len=0.12, w=0.06)),
+    'trigger': dict(D=0.55, W=0.14, peak=0.42, ped=0.2, blunt=0.7, hump=0.04, mouth='beak', eye=0.05, eyeX=0.24, eyeY=0.36,
+                    dorsal=[dict(a=0.32, b=0.40, h=0.16, kind='spine'), dict(a=0.56, b=0.84, h=0.14, kind='pointed')],
+                    anal=dict(a=0.56, b=0.84, h=0.14, kind='pointed'), caudal=dict(kind='square', h=0.38, span=0.14)),
+    'idol': dict(D=0.78, W=0.1, peak=0.42, ped=0.16, blunt=0.7, mouth='beak', eye=0.06, eyeX=0.18, eyeY=0.32,
+                 dorsal=[dict(a=0.18, b=0.62, h=0.75, kind='pointed')], anal=dict(a=0.46, b=0.86, h=0.18, kind='long'),
+                 caudal=dict(kind='fork', h=0.38, span=0.14)),
+    'lion': dict(D=0.36, W=0.15, peak=0.36, ped=0.26, blunt=0.7, mouth='big', eye=0.06, eyeX=0.12, eyeY=0.34,
+                 dorsal=[dict(a=0.18, b=0.56, h=0.42, kind='spiny'), dict(a=0.6, b=0.84, h=0.16, kind='round')],
+                 anal=dict(a=0.6, b=0.82, h=0.14, kind='round'), caudal=dict(kind='fan', h=0.4, span=0.16),
+                 pect=dict(len=0.36, w=0.16), pelv=dict(len=0.14, a=0.38)),
+    'grouper': dict(D=0.4, W=0.24, peak=0.36, ped=0.3, blunt=0.85, hump=0.06, mouth='big', jaw=0.04, eye=0.035, eyeX=0.12, eyeY=0.34,
+                    dorsal=[dict(a=0.3, b=0.54, h=0.1, kind='spiny'), dict(a=0.56, b=0.8, h=0.13, kind='round')],
+                    anal=dict(a=0.62, b=0.8, h=0.11, kind='round'), caudal=dict(kind='round', h=0.36, span=0.16), pect=dict(len=0.16, w=0.08)),
 }
 
 # Per-species changes on top of the shape, so no two fish look the same.
@@ -199,6 +253,21 @@ SPECIES = {
     'crystaltetra': dict(D=0.32, adipose=True, extras=['glow_stripe', 'translucent']),
     'grottoghost': dict(D=0.16, snout=0.04, teeth=None, eye=0.0, extras=['translucent', 'glow_line']),
     'lanternfish': dict(),
+    # ---- Frostmere (map 3)
+    'stickleback': dict(D=0.22, blunt=0.6, eye=0.08, dorsal=[dict(a=0.20, b=0.60, h=0.08, kind='spiny')], caudal=dict(kind='square', h=0.26, span=0.14), extras=['pepper']),
+    'cisco': dict(D=0.24, mouth='super', adipose=True, eye=0.06, caudal=dict(kind='fork', h=0.42, span=0.18)),
+    'capelin': dict(D=0.18, W=0.10, Lb=0.92, mouth='super', adipose=True, eye=0.055, caudal=dict(kind='fork', h=0.36, span=0.16)),
+    'roundwhitefish': dict(D=0.20, W=0.14, snout=0.03, mouth='inferior', adipose=True, eye=0.05, caudal=dict(kind='fork', h=0.38, span=0.17)),
+    'sculpin': dict(D=0.24, W=0.26, flat=0.6, eye=0.05, eyeY=0.42, mouth='wide', pect=dict(len=0.22, w=0.14), dorsal=[dict(a=0.24, b=0.42, h=0.10, kind='spiny'), dict(a=0.46, b=0.82, h=0.10, kind='long')], extras=['warts', 'marbled']),
+    'arcticcod': dict(D=0.24, blunt=0.6, mouth='terminal', jaw=-0.015, eye=0.07, barbels=dict(kind='chin'), dorsal=[dict(a=0.28, b=0.40, h=0.12, kind='round'), dict(a=0.45, b=0.60, h=0.10, kind='round'), dict(a=0.64, b=0.80, h=0.09, kind='round')]),
+    'dollyvarden': dict(adipose=True, D=0.22, eye=0.05, extras=['white_edges', 'halo_spots']),
+    'laketrout': dict(adipose=True, D=0.22, mouth='big', jaw=0.025, eye=0.045, caudal=dict(kind='fork', h=0.44, span=0.19), extras=['white_edges']),
+    'sheefish': dict(D=0.24, mouth='super', jaw=0.05, adipose=True, eye=0.05),
+    'halibut': dict(D=0.52, W=0.06, peak=0.36, ped=0.18, blunt=0.75, mouth='big', jaw=0.03, eye=0.045, eyeY=0.40, dorsal=[dict(a=0.22, b=0.88, h=0.07, kind='long')], anal=dict(a=0.40, b=0.88, h=0.07, kind='long'), caudal=dict(kind='square', h=0.36, span=0.14)),
+    'ghostcisco': dict(D=0.24, mouth='super', adipose=True, eye=0.065, caudal=dict(kind='fork', h=0.42, span=0.18), extras=['translucent', 'glow_line']),
+    'glacierking': dict(adipose=True, D=0.24, mouth='kype', jaw=0.04, eye=0.04, caudal=dict(kind='fork', h=0.46, span=0.2), extras=['white_edges', 'ice_spines', 'frost_fins', 'scars']),
+    'oldsleeper': dict(D=0.2, W=0.2, blunt=0.7, eye=0.018, extras=['scars']),
+    'aurorachar': dict(adipose=True, D=0.24, eye=0.05, extras=['white_edges', 'glow_stripe', 'glow_belly']),
 }
 
 def spec_for(sp):
@@ -844,7 +913,7 @@ def to_blender(fishes):
 
 def main(only=None):
     with open(SPECIES_JSON) as fh: species = json.load(fh)
-    fishes = [build_fish(sp) for sp in species if not sp.get('shell') and (not only or sp['id'] in only)]
+    fishes = [build_fish(sp) for sp in species if not sp.get('shell') and not sp.get('mesh') and (not only or sp['id'] in only)]
     os.makedirs(os.path.dirname(OUT_JSON), exist_ok=True)
     data = to_json(fishes)
     with open(OUT_JSON, 'w') as fh: json.dump(data, fh, separators=(',', ':'))

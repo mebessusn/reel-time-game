@@ -25,9 +25,16 @@ class Model:
     def _slot(self, m):
         if m not in self.slots: self.slots.append(m)
         return self.slots.index(m)
-    def _ring(self, c, t, r, n, squash):
-        t = t.normalized(); ref = Vector((0, 0, 1)) if abs(t.z) < 0.95 else Vector((1, 0, 0))
-        n1 = t.cross(ref).normalized(); n2 = t.cross(n1).normalized(); out = []
+    def _ring(self, c, t, r, n, squash, prev=None):
+        # prev: the last ring's side vector. Carrying it along (a rotation-minimising frame) keeps a swept tube from
+        # twisting where its direction turns steeply (palm fronds drooping past vertical used to flip a quarter turn).
+        t = t.normalized()
+        if prev is not None and (prev - t * prev.dot(t)).length > 1e-4: n1 = (prev - t * prev.dot(t)).normalized()
+        else:
+            ref = Vector((0, 0, 1)) if abs(t.z) < 0.95 else Vector((1, 0, 0))
+            n1 = t.cross(ref).normalized()
+        n2 = t.cross(n1).normalized(); out = []
+        self._last_n1 = n1
         for j in range(n):
             a = j / n * math.tau; o = (n1 * math.cos(a) + n2 * math.sin(a)) * r; o.z *= squash
             out.append(self.bm.verts.new(c + o))
@@ -57,10 +64,10 @@ class Model:
         elif kind == 'sweep':  # a tube along points; r is a number or one radius per point
             pts = [Vector(p) for p in kw['points']]; closed = kw.get('closed', False); n = kw.get('ring', 6)
             rs = kw.get('r', 0.05); rs = rs if isinstance(rs, (list, tuple)) else [rs] * len(pts)
-            rings = []; N = len(pts)
+            rings = []; N = len(pts); prev = None
             for i, p in enumerate(pts):
                 a = pts[(i - 1) % N] if (closed or i > 0) else p; b = pts[(i + 1) % N] if (closed or i < N - 1) else p
-                rings.append(self._ring(p, b - a, max(rs[i], 1e-4), n, kw.get('squash', 1.0)))
+                rings.append(self._ring(p, b - a, max(rs[i], 1e-4), n, kw.get('squash', 1.0), prev)); prev = self._last_n1
             verts = [v for r_ in rings for v in r_]
             for i in range(N if closed else N - 1):
                 A, B = rings[i], rings[(i + 1) % N]
@@ -69,6 +76,9 @@ class Model:
                 for r_, p in ((rings[0], pts[0]), (rings[-1], pts[-1])):
                     c = bm.verts.new(p); verts.append(c)
                     for j in range(n): bm.faces.new((r_[j], r_[(j + 1) % n], c))
+        elif kind == 'mesh':  # raw geometry: verts (Blender coords) and faces (index tuples), placed by loc/rot/size
+            verts = [bm.verts.new(Vector(v)) for v in kw['verts']]
+            for f in kw['faces']: bm.faces.new([verts[i] for i in f])
         elif kind == 'poly':  # a flat shape in the XZ plane (points are (x, z)), extruded along Y by depth
             d = kw.get('depth', 0.02); P = kw['points']
             f = [bm.verts.new((x, -d / 2, z)) for x, z in P]; bk = [bm.verts.new((x, d / 2, z)) for x, z in P]

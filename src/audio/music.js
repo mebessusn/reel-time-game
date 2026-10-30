@@ -149,10 +149,27 @@ export const TRACKS = [
   { name: 'Spokes in the Pines', where: ['lodge', 'any'], when: ['day'], key: 62, mode: 'major', bpm: 100, meter: 4, prog: [0, 3, 0, 4], B: [5, 3, 1, 4], lead: 'kalimba', comp: 'felt', style: 'strum', bass: true, drums: 'brush', swing: 0.14 },
   { name: 'Echo Cavern', where: ['cave'], when: ['day', 'dawn', 'dusk', 'night', 'rain'], key: 57, mode: 'dorian', bpm: 58, meter: 4, prog: [0, 6, 3, 0], B: [5, 6, 0, 0], lead: 'vibes', comp: 'celesta', style: 'sparse', bass: false, drums: null, swing: 0, verb: 0.75 },
   { name: 'Glowworm Lullaby', where: ['cave'], when: ['day', 'dawn', 'dusk', 'night', 'rain'], key: 64, mode: 'minor', bpm: 62, meter: 3, prog: [0, 5, 3, 4], B: [5, 3, 6, 4], lead: 'musicbox', comp: 'vibes', style: 'waltz', bass: false, drums: null, swing: 0, verb: 0.7 },
+  // v1.15 Open Waters: out at sea and on the islands (no synth guitar, no heavy synth bass)
+  { name: 'Trade Winds', where: ['sea'], when: ['day', 'dawn'], key: 62, mode: 'major', bpm: 92, meter: 4, prog: [0, 4, 5, 3], B: [3, 0, 4, 4], lead: 'marimba', leadB: 'flute', comp: 'felt', style: 'strum', bass: false, drums: 'shaker', swing: 0.16 },
+  { name: 'Blue Water', where: ['sea'], when: ['day', 'dusk'], key: 57, mode: 'dorian', bpm: 78, meter: 4, prog: [0, 3, 6, 4], B: [2, 3, 4, 0], lead: 'flute', comp: 'vibes', style: 'arp', bass: false, drums: null, swing: 0.08 },
+  { name: 'Night Watch', where: ['sea'], when: ['night', 'dusk'], key: 60, mode: 'major', bpm: 64, meter: 3, prog: [0, 5, 3, 4], B: [3, 0, 4, 4], lead: 'musicbox', comp: 'felt', style: 'waltz', bass: false, drums: null, swing: 0 },
+  // v1.15.10: by the Palm Key fire after dusk, while Makoa plays the drum
+  { name: 'Fireside', where: ['fire'], when: ['night', 'dusk', 'rain', 'day', 'dawn'], key: 62, mode: 'mixo', bpm: 88, meter: 4, prog: [0, 6, 3, 0], B: [3, 3, 0, 4], lead: 'marimba', leadB: 'flute', comp: 'vibes', style: 'strum', bass: false, drums: 'brush', swing: 0.18, verb: 0.3 },
+  // Frostmere (map 3): bells, celesta and felt piano in the snow (no synth guitar, no heavy synth bass)
+  { name: 'Hearthwick Hearth', where: ['hearth'], when: ['day', 'dawn', 'dusk'], key: 65, mode: 'major', bpm: 96, meter: 3, prog: [0, 3, 4, 0], B: [5, 3, 1, 4], lead: 'celesta', leadB: 'flute', comp: 'felt', style: 'waltz', bass: false, drums: null, swing: 0, verb: 0.35 },
+  { name: 'Shanty Lights', where: ['hearth'], when: ['night', 'dusk'], key: 62, mode: 'major', bpm: 64, meter: 4, prog: [0, 5, 3, 4], B: [3, 0, 1, 4], lead: 'musicbox', comp: 'felt', style: 'arp', bass: false, drums: null, swing: 0.06, verb: 0.4 },
+  { name: 'Snowfall', where: ['hearth', 'north'], when: ['rain'], key: 64, mode: 'dorian', bpm: 60, meter: 4, prog: [0, 3, 0, 6], B: [2, 3, 4, 3], lead: 'celesta', comp: 'felt', style: 'sparse', bass: false, drums: null, swing: 0, verb: 0.55 },
+  { name: 'Northern Lights', where: ['north'], when: ['night'], key: 60, mode: 'lydian', bpm: 58, meter: 4, prog: [0, 1, 5, 4], B: [3, 1, 0, 0], lead: 'vibes', comp: 'celesta', style: 'arp', bass: false, drums: null, swing: 0, verb: 0.65 },
+  { name: 'White Expanse', where: ['north'], when: ['day', 'dawn'], key: 67, mode: 'mixo', bpm: 66, meter: 4, prog: [0, 6, 3, 0], B: [3, 3, 0, 4], lead: 'flute', comp: 'felt', style: 'sparse', bass: false, drums: null, swing: 0, verb: 0.5 },
+  { name: 'The Long Glide', where: ['north'], when: ['day', 'dusk'], key: 62, mode: 'major', bpm: 84, meter: 4, prog: [0, 4, 5, 3], B: [3, 0, 4, 4], lead: 'kalimba', leadB: 'celesta', comp: 'felt', style: 'strum', bass: false, drums: 'shaker', swing: 0.1, verb: 0.35 },
+  { name: 'Squall Line', where: ['sea'], when: ['rain'], key: 64, mode: 'dorian', bpm: 70, meter: 4, prog: [0, 3, 0, 6], B: [2, 3, 4, 3], lead: 'vibes', comp: 'felt', style: 'sparse', bass: false, drums: 'soft', swing: 0.06 },
 ];
 const REGION_GROUP = {
+  'Open Waters': 'sea', "Marlowe's Mooring": 'sea', 'The Weed Line': 'sea', 'The Deep Blue': 'sea', 'The Canyon': 'sea', 'Reef Edge': 'sea', 'The Abyss': 'sea',
+  'Palm Key': 'sea', Fireside: 'fire', 'Turtle Atoll': 'sea', "Smuggler's Rock": 'sea',
   'Echo Cavern': 'cave', 'Frostpine Lake': 'frost', 'Frostrun Creek': 'frost', Lilymarsh: 'marsh', 'Bog Hut': 'marsh',
   'Old Quarry': 'quarry', 'Quarry Shed': 'quarry', 'Quarry Cut': 'quarry', 'Pinewood Lodge': 'lodge',
+  'Frostmere North': 'north', 'Hearthwick Village': 'hearth',
   'Fern Pond': 'pond', 'Fern Camp': 'pond', 'Fern Brook': 'pond', 'Willow River': 'river', 'Cozy Cove': 'cove',
 };
 
@@ -365,9 +382,9 @@ export class Music {
     return { group, mood, key: `${group}|${mood}` };
   }
   pick(w) {
-    const fits = (t) => (t.where.includes(w.group) || (t.where.includes('any') && w.group !== 'cave')) && (w.mood === 'cave' || t.when.includes(w.mood));
+    const fits = (t) => (t.where.includes(w.group) || (t.where.includes('any') && w.group !== 'cave' && w.group !== 'sea' && w.group !== 'fire' && w.group !== 'north' && w.group !== 'hearth')) && (w.mood === 'cave' || t.when.includes(w.mood));
     let list = TRACKS.filter((t) => fits(t) && t.where.includes(w.group));
-    if (w.mood !== 'cave') list = list.concat(TRACKS.filter((t) => fits(t) && t.where.includes('any')));
+    if (w.mood !== 'cave' && w.group !== 'north' && w.group !== 'hearth') list = list.concat(TRACKS.filter((t) => fits(t) && t.where.includes('any')));
     if (!list.length) list = TRACKS.filter((t) => t.when.includes(w.mood === 'cave' ? 'night' : w.mood));
     const fresh = list.filter((t) => t.name !== this.lastName);
     const pool = fresh.length ? fresh : list;
@@ -405,7 +422,7 @@ export class Music {
     // when you go in or out of the cave, or when you've been somewhere it doesn't suit for a little while
     const tr0 = this.track;
     if (tr0) {
-      const def = tr0.def, suits = (def.where.includes(w.group) || (def.where.includes('any') && w.group !== 'cave')) && (w.mood === 'cave' ? def.where.includes('cave') : def.when.includes(w.mood));
+      const def = tr0.def, suits = (def.where.includes(w.group) || (def.where.includes('any') && w.group !== 'cave' && w.group !== 'fire' && w.group !== 'north' && w.group !== 'hearth')) && (w.mood === 'cave' ? def.where.includes('cave') : def.when.includes(w.mood));
       if (suits) this.offSince = null; else this.offSince ??= now;
       const caveFlip = (w.group === 'cave') !== def.where.includes('cave');
       if (!suits && (caveFlip || now - this.offSince > 12)) { this.offSince = null; this.fadeOut(6); this.restUntil = now; }

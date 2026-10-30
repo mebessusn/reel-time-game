@@ -9,7 +9,7 @@ import { buildBike, BIKE_SCALE } from '../entities/bikeModels.js';
 import { Actor } from './actor.js';
 import { randomAvatar } from '../data/avatarOptions.js';
 import { mulberry32 } from '../core/rng.js';
-import { surfaceY, walkY, onDock } from '../world/terrain.js';
+import { surfaceY, walkY, onDock, FAR_X, inValley } from '../world/terrain.js';
 import { signBoard } from '../world/campers.js';
 import { addBox } from '../world/colliders.js';
 import { h } from '../ui/dom.js';
@@ -84,7 +84,9 @@ export class Bikes {
       const b = buildBike(id); if (!b) return;
       const w = new THREE.Group(); w.add(b);
       b.scale.setScalar(BIKE_SCALE); b.rotation.y = Math.PI / 2; // facing the stall
-      w.rotation.z = 0.1; w.position.set(-1.05 + i * 0.7, 0, 0.05);
+      // (v1.17.1: each bike stands on the ground under its own wheels, wherever the slope puts it: none sunk in)
+      const bx = RACK.x - 1.05 + i * 0.7, gy = Math.max(...[[0, 0], [0, 0.85], [0, -0.85], [0.3, 0], [-0.3, 0]].map(([dx, dz]) => surfaceY(bx + dx, RACK.z + 0.05 + dz)));
+      w.rotation.z = 0.1; w.position.set(-1.05 + i * 0.7, Math.max(0, gy - ry) + 0.02, 0.05);
       rack.add(w);
     });
     rack.position.set(RACK.x, ry, RACK.z);
@@ -132,6 +134,7 @@ export class Bikes {
   canMount() {
     const g = this.game, p = g.player;
     if (p.mode !== 'shore' || p.airborne || g.chairs?.seat || g.fishing.busy || g.home?.active || g.treasure?.dig || g.riding) return false;
+    if (!inValley(p.pos.x)) return false; // v1.15.21: bikes stay at the cove (not on the charter's deck, the islands or in Coralhaven)
     if (onDock(p.pos.x, p.pos.z)) return true; // bridges, docks, jetties and boardwalks (v1.9.3)
     return walkY(p.pos.x, p.pos.z, 0) != null && (p.wadeDepth || 0) < 0.05;
   }
@@ -139,6 +142,7 @@ export class Bikes {
     const g = this.game;
     if (this.riding) { this.dismount(); return; }
     if (!this.equipped) { g.ui.toast(this.owned().length ? 'Pick a bike in the Bike shop at Pinewood Lodge.' : 'You don\'t have a bike yet. Rosie sells them at Pinewood Lodge.', { icon: 'map' }); return; }
+    if (!inValley(g.player.pos.x)) { g.ui.toast(g.player.pos.x > FAR_X ? 'Your bike\'s parked back at the cove. No bikes on the boat!' : 'Your bike\'s parked back at the cove. Skates and sleds up here!', { icon: 'info' }); return; }
     if (!this.canMount()) { g.ui.toast(g.player.mode === 'boat' ? 'Bikes stay on land. Go ashore first.' : 'Bikes don\'t float! Get out of the water first.', { icon: 'info' }); return; }
     g.fishing.cancel();
     this.riding = true; this.v = 0; this.steer = 0; this.back = 0;
@@ -162,7 +166,7 @@ export class Bikes {
   drive(dt) {
     const g = this.game, p = g.player;
     if (!this.riding) return;
-    if (p.mode !== 'shore') { this.dismount(); return; }
+    if (p.mode !== 'shore' || !inValley(p.pos.x)) { this.dismount(); return; }
     const locked = g.ui.modalOpen || g.home?.active;
     let f = 0, r = 0;
     if (!locked) {

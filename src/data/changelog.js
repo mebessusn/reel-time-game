@@ -13,6 +13,558 @@ export const CHANGE_KINDS = {
 
 export const CHANGELOG = [
   {
+    version: 'v1.17.2', date: 'Oct 30 2026', title: 'Out on the Snow',
+    changes: {
+      new: [
+        'Snowmobile: buy one from Pell, press your ride key anywhere on the snow, and go. It\'s the fastest thing up north, and it leaves the ground over crests.',
+        'Jet ski: buy one from Kai at the tiki bar and ride the swells between the islands. It floats on the real waves, jumps off crests, leans into its turns and throws spray.',
+        'One-dog sled: ask June, and Pepper will pull you round the north for a fraction of the price.',
+        'Skyline, a little ski hill on the south range: ride the chairlift to the summit, take a toboggan down, race the Hill Climb, and send your snowmobile off the Big Air Jump. All three have boards.',
+        'Galena, an abandoned silver town in the western foothills. Relight the street lamps, read what was left behind, and find out what happened at Shaft 2.',
+        'Ember Hollow, a valley of hot pools. Soak until you\'re warm, and fish for Ember Perch and Steam Eels.',
+        'Climb aboard the Valiant: a rope ladder up her side, her deck to walk, and her hold and galley to search. The captain\'s chest wants every page of the log.',
+        'Six trail huts across the north. Light each stove for warmth and a line in the ledger.',
+        'The Ring Line: a chairlift right round the map, with stations at Hearthwick, Skyline, Aurora Hill, the North Shore and Galena. Get on a chair as it comes through, and it takes the short way round.',
+        'Great Auroras: some nights the whole sky moves, glowing tracks lead from Aurora Hill to an aurora shard, and the Spirit Whitefish rises.',
+        'Things lie frozen in the lake ice, different ones each week. Cut them out for your collection.',
+        'When a blizzard blows through, it leaves old crates uncovered out on the snow.',
+        'New in the Field Guide: Alpine ibex on the hills and mountain hares round the taiga.',
+      ],
+      ui: [
+        'Smoother frames and better night lighting, on a newer version of the graphics engine (three.js r187).',
+        'The cold is hard to miss now: your first landing explains it, and as you chill you shiver, frost closes in, your breath shows, and warnings tell you the nearest warmth before you pass out.',
+        'The ride button on the bar follows you: the bike in the valley, your snowmobile or one-dog sled up north.',
+      ],
+      fix: [
+        'The sign on Pell\'s Trading Post sits squarely on its board, the Hearthwick sign faces the ice, the boards\' lamps stand clear of them, and the hangar signs hang out in front of the roofs.',
+      ],
+      world: [
+        'Every bridge in the valley now lines up with its trail at both ends.',
+        'The shore ice is natural now: broken, leaning chunks with snow on top, not blocks.',
+        'New husky sled dogs, at the kennels and in the teams.',
+        'The snow has a shape now: drifts and swells you ride over, ripples and glazed crust that catch the sun, and blue in the hollows and shadows.',
+      ],
+    },
+  }, {
+    version: 'v1.17.1', date: 'Oct 27 2026', title: 'The Blue Caves',
+    changes: {
+      new: [
+        'The Blue Caves are open: walk in through the ice cliff at the glacier\'s snout, down a passage into a domed hall of blue glacier ice with a frozen pool (and something very big frozen in it), a side chamber where the mammoth sleeps in a wall of clear ice, and a grotto full of glowing crystals. The log page is in there now.',
+        'Ice fishing camps: drilling a hole pops up a little shelter on a sled and a bucket stool beside the hole. Sit on the stool to fish; the shelter and the stool are solid.',
+        'Hearthwick\'s bonfire benches are seats now: sit by the fire and roast a fish.',
+        'Old Hollis\'s treehouse is rebuilt: a broad old oak whose roots run into the ground, real limbs and a layered crown, a railed deck that wraps round the trunk on six braced posts, a free-standing board-and-batten hut at the deck\'s end (clear of the trunk) with a shingled roof, a door, shuttered windows and a stovepipe, and a straight ladder with its rungs on its rails up to a gap in the railing. Hollis sits on his bench at his tea table now (not inside it), and everything at the foot is solid.',
+        'Five Lakes Valley looks sharper: smooth, curving shorelines and creek banks instead of the grid\'s saw-tooth, crisper ground up close, natural ragged edges between grass, sand and dirt, and soft light and dark drifts across the meadows.',
+        'Bigger homes: grow your cabin into the Cottage (in your home\'s new Bigger home tab). A doorway through the east wall opens into a den with a quilted patchwork bed you can sit on, two more windows, and room for a second rug, armchair, lamp, fern and bookshelf, which you can arrange anywhere in either room. It needs level 10 and two lake collections, and costs 25,000 coins (or 150 pearls instead of the coins). Friends who visit see your den too.',
+        'Air race circuits are now Easy, Medium and Hard, four of each. The hard ones (Stormfront, Sky Harbour, Red Rock Canyon, The Gauntlet) climb and dive steeply, through tighter gaps with more in the way, and the medium ones roll up and down more than before.',
+        'Birds on the air race courses: flocks turn up ahead of you, flying straight at you or across the line, more often on harder circuits and in faster classes. Fly into one and it\'s a bird strike.',
+        'Fly the race planes with the mouse: move it and it becomes a joystick (centre of the screen is centre stick, with a small dead zone); hold the left button to boost. The keys take over again as soon as you press one.',
+        'Air races start on proper lights: red, then yellow, then green for GO, each with its own tone, on a gantry above the start arch and on your screen.',
+        'Air race crowds: both grandstands are full and people line the start straight. They clap, wave both arms, pump their fists and wave flags, and they go wild at the start and the finish.',
+        'Spearfishing: land a fish over 30 lb and you tow it home: swim it back to Marlowe\'s boat (or climb aboard) before you can spear the next one.',
+        'Camps tidy themselves: walk away from your camp for five minutes and it\'s packed up for you.',
+      ],
+      world: [
+        'Keep an eye on the horizon from the Floe Edge. Sometimes, far out to sea, something long-necked rises from the water, drifts a while and sinks again.',
+        'A little log cabin stands in its own clearing in the woods off the Lilymarsh trail, its door facing the path and its window lit at night.',
+        'Fernview Campground is a proper campground: canvas tents and a dome tent round the fire with camp chairs, a camp kitchen with a dutch oven and a water jug, a cooking grate over the fire, a lantern on the picnic table, a bear-proof food locker, a notice board and rail fence at the way in, a hammock, a woodpile, and a canoe rack, a canoe and a rowboat down on the beach.',
+        'A ranger station stands below the Ridge Lookout fire tower, its window lit at night, with a trail map, a signpost, a birdhouse, a picnic table, a woodshed and an outhouse.',
+        'An A-frame cabin looks out over Frostpine Lake from up the bank of its north shore, with a deck, a fire pit and chairs, a well, a woodpile, and a canoe and a rowboat pulled up on the beach.',
+        'New tents, chairs and gear at Fern Camp, in the camps you pitch in the Wild Woods (a dome tent, a stone fire pit, camp chairs, a cooler, firewood and a dutch oven), and sturdy timber picnic tables at Sundae\'s Trailer Park.',
+        'Every lake has its own water now: Frostpine is clear and icy, Lilymarsh peaty green-brown, Fern Pond weedy green and the Old Quarry turquoise, blending into each other along the rivers.',
+        'Ripples ring out properly when your bobber lands, a fish bites or something splashes: a bright ring with two smaller ones behind it, catching the sun as they spread.',
+        'Little waves wash up the beaches and drain back, leaving the sand dark where they reached until it dries. They run further up the sand when the wind blows.',
+        'Underwater in Open Waters, look up to see a bright circle of sky with the sun glowing through it, and beyond it the surface turning into a rippling mirror of the deep. Light shafts reach down by day, and specks drift in the water around you.',
+        'A mountain refuge hut stands on the flat below the glacier near the Blue Caves, its window lit, a woodpile at its side and a toboggan by the door.',
+        'Stone cairns mark the high ground between the Frozen Falls and the Blue Caves, and someone has left an ice axe and crampons in the snow at the cave mouth.',
+        'Icefalls hang on the bank above the plunge pool under the Frozen Falls, and a snow fence runs below the standing stones on Aurora Hill.',
+        'Hearthwick has a bench by the sauna, snowy log piles by the smokehouse and behind the Hearth Lodge, and a toboggan by one of the cabins.',
+        'Snow has a surface now: wind ripples catching the low sun, drifts and hollows in faint blue, and a fine grain up close.',
+        'Ten kinds of snowy spruce in Frostmere (and the snowy race circuits): tall and narrow, broad and old, wind-bent, broken-topped, heavy with snow or nearly bare.',
+        'The race circuits\' land has detail up close: grass in patches and tufts, dry spots, rock in strata and cracks on the steep faces, and a bumpy surface the sun picks out.',
+        'New rocks on every circuit: mossy granite, snow-capped boulders, banded sandstone stacks and black basalt columns.',
+        'People live along the circuits: farms with barns, silos, hay bales and striped fields, stone cottages and a chapel, log cabins, red fishing huts on stilts with jetties, adobe houses and wind pumps, stilt huts and canoes on the beaches.',
+        'Fish under the ice look like fish: pike, trout, perch, burbot and whitefish each have their own shape, they swim forward (never sideways), turn smoothly and glide.',
+        'Hearthwick\'s ice sculptures are carved properly now: a trout leaping out of a curling wave, a polar bear mid-stride with a paw raised, and a snowy owl with its wings half spread, each on a frosted plinth with a name plaque.',
+        'Pell\'s Trading Post is a proper frontier storefront: the false front stands clear above the roof, with a cornice and brackets, and the sign isn\'t crossed by the roof any more.',
+        'The sled dogs look like huskies: deep chests, ruffs, pointed ears, masks and curled tails, with proper hind legs. And they don\'t walk into each other.',
+        'The snowy spruce are whole trees: the branch tiers overlap down a solid core, with snow lying on them.',
+        'Crash Clearing\'s plane is a real bush plane now (Skye\'s kind, in faded yellow), nose down in the ferns with a bent prop.',
+        'The fallen log by Pip\'s spot in Cozy Cove has moved out onto the sand, and the cove\'s waystone lost the stick at its foot.',
+        'Open Waters: wherever you jump in, fish turn up around you (reef fish roam out over the deep water too).',
+      ],
+      ui: [
+        'Jigging is clearer: a beat bar under the flasher shows when to jig ("wait...", "JIG NOW", "jig!"), and the flasher tells you what the fish are doing.',
+        'Look around while Skye flies you north or home: drag (or use the right stick) to turn the camera round the plane on the take-off and the landing, and the wheel zooms. The view keeps your angle as the plane turns.',
+      ],
+      fix: [
+        "Skye's plane flies smoothly now: it eases away from its mooring, turns wide, speeds up and slows down gently, leans into its turns, lifts off and touches down without a jolt, and no longer snaps round when it parks (it swings round at Hearthwick, and comes alongside the dock in a slow U-turn at home).",
+        "Skye's plane no longer taxis through an ice shanty on its way to park at Hearthwick: the shanty town keeps a clear lane along the plane's path (and clear of the windsock).",
+        'Building porches and steps in Hearthwick are solid: you climb the steps onto the porch, and nobody walks through the railings.',
+        'Snowball fights: every click throws a snowball now (quick clicks used to walk you instead). Click again while you\'re still throwing and the next one goes as soon as you can.',
+        'Holes you drill close up and go when you\'ve walked away and haven\'t fished them for a while (a tip-up keeps its hole open).',
+        'You can\'t cast through things any more: a lamp post, a tree, a wall, a piling or a person in the way stops the line short (it still flies over rocks you could step on).',
+        'The Blue Caves: the entrance is clean (no forest of icicles), the cliff around the mouth is glacier ice with no gaps, the frozen mammoth and the ice columns are solid, and the frozen pool glows blue from deep under the ice (no more still fish shadow, no flicker).',
+        'Rented ice shanties: inside is a proper cosy room now (floor boards with a hatch over the hole, the stove, a bench, shelves), and you can move about inside without getting thrown out.',
+        'The sauna is solid and has its gable walls under the roof, front and back.',
+        'Hal and the other shanty regulars stand beside their holes, not half inside a shanty.',
+        'Using Hearthwick\'s notice board looks at the board, not at Astrid.',
+        'Getting off Marlowe\'s boat at Palm Key no longer drops you in the sea 100 m away.',
+        'The bikes on Spokes & Sprockets\' rack stand on the ground, not sunk into it.',
+        'The little footbridges over Tarn Run and Hollow Brook sit down on their banks.',
+        'Frostpine Lake\'s south-west corner is deeper: no more running aground rowing out from the bank.',
+        'Ridge Lookout\'s fire tower: a clean frame (one brace per panel, no stray beams), and the stairs zigzag up one side in three proper flights of evenly spaced steps on sloping stringers, with landings, and they and the tower are solid, so you can\'t walk through it onto the deck any more. Press E at the foot of the stairs to climb.',
+        'The trail up to Pinewood Lodge no longer takes a hard right turn below the lodge: it sweeps round in a long, gentle bend.',
+        'The Tarn Run footbridge by the seaplane base moved upstream, with dry banks at both ends: you don\'t step off it into the lake any more.',
+        'The creeks run a little deeper, so their water stays put instead of flickering in and out as it ripples (you can still wade them).',
+        'The seaplane hangar\'s sign says FROSTPINE AIR again, on its board over the door. The snowy boulder by the dock is gone from the path, and the fuel shed has moved inland behind the hangar (and is solid, pump and drums too).',
+        'Frostmere is smoother and more detailed: the snow meets the ice (and the sea ice meets the open sea) along clean curves instead of a jagged saw-tooth, the Frozen Falls\' ravine and the pools have rounded banks, the snowfields are drawn finer and shaded smoothly, and the land has more life: shore ice heaved up on the banks (solid), storm-killed snags, more boulders, drifts and dry grass poking through the snow.',
+        'Skye\'s seaplane hangar sits on dry land, clear of the pond behind it, and its sign hangs on the front, not up in the roof.',
+      ],
+    },
+  },
+  {
+    version: 'v1.17.0', date: 'Oct 27 2026', title: 'Skye\'s Air Races',
+    changes: {
+      new: [
+        'Skye\'s Air Races: twelve looping circuits, three laps each, against three rival pilots. Talk to Skye at either hangar after your first flight north and pick a circuit, a mode, a class and a plane.',
+        'Six sky circuits above the clouds (cloud towers, thermals, a stormfront with lightning, an aurora night loop, a harbour of blimps) and six low-level circuits over big landscapes of their own: the Five Lakes valley, glacier fjords, the taiga, tropical islands, a red rock canyon and the Gauntlet.',
+        'Big obstacles: fly under stone viaducts and through rock arches, a hangar and an ice arch, over a dam and its canyon, past wind turbines, a sweeping crane, a drawbridge that opens, a train on a trestle, blimps, balloons, geysers, power lines and gusts.',
+        'A hidden shortcut on eleven circuits (two on the Gauntlet): a cave, a tunnel behind a waterfall, a crack in a mesa, the eye of the storm, a cargo blimp\'s bay... Find one and it\'s marked on your map from then on.',
+        'Racing features: a grid start with a countdown (boost right on GO for a perfect start), gates in order (miss one: +2 seconds), sector splits against your best, boost rings, ground effect and slipstream to fill your boost, tricks for boost, crashes with a quick respawn, wrong-way and position read-outs, a mini map and three camera views (C), with a look back (B).',
+        'Three modes: Race, Time trial (race your best lap\'s ghost, and the circuit record holder\'s) and Practice. Three classes: Breeze, Gale (rivals use the shortcuts) and Hurricane (fastest, more hazards).',
+        'Medals (bronze, silver, gold, and platinum for beating Skye\'s own time), pilot ranks, best-time boards for every circuit, and fourteen new achievements.',
+        'Planes to earn: the Yellow Cub (nimble), the Red Baron biplane (quick tricks) and the Bluebolt Racer (fast, wide turns). Skye\'s paint shop sells paint jobs; two more come with medals.',
+        'Party races: the party leader starts one and everyone in the party races together, with rivals filling the grid to four.',
+      ],
+    },
+  },
+  {
+    version: 'v1.16.3', date: 'Oct 27 2026', title: 'Boost',
+    changes: {
+      new: ['Boost on the flight: hold Shift (or the Boost button). The view widens, the edges blur, speed lines rush past. Updrafts top the boost up.'],
+      fix: ['A dog team that starts beside a lamp post pulls clear instead of getting stuck.'],
+      world: [
+        'The clouds up there are big, fluffy heaps now: bumpy, sunlit tops, shaded undersides and soft wispy edges. High cirrus streaks the sky and cloud banks line the horizon.',
+        'Updrafts are a stream of wind spiralling upward, and they lift you as you fly through.',
+        'Flocks of gulls cross the course: fly into birds and you slow right down for a moment (feathers everywhere, no birds hurt).',
+      ],
+    },
+  },
+  {
+    version: 'v1.16.2', date: 'Oct 27 2026', title: 'Inside the Hearth Lodge',
+    changes: {
+      new: [
+        'The Hearth Lodge has a big inside: a roaring stone fireplace, armchairs to sink into, Hilde\'s counter with hot food that keeps the cold off, villagers eating and playing cards, a darts board, and a trophy wall with your biggest catches from up north. Go in by the front door on the porch.',
+        'Plane tricks on the flight: Q and E for barrel rolls, Space for a loop the loop (they add to your score).',
+        'A map of Frostmere (M up north): the village, the fishing spots, the wild places, the sled trails, thin ice, your holes and other anglers.',
+      ],
+      world: [
+        'The ice looks like real lake ice: frosty blues, clear patches you can see down into, air bubbles frozen in it, and fish gliding past underneath.',
+        'The flight has edges now (it steers you back toward the course), and you can dive down into the clouds.',
+        'Everything up north is solid: the parked plane, the race posts, the strip lamps, and the people of Hearthwick.',
+        'Marlowe\'s chart in Open Waters is far more detailed: depth contours, surf on the shores, the islands in relief with trees, and smoother zooming.',
+      ],
+      gear: ['Skates have real steel blades now.', 'The hand auger and the power auger are rebuilt in much more detail.'],
+      ui: [
+        'The Sled Derby and the Long Glide show a glowing pillar on the next gate, an arrow over your head pointing to it, and how far it is.',
+        'Pell\'s shop stays open while you buy: pick up as much as you like, then close it.',
+        'At sea, setting a course from the chart while you\'re ashore says it will call you back aboard.',
+      ],
+      fix: [
+        'Lacing up skates no longer leaves you stuck on fast monitors (144 Hz and up).',
+        'You can step off a dog sled any time, even moving (and quit the Derby the same way).',
+        'Landing up north, the plane no longer sinks into the ice; landing at home, it no longer appears off to the side of the camera.',
+        'Dive fins sit on your feet properly again.',
+      ],
+    },
+  },
+  {
+    version: 'v1.16.1', date: 'Oct 26 2026', title: 'Camera Unfrozen',
+    changes: {
+      fix: ['Holding the right mouse button turns the camera again. Frostmere\'s frost overlay was invisibly covering the game view and swallowing the mouse.'],
+    },
+  },
+  {
+    version: 'v1.16.0', date: 'Oct 26 2026', title: 'Frostmere',
+    changes: {
+      new: [
+        'Frostmere, a frozen north far west of the valley. From level 25, Skye Halloran flies you there in the Snow Goose (fly through the rings on the way for a better score).',
+        'Ice fishing: drill holes with an auger, jig over the flasher dial, and set tip-ups that pop a flag when a fish takes the bait. Old holes skin over; chip them open again.',
+        '14 new fish that only live up north, including the Aurora Char (only under the northern lights) and the Glacier King (only in a snowstorm).',
+        'Stay warm: a warmth meter that drains in the cold. The bonfire, porches, shanties, cocoa and warm clothes help. Try the sauna, then the polar plunge.',
+        'Thin ice by the inlets and the springs: stand still on it too long and you go through.',
+        'Rent a shanty with a stove and a hole in the floor, rent skates at the rink, and ride dog sleds: drive your own team, or hire a ride along the trails.',
+        'Races: the Sled Derby and the Long Glide (a skate race down the frozen river against Kit and Bo), with shared boards at the lodge for the Ice Derby, the races and the flight.',
+        'Snowball fights with Kit and Bo, first to five.',
+        'Five quest lines from the people of Hearthwick, and 15 Frostmere achievements.',
+        'Wildlife to photograph for the Field Guide (bears and cubs, foxes, caribou, muskox, seals, walrus, narwhals and more), plus three legends to find.',
+        'Find the five pages of the schooner Valiant\'s log scattered round the north\'s landmarks.',
+      ],
+      world: [
+        'Hearthwick village: the Hearth Lodge, the trading post, the smokehouse, the sauna, the kennels, a skating rink and a shanty town on the lake.',
+        'Snow, blizzards, diamond dust, and the northern lights on two nights in three (the same nights for everyone).',
+        'Six new music tracks for the north.',
+      ],
+      look: ['Northern clothes from Pell\'s trading post: the Expedition Parka, earflap, bobble and aviator hats, snow goggles, mittens, snow sweaters, a musher\'s bib, an aurora scarf and fur boots.'],
+      ui: ['A Frostmere tab in the Fishpedia, and a North tab in the journal for the quests, the Field Guide and the log pages.'],
+      fix: ['Smoother with lots of people around: each person is fewer draw calls, villagers\' rods are one piece, and only the nearest 16 are drawn.'],
+    },
+  },
+  {
+    version: 'v1.15.24', date: 'Oct 24 2026', title: 'Feet on the Pier',
+    changes: {
+      fix: [
+        'Coming home from Open Waters while you were swimming or diving no longer leaves you swimming under the charter pier: you always step off onto the pier.',
+        'Coming home from inside Coralhaven puts the view distance and lights back the way they were at the cove.',
+      ],
+    },
+  },
+  {
+    version: 'v1.15.23', date: 'Oct 24 2026', title: 'Coralhaven, Polished',
+    changes: {
+      world: [
+        'Coralhaven has real lights now: warm lamps light the rooms and corridors around you, so walls, floors and furniture have proper shading instead of looking flat.',
+        'Every doorway is arched to match its corridor; the square cut-outs (and the gaps above the arches) are gone.',
+        'The corridor portholes have polished gold rims with rivets.',
+        'The windows sit properly in the curved walls, frames and all.',
+        'The Glass Gallery\'s tank is full of water, and its fish swim long lazy laps like the ones in your cabin aquarium.',
+        'Every shopkeeper sits on a tall chair behind the counter, up where you can see them.',
+        'The Tidewater Inn has six beds, three down each side, spaced out and clear of Pip\'s desk.',
+        'Old Finn\'s ice tables are spread round the sides of the market instead of crowding his counter.',
+        'The airlock is tidied up: one ship\'s wheel in the middle of the hatch, no hazard stripes or puddle, just a welcome mat. Nerissa, in her smart navy uniform, greets you as you come in.',
+      ],
+      fix: [
+        'Coralhaven\'s furniture, fountain and counters are solid again (you could walk straight through them), and you can\'t cast indoors.',
+        'On a charter boat, you, your crew and Captain Marlowe stay planted on deck as she rolls and pitches, instead of sliding back and forth.',
+      ],
+    },
+  },
+  {
+    version: 'v1.15.22', date: 'Oct 24 2026', title: 'Look Around',
+    changes: {
+      fix: [
+        'Underwater, dragging with the right mouse button turns the camera again, every time (the blue tint over the view was catching the mouse once you were under).',
+        'The "Open Waters" title card no longer catches clicks while it fades.',
+      ],
+    },
+  },
+  {
+    version: 'v1.15.21', date: 'Oct 24 2026', title: 'White Water',
+    changes: {
+      world: [
+        'Seafoam at sea: white water laps along every beach, rock and reef edge, a bright line where the sea meets the land with lace rolling in toward it.',
+      ],
+      fix: [
+        'You no longer arrive on the charter riding your bike, and you can\'t get back on it at sea: bikes stay parked at the cove.',
+      ],
+    },
+  },
+  {
+    version: 'v1.15.20', date: 'Oct 24 2026', title: 'Under the Dome',
+    changes: {
+      new: [
+        'Coralhaven is a real town now. On the sea floor it\'s a cluster of coral-stone domes joined by tunnels, windows glowing. Swim to the airlock and go inside, where there\'s air and dry floor: the Grand Hall with its shell fountain and giant clam, Shelly\'s Trading Post, Old Finn\'s Fish Market, the Kelp & Kettle, the Glass Gallery (a whole wall of aquarium), Marina\'s Dive Locker and the Tidewater Inn. Townsfolk wander between them.',
+        'The Kelp & Kettle\'s bubble tea: half as much air again on your dives for 20 minutes.',
+        'Sleep till dawn at the Tidewater Inn (after dusk), and buy dive gear from Marina without sailing back to Kai.',
+        'Marlowe\'s chart is the big map panel now, like the valley\'s: drag it, zoom in, click a place for what\'s there and set a course from it. Places you discover are added once you find them.',
+      ],
+      world: [
+        'A sea floor everywhere you dive: sand, gravel and weed, all the way down.',
+        'Nobody stands about on the sea floor without a mask any more: the townsfolk live inside.',
+      ],
+      fix: [
+        'Underwater you hold your depth when you stop swimming (Space to go up, Shift to go down), instead of floating back up.',
+        'Dolphins keep to deep water: no more leaping onto the beach or under the jetty.',
+        'You can\'t pitch a camp on an island (camps are for the valley\'s woods).',
+      ],
+    },
+  },
+  {
+    version: 'v1.15.19', date: 'Oct 24 2026', title: 'Deep Blue',
+    changes: {
+      new: [
+        'Coralhaven: a whole village on a bank 17 metres down. Coral cottages with glowing windows, lamps on kelp stalks, and three glass air domes: swim into one and your air fills right up. Shelly trades a pearl for three bits of sea glass (and five of her pearls are lost round the village), and Old Finn pays half again for fish from deep water.',
+        'The Marigold: a freighter wreck on its own bank, broken in two, with morays in her portholes. Her strongbox fills up again every day. Nobody knows how.',
+        'Channel Light: a light on a platform out in the open sea. Tie up, climb on and meet Ida the keeper. She sells reef pots and longlines: set them from the boat at anchor and haul them up next trip for fish you didn\'t have to catch.',
+        'Emberkey: a young volcano, with black sand, steam rising from the slopes and a crater that glows. The warm water round it has fish of its own.',
+        'Three islets to swim out to: Gull Rock (sea lions and gulls), Lone Palm, and the Sandbar, where you can dig for clams at low tide (sometimes with a pearl inside).',
+        'Drifting weed mats: cast up against one and mahi and tripletail come out from underneath, and bite faster.',
+        'Flotsam: crates, barrels, glass floats, bottles with messages and the odd sea chest float about on every trip. Steer alongside and hook them from the deck.',
+        'Ships go by: a trawler with gulls in her wake, a sailing race round the middle of the sea, and on foggy nights... something else.',
+        'The logbook: ten places to find, each with a reward and a word from Marlowe. Open it from the deck.',
+      ],
+      world: [
+        'Five new sea fish: the tripletail (under the weed), the green moray (wrecks and reefs, and you can spear it), the lantern angelfish (Coralhaven at dusk and night), the emberfin snapper and the lava-glow moray (night, by the volcano).',
+        'Marlowe\'s chart shows the whole sea now, with the islets and Channel Light on it. Places you haven\'t sailed near yet stay misty until you do, or until Ida copies her chart into yours.',
+      ],
+      fix: [
+        'Clear water underwater: you can see 50 metres before the blue closes in (100 metres before it\'s solid), so spearfishing is much easier. Storms and rain still cut it down a little.',
+      ],
+    },
+  },
+  {
+    version: 'v1.15.18', date: 'Oct 23 2026', title: 'Speak Up',
+    changes: {
+      ui: [
+        'The Talk button no longer covers what someone is saying: it moves up above their speech bubble and name tag while they talk, and back down when they finish.',
+      ],
+    },
+  },
+  {
+    version: 'v1.15.17', date: 'Oct 23 2026', title: 'Bob Talks to Himself',
+    changes: {
+      world: [
+        'Hang around the crab races and Bob talks to himself every 15 to 20 seconds: 22 new lines about systems that don\'t work, crabs that won\'t win, and the sandals he lost on Yellow. You hear every line once before any repeat.',
+      ],
+    },
+  },
+  {
+    version: 'v1.15.16', date: 'Oct 22 2026', title: 'Bob\'s Big Day',
+    changes: {
+      world: [
+        'Meet Bob at the crab races on Palm Key. He runs the track from the finish line, he\'s sure his luck is about to turn, and he\'ll ask you for a few coins every time you pass.',
+        'Talk to Bob to hear how the races work, or spare him 10 coins and find out which crab he blows it on. He always bets it straight away. Keep stopping by: he notices who does.',
+      ],
+    },
+  },
+  {
+    version: 'v1.15.15', date: 'Oct 22 2026', title: 'Sharp Shooter',
+    changes: {
+      gear: [
+        'The speargun hits what the crosshair is on. While you hold one, the camera looks over your shoulder so the crosshair sits on the water ahead of you, and the spear flies to it.',
+        'Aim assist: when a fish is lined up the crosshair turns green, and the spear leads a moving fish.',
+        'Longer reach and faster spears: the pole spear reaches 10 m (was 6) and the band speargun 16 m (was 11). At the surface, shots go just under the water instead of steeply down into the sand.',
+      ],
+      fix: ['Captain Marlowe no longer stands in the middle of Cozy Cove behind the title screen: he\'s on his pier from the start.'],
+    },
+  },
+  {
+    version: 'v1.15.14', date: 'Oct 21 2026', title: 'Open Waters',
+    changes: {
+      ui: ['An Open Waters title fades into the middle of the screen as you arrive at sea, in the Reel Time logo\'s font: a life ring rocks in place of the O, and the letters ride a gentle swell over a rolling wave. It also says whose boat you\'re on, or that it\'s a night charter.'],
+      fix: ['A trip on your own boat no longer uses up your free first charter with Marlowe.'],
+    },
+  },
+  {
+    version: 'v1.15.13', date: 'Oct 21 2026', title: 'Your Own Boat',
+    changes: {
+      new: [
+        'A boat of your own: after three charters, once Marlowe calls you his Mate, he\'ll sell you a sportfisher of your own (40,000 coins). Ask him at the pier.',
+        'Name her (the name goes on the transom) and paint the hull, the stripe and the cushions.',
+        'Upgrades: outriggers (bites come about 15% quicker at anchor), a live well (15% of your catch\'s worth on top when you dock) and twin engines (31 knots instead of 21).',
+        'Tick "Take my boat" when you book and the trip is free, for you and your whole crew. Crewmates see your boat, paint and name included. Marlowe still takes the wheel.',
+      ],
+      fix: [
+        'On low graphics the island fires show their embers and glow without the flame effect, which keeps slower devices smooth.',
+        'The game is a third smaller to download (about 7 MB instead of 11.6 MB): the 3D models are stored compactly, with no change to how they look.',
+      ],
+    },
+  },
+  {
+    version: 'v1.15.12', date: 'Oct 21 2026', title: 'The Abyss',
+    changes: {
+      new: [
+        'Marlowe\'s trust: every trip earns his trust, and a trip with a trophy fish earns double. You rise from Deckhand to Mate, First Mate and Old Salt. He says where you stand at the pier, and each rank unlocks a new story ("Tell me a story").',
+        'The Abyss: once you\'re his First Mate, Marlowe will take you out past the Deep Blue to water so deep the bottom drops away. Few small fish live there, but plenty of monsters, and swordfish and giant squid bite any time of day.',
+        'Bait balls: now and then a boil of baitfish comes up close to the boat, with birds diving into it. Cast into it and bites come three times as fast, with mahi, tuna, wahoo and trevally right behind.',
+        'Waterspouts: in rain and storms a grey funnel sometimes walks across the horizon.',
+        'Fog banks: the sea closes in grey for a few minutes. Marlowe sounds the horn so you can find the boat (the strip at the top says which way), and makos and great whites come up in the fog.',
+      ],
+    },
+  },
+  {
+    version: 'v1.15.11', date: 'Oct 21 2026', title: 'Derby Week',
+    changes: {
+      new: [
+        'The Billfish Derby: every week (Monday to Sunday, UTC) the lake keeps a board of everyone\'s heaviest sailfish, blue marlin or swordfish. The winner gets the Derby Cup for their cottage wall, plus 1,500 coins and 3 pearls. Second and third place get 600 coins. See the board at Marlowe\'s pier or on the chart.',
+        'Tides: two a day at sea, low at dawn and dusk. At low tide rock pools come up out of the water along the island beaches, with something glinting in them. Search each one once a tide for a shell, a piece of sea glass, or now and then a pearl.',
+        'At high tide the reef fish crowd in, and spearfishing turns up more of them, big grouper and lionfish included.',
+      ],
+      look: [
+        'New cottage pieces: the Derby Cup, a Shell Shadow Box (find all six shells) and a Sea Glass Jar (find all five colours).',
+      ],
+      ui: ['The sea strip at the top shows the tide.'],
+      fix: ['The marlin bill, shark jaw and ship in a bottle hang flat on the cottage wall (they stuck out of it).'],
+    },
+  },
+  {
+    version: 'v1.15.10', date: 'Oct 21 2026', title: 'Island Nights',
+    changes: {
+      new: [
+        'Night charters: tick "Night charter" on Marlowe\'s booking card and the trip sets out after dark. The whole crew shares the same night sky.',
+        'Squid lights: at anchor after dark, Marlowe hangs floodlights off the stern. Little squid dart about in the pool of light, and giant squid and swordfish bite more often from the stern.',
+        'Glowing plankton: at night the wake, the bow wave, your bobber\'s splash and anyone swimming light up blue-green.',
+        'Sleep till dawn: after dusk, turn in at any hut door on Palm Key and wake to the sunrise. Your crew wakes up with you.',
+      ],
+      world: [
+        'The fire pits on Palm Key and Turtle Atoll burn now, with log benches round them. Sit down and roast a fish like at the valley campfires. Cook with a crewmate by the same fire and Well Fed lasts half as long again.',
+        'After dusk, Makoa plays the drum by the Palm Key fire, and the music turns to a fireside song (marimba, flute and brushes) while you\'re near.',
+      ],
+    },
+  },
+  {
+    version: 'v1.15.9', date: 'Oct 21 2026', title: 'Fish On',
+    changes: {
+      new: [
+        'Fish on! When Claude finishes your prompt while you\'re out on a charter, Marlowe shouts it, and the golden answer fish is a big-game fish.',
+        'Trip report: when you head home, a card shows your catch, what it\'s worth against the fee, your best fight, and a snapshot from the moment your heaviest fish came aboard. Save or copy it, and it goes in your photo album too.',
+        'Marlowe\'s lesson: on your free first charter he walks you through it step by step (the chart, a cast, the fighting chair, landing a fish, a dive and back aboard), and the first fish is a mahi to learn on. Skip it any time, or ask him at the pier to show you the ropes again.',
+      ],
+    },
+  },
+  {
+    version: 'v1.15.8', date: 'Oct 20 2026', title: 'Island Polish',
+    changes: {
+      world: [
+        'The islands have the valley\'s soft grass now, not the old spiky tufts.',
+        'New huts on Palm Key: a porch with rails, slatted walls with shuttered windows, an open door, layered thatch, and steps that come down off the porch the right way.',
+        'Kai\'s Tiki Bar is rebuilt: carved tiki posts, a lower counter with bottles, cups and a pineapple, stools out front, torches, and a hanging sign that says KAI\'S TIKI BAR. Kai stands on a step behind the counter, so you can see her properly.',
+        'New beach loungers with striped cushions, a pillow and a towel, under umbrellas with a scalloped edge.',
+        'The sea floor is smooth sand when you dive, with no jagged edges.',
+      ],
+      gear: [
+        'The scuba tank gives you 5 minutes of air, and the mask alone gives 1 minute.',
+        'The speargun fires the moment you press, at the surface too (aimed down into the water). You see the spear fly on its line, feel a kick, hear it, and it reels back if you miss. The crosshair flashes while it reloads.',
+      ],
+      fix: [
+        'Huts, loungers, umbrellas, the tiki bar and other island props are solid now: you walk round them, not through them.',
+        'Palm trees no longer have a twist in their trunks.',
+        'Island paths no longer run through huts or props.',
+      ],
+    },
+  },
+  {
+    version: 'v1.15.7', date: 'Oct 20 2026', title: 'Suit Up',
+    changes: {
+      look: [
+        'Your dive gear shows when you\'re in the water: the mask on your face, the scuba tank on your back, fins on your feet, and your speargun held out in front of you. Crewmates see it too.',
+      ],
+      ui: [
+        'The air meter counts down in seconds, and above it a row shows what you have on (mask or tank, fins, speargun). A note says what you put on each time you go in.',
+        'Kai\'s dive shop says it plainly: gear is yours to keep and you put it on whenever you go in the water.',
+      ],
+      fix: [
+        'Island props: the beach towel lies flat, the cannon sits on its carriage, and the research tent\'s canvas makes a proper A-frame.',
+      ],
+    },
+  },
+  {
+    version: 'v1.15.6', date: 'Oct 20 2026', title: 'Island Life',
+    changes: {
+      world: [
+        'All three islands are bigger and you can walk all over them. Smuggler\'s Rock has a path from the jetty beach up to an old lookout and two cannons on the cliff top, with its cliffs round the far side.',
+        'Turtle Atoll\'s ring of dunes is wide enough to stroll round on its path, and its lagoon is deep enough to swim: wade in off the lagoon beach and swim out to the motu in the middle (there\'s a hammock).',
+        'The islands use the valley\'s own ground: trodden paths, grass, bright coral sand and rock, with grass tufts, bushes, ferns, hibiscus, banana plants and sea grape on the grass, and driftwood, shells, coconuts and tide pools along the beaches.',
+        'Palm Key has a little village of huts round a fire pit, canoes pulled up on the sand, a net rack and signposts. Torches and fires glow after dark.',
+        'Turtle Atoll has a marine biologist\'s research tent and a fire on the dunes. Smuggler\'s Rock\'s cliffs are broken rock now, not a smooth wall.',
+      ],
+      new: [
+        'Islanders: Leilani runs the beach games, Old Mo fishes the jetty, Nani, Ben and Ivy wander Palm Key, Rua fishes the beach; Dr. Marina Reyes counts turtles, Kalani guides bonefish and Sam snorkels on Turtle Atoll; Salty Pete keeps the lookout and Jun hunts treasure on Smuggler\'s Rock. They say hello, cheer your catches, and some have stories: Talk to them.',
+        'Walk off a beach or a jetty into deep water and you start swimming; swim back to the sand and you walk out.',
+      ],
+      fix: [
+        'Marlowe\'s swordfish sign stands square along the beach beside his pier, not angled across the front of it.',
+        'Beach games: a guest always follows the host\'s round, so everyone sees the same podium (a moment\'s lag used to make a guest score it on their own).',
+      ],
+    },
+  },
+  {
+    version: 'v1.15.5', date: 'Oct 2026', title: 'Open Waters: Finishing Touches',
+    changes: {
+      new: [
+        'Big-game fish are now Trophy fish: a new tier above Legendary, with its own colour and marker everywhere fish are shown.',
+        'Captain Marlowe\'s tackle locker (ask him at the pier, or Crew & roles at sea). Every charter still comes with his rods and reels; to keep, there\'s a Big Game Rod (a 3,600 lb line, quicker fights, and 200 lb fish in the valley), a Trolling Skirt lure (keep fishing while the boat runs) and a Fighting Harness (your arms tire a third as fast).',
+        'Take the rod: when a crewmate\'s marathon fish is wearing them out, walk up and take over the fight where they left it.',
+        'A fish finder on the charter: the sea floor and the depth scroll by under the hull, with marks for what\'s down there. Big arches mean big game; near the islands at dusk, watch for a big dark shadow (a hammerhead).',
+        'The giant squid fights dirty: now and then it tows the whole boat after it.',
+        'Smuggler\'s Rock has a secret: swim through the rock arch into a hidden grotto with a lagoon and a pocket beach. Search the smugglers\' crates by the jetty (once a trip), or fish round the rock, and you may find a smugglers\' map. Dig up the X (bring a shovel) for a much richer chest than the valley\'s.',
+        'Spotted eagle rays glide round Turtle Atoll\'s lagoon with the turtles.',
+        'Below level 20, a chain and padlock hang across Marlowe\'s pier. They come down when you can sail.',
+      ],
+      ui: ['Low graphics quality is lighter at sea: the long swell without the choppy wind sea, no foam, caustics or spray.'],
+      fix: [
+        'Sitting in the fighting chair no longer drops you into the sea under the boat, and swimmers can no longer get stuck under the hull.',
+        'In the water, dragging with the mouse turns the camera again (the crosshair was catching the mouse) and a click fires your speargun. Beach games take the mouse too.',
+        'Swimming into an island: you wade out where you can stand, and rock and cliffs are a wall. No more swimming through the ground; anyone already stuck is put back on the beach or aboard.',
+        'The charter lines up with a jetty and comes straight in alongside it (and pulls away and turns before it leaves), instead of cutting across the jetty. Turns through every waypoint are smooth now.',
+      ],
+    },
+  },
+  {
+    version: 'v1.15.4', date: 'Oct 2026', title: 'Open Waters: Polish',
+    changes: {
+      new: [
+        'Eight Open Waters achievements in the Journal: Trophy Hunter, Big Game Angler, Grand Slam (a sailfish, a blue marlin and a swordfish on one charter), Let Them Run, Reef Ranger, Beach Champion, Whale Watcher, and Old Salt for catching all 24 sea fish.',
+        'Tag and release: land a sailfish or a blue marlin and Marlowe can tag it and let it go, for bonus XP and a Released badge in the Fishpedia.',
+        'An Open Waters tab in the Fishpedia: the sea\'s 24 fish, your best of each, how many you\'ve landed, and the Open Waters collection. Finish it for 3,000 coins, 30 pearls, the title Old Salt and a ship in a bottle for your cottage.',
+        'Trophies for your cottage: your first blue marlin sends home its bill, your first shark a set of jaws, and your first giant squid comes home in a jar.',
+        'Bonus sea requests on the notice board for anglers who can sail: one a day and one a week. They never count towards the daily bonus, so nobody has to go to sea to finish their day.',
+      ],
+      fix: [
+        'Beach games: against islanders alone the prizes are a little smaller, and after eight rounds in a day they shrink until tomorrow. Guests now wait for the host\'s results, so everyone sees the same podium.',
+      ],
+    },
+  },
+  {
+    version: 'v1.15.3', date: 'Oct 2026', title: 'Open Waters: Beach Games',
+    changes: {
+      new: [
+        'Beach Games on Palm Key: a board by the jetty lists five party games for up to four. Host one and your crew get an invite; islanders Lani, Keo and Pua fill any empty places, so you can play on your own too. Every place pays coins and XP, and your first win at each game earns a title and a prize hat.',
+        'Beach volleyball, one on one or two on two: a ring on the sand shows where the ball comes down. Get under it and press Space (or click) as it lands; the closer to the moment, the nastier your return. First to 5.',
+        'Crab races: back one of four crabs in the paddock, then cheer it down the track. Cheering on the beat gives it the biggest push.',
+        'Coconut toss: five coconuts, three buckets, and the further bucket scores more. Aim with the camera, hold to wind up, let go to throw.',
+        'Sandcastle contest: two minutes to build on your plot with mounds, towers, walls, moats, flags and shells, then everyone (Kai too) votes for their favourite castle that isn\'t their own.',
+        'Cannonball contest off the new diving tower at the end of the jetty: bounce, jump, and tuck just after the top for the biggest splash. Kai, Marlowe and a very serious gull hold up the scores.',
+        'The weather joins in: the wind pushes balls and coconuts about, the rain makes crabs run faster and sand stack a level higher (and makes the ball slippery), and Kai packs the games away in a storm.',
+        'A hammock up the beach past the loungers.',
+      ],
+      look: ['Five prize hats from the beach games: the Beach Visor, Crab Hat, Coconut Hat, Sand Pail Hat and Swim Cap.'],
+      fix: ['Gaffing a crewmate\'s fish: the help bar now says "Wait for it…" while the fish is alongside and turns to "NOW!" when the gaff will hold. After two misses Marlowe takes the gaff himself.'],
+    },
+  },
+  {
+    version: 'v1.15.2', date: 'Oct 2026', title: 'Open Waters: Under the Sea',
+    changes: {
+      new: [
+        'Swimming and diving: dive in from the boat\'s swim platform or off the end of a jetty. W swims where you look (look down to dive), Space swims up, Shift swims down, and you can wade out onto any beach.',
+        'Air: one breath lasts 30 seconds; surface to refill. Run out and Marlowe hauls you aboard (no harm done).',
+        'Under the water: the world turns blue-green and closes in with depth, at night and in rough weather; light ripples across the sand and coral, sunbeams slant down by day, the surface shimmers overhead, and every sound goes muffled.',
+        'Reefs to explore round every island and at Reef Edge: brain and staghorn coral, sea fans, anemones with clownfish, kelp, sponges and giant clams, with schools of tangs and idols, sea turtles, and an old wreck lying off Smuggler\'s Rock where the goliath groupers hide.',
+        'Spearfishing: Kai sells a Pole spear and a Band speargun at the tiki bar. Aim at the crosshair and lead moving fish. Lionfish, goliath grouper and octopus only come to a spear, and every lionfish earns a reef cleanup bonus. Kai also sells a dive mask (45 s of air), a scuba tank (90 s) and fins.',
+      ],
+    },
+  },
+  {
+    version: 'v1.15.1', date: 'Oct 2026', title: 'Open Waters: Island Time',
+    changes: {
+      new: [
+        'Three islands to walk on. Sail to one on the chart and Marlowe ties up at its jetty: Go ashore, fish from the beach and the jetty, and come Back aboard when you\'re done (the horn calls everyone back before the boat leaves).',
+        'Palm Key: a long beach with palms, loungers and huts, and Kai\'s Tiki Bar. Kai grills a fish from your backpack island-style; eat it and its relatives come looking for you. Reef fish keep you going twice as long.',
+        'Turtle Atoll: a ring of sand round a turquoise lagoon, with sea turtles paddling about. Smuggler\'s Rock: cliffs, a rock arch over the cave mouth, and the smugglers\' leftover crates.',
+        'Twelve tropical fish: clownfish, blue tang, red snapper, parrotfish, triggerfish, Moorish idol, bonefish, great barracuda and the leaping tarpon from the shore, plus lionfish, goliath grouper and octopus for the speargun (coming with diving).',
+        'Six more big-game fish: bluefin tuna and blue marlin (marathon fights of several minutes: bring the crew), swordfish at night in the Canyon, great hammerheads round the islands at dusk, the giant squid (it squirts ink), and the great white, which only shows itself in a storm.',
+        'The Canyon and Reef Edge open on the chart.',
+      ],
+    },
+  },
+  {
+    version: 'v1.15.0', date: 'Oct 2026', title: 'Open Waters: Set Sail',
+    changes: {
+      new: [
+        'Captain Marlowe runs charters from a new pier on the east side of Cozy Cove, by the lighthouse. Talk to him to book: your party (up to 4) gets an invite to board, and you can always go solo. Everyone aboard needs level 20. A trip is 5,000 coins each, and your first one is free.',
+        'Open Waters: a real ocean past the lighthouse, with three islands on the horizon, a weed line, Marlowe\'s mooring and the Deep Blue. Open the chart (M) to sail between spots; anyone aboard can take the wheel.',
+        'Real sea, real weather: long swells and wind waves that build and ease with the weather. A clear day rocks you gently; a storm throws up 4-metre seas with breaking whitecaps, spray over the bow and a grey wall of rain. The weather changes the bites, the fight, how far you can see, the sound of the sea and what turns up around the boat.',
+        'Six big-game fish: mahi-mahi, wahoo, yellowfin tuna, giant trevally, sailfish and shortfin mako. Hook one and you go to the fighting chair: let it run, rest your arms (reel in bursts), and bring it alongside for the gaff. Fights take a minute or two, and a big fish pays for the trip.',
+        'Crew roles: the captain backs the boat down on a run, the gaffer lands the fish, and the spotter calls jumps and birds working bait (press Y). Fishing alone? Marlowe covers every role. Step away mid-fight and he holds the rod for a minute.',
+        'Whales and dolphins: humpbacks (and now and then a blue whale) blow, roll and lift their flukes far off the boat, and pods of dolphins come to ride the bow. Everyone aboard sees the same ones. Just scenery: nothing to catch.',
+        'Out at sea your crew has its own room: you see and chat with each other only, and the lake shows you as away on a charter until you\'re back.',
+      ],
+      world: [
+        'The sea has its own music (marimba, flute and vibes, no guitar) and sound: the wash along the hull, the wind in the rigging, gulls, whale blows and dolphin whistles.',
+      ],
+    },
+  },
+  {
     version: 'v1.14.11', date: 'Oct 24 2026', title: 'Take a Dip',
     changes: {
       new: [

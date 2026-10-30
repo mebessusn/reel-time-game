@@ -7,10 +7,48 @@ import { buildAvatar, animateAvatar } from '../entities/avatar2.js';
 import { buildRod, buildBobber, buildBoat, FishingLine, animateOars } from '../entities/gear.js';
 import { gearReady } from '../entities/gearModels.js';
 import { buildFish } from '../entities/fish.js';
-import { WATER_Y } from '../world/terrain.js';
+import { WATER_Y, inValley } from '../world/terrain.js';
 import { waveAt } from '../world/water.js';
+import { DIVEGEAR_MATS, DIVEGEAR_NODES } from '../data/diveGearMesh.js';
+import { buildNode } from '../ocean/meshes.js';
 
 const tmpV = new THREE.Vector3();
+
+/** The sole of the boot in the leg's own space (avatar2's leg: LH long, the shoe's sole just under it, 4 cm forward,
+ *  0.31 long), worked out from the avatar's hip height and leg depth since the leg's parts are merged into one mesh. */
+function legSole(avatar) {
+  const SC = (avatar.legHalf || 0.12) / 0.115, LH = (avatar.hip || 0.32) / SC;
+  return { y: -LH - 0.01, z: 0.04, len: 0.31, sc: SC };
+}
+
+// v1.16.2: the skates' blades, built in the leg's own units: a steel runner with a rocker and a curled toe, two black
+// stanchions and a sole plate. Shared per size; one steel and one holder material for everybody.
+const BLADE_H = 0.1;
+const BLADES = new Map();
+let STEEL = null, HOLDER = null;
+function makeBlade(len, hgt) {
+  const key = `${len.toFixed(3)}|${hgt.toFixed(3)}`;
+  let G = BLADES.get(key);
+  if (!G) {
+    const h2 = hgt, run = new THREE.Shape(), z0 = -len * 0.5, z1 = len * 0.5;
+    // drawn in (z, y): the bottom rocks gently, the toe sweeps up in front of the boot
+    run.moveTo(z0, -h2 * 0.78); run.quadraticCurveTo(0, -h2 * 1.04, z1 * 0.8, -h2 * 0.86);
+    run.quadraticCurveTo(z1 * 1.12, -h2 * 0.7, z1 * 1.08, -h2 * 0.3); run.lineTo(z1 * 0.96, -h2 * 0.36);
+    run.quadraticCurveTo(z1 * 0.96, -h2 * 0.6, z1 * 0.76, -h2 * 0.62); run.lineTo(z0, -h2 * 0.58); run.closePath();
+    const t = 0.028, runner = new THREE.ExtrudeGeometry(run, { depth: t, bevelEnabled: false, curveSegments: 10 });
+    runner.translate(0, 0, -t / 2); runner.rotateY(-Math.PI / 2); // (shape x -> the foot's +z, the toe forward)
+    const plate = new THREE.BoxGeometry(0.09, h2 * 0.2, len * 0.86); plate.translate(0, -h2 * 0.1, 0);
+    const st = [len * 0.3, -len * 0.32].map((z) => { const b = new THREE.BoxGeometry(0.05, h2 * 0.5, 0.09); b.translate(0, -h2 * 0.42, z); return b; });
+    G = { runner, plate, st };
+    BLADES.set(key, G);
+  }
+  STEEL ||= new THREE.MeshPhongMaterial({ color: '#aeb9c4', specular: '#ffffff', shininess: 120 });
+  HOLDER ||= new THREE.MeshLambertMaterial({ color: '#1c2026' });
+  const g = new THREE.Group(); g.name = 'skate-blade';
+  g.add(new THREE.Mesh(G.runner, STEEL), new THREE.Mesh(G.plate, HOLDER), ...G.st.map((b) => new THREE.Mesh(b, HOLDER)));
+  for (const m of g.children) m.castShadow = true;
+  return g;
+}
 
 export class Actor {
   static camera = null; // set by the game so held fish can turn to face it
@@ -52,11 +90,12 @@ export class Actor {
       this.rodPlace = null;
       this.lookKey = key;
       this.gearKey = ''; // re-attach rod
+      this.diveKey = null; this.diveParts = null; // (the dive gear hangs off the old avatar's parts: rebuild it)
     }
     const gkey = `${equipped.rod}|${equipped.lure}|${equipped.boat}|${gearReady()}`; // rebuilt once the detailed models arrive
     if (gkey !== this.gearKey) {
       if (this.rod) this.rod.parent?.remove(this.rod);
-      this.rod = buildRod(equipped.rod);
+      this.rod = buildRod(equipped.rod, this.lite); // (lite: villagers' rods are one draw call)
       this.rodPlace = null;
       this.placeRod(this.wantRod || 'hand');
       if (this.bobberObj) this.scene.remove(this.bobberObj);
@@ -132,6 +171,49 @@ export class Actor {
     this.shovel.visible = on;
   }
 
+  /**
+   * v1.15.7 Open Waters: dive gear you can see, worn while swimming. dg: a string of what you have on:
+   * m mask, t tank, f fins, p pole spear / b band speargun (in the right hand). '' takes it all off.
+   */
+  setDiveGear(dg = '') {
+    if (dg === this.diveKey || !this.avatar) return;
+    this.diveKey = dg;
+    const A = this.avatar, P = A.parts;
+    if (!this.diveParts) {
+      const mk = (name, parent, setup) => { const o = buildNode(DIVEGEAR_MATS, DIVEGEAR_NODES, name, { shadow: false }); setup?.(o); parent.add(o); o.visible = false; return o; };
+      const foot = () => { const b = legSole(A); return (o) => o.position.set(0, b.y, b.z); }; // (the sole of the shoe)
+      this.diveParts = {
+        m: mk('dive_mask', P.head),
+        t: mk('dive_tank', P.body),
+        fL: mk('dive_fin', P.legL, foot(P.legL)), fR: mk('dive_fin', P.legR, foot(P.legR)),
+        p: mk('gun_pole', A.rodHand, (o) => o.rotation.set(Math.PI, 0, 0)), // (out along the arm, away from the shoulder)
+        b: mk('gun_band', A.rodHand, (o) => o.rotation.set(Math.PI, 0, 0)),
+      };
+    }
+    const D = this.diveParts;
+    D.m.visible = dg.includes('m'); D.t.visible = dg.includes('t');
+    D.fL.visible = D.fR.visible = dg.includes('f');
+    D.p.visible = dg.includes('p'); D.b.visible = dg.includes('b');
+    if (this.rod) this.rod.visible = !dg; // (the rod stays in the boat while you swim)
+  }
+
+  /** v1.16.2 Frostmere: ice skates you can see: a steel runner with a curved toe under each boot, on a black holder
+   *  with two stanchions. Sized from the boot's own sole. */
+  setBlades(on) {
+    if (!this.avatar) return;
+    if (!on && !this.blades) return;
+    if (!this.blades || this.blades.avatar !== this.avatar) {
+      const P = this.avatar.parts, B = [];
+      for (const leg of [P.legL, P.legR]) {
+        const b = legSole(this.avatar);
+        const m = makeBlade(b.len * 1.05, BLADE_H / b.sc); m.position.set(0, b.y, b.z);
+        leg.add(m); B.push(m);
+      }
+      this.blades = { avatar: this.avatar, parts: B };
+    }
+    for (const m of this.blades.parts) m.visible = on;
+  }
+
   setMode(mode) {
     this.mode = mode;
     if (this.boatObj) this.boatObj.visible = mode === 'boat';
@@ -183,14 +265,17 @@ export class Actor {
       // on it), lower legs hanging, and the hips back against the backrest. The chair keeps its facing and
       // only the upper body turns toward the cast.
       const hip = this.avatar.hip || 0.32;
-      this.body.position.set(0, s.seat ? s.seat - hip + (this.avatar.legHalf || 0.12) : 0, s.seat ? -0.07 : 0);
+      this.body.position.set(0, s.seat ? s.seat - hip + (this.avatar.legHalf || 0.12) : s.blades && !s.sled ? BLADE_H : 0, s.seat ? -0.07 : 0); // (v1.16.2: up on your blades)
       this.chairBend = s.seat ? -Math.PI / 2 + 0.12 : 0;
       if (s.seat && s.seatYaw != null) {
         this.root.rotation.y = s.seatYaw;
         const d = s.yaw - s.seatYaw;
         this.twist = Math.max(-1.1, Math.min(1.1, Math.atan2(Math.sin(d), Math.cos(d))));
       } else this.twist = 0;
+      if (s.shiver) this.body.position.x += Math.sin(t * 52) * 0.016 * s.shiver; // (v1.17.2: freezing, up north)
       if (s.moving && pose === 'idle' && !s.seat) pose = s.running ? 'run' : 'walk';
+      if (s.skate && (pose === 'walk' || pose === 'run' || pose === 'idle')) pose = s.skate > 1 ? 'skate' : s.moving ? 'glide' : 'idle'; // Frostmere: on skates (2 pushing, 1 gliding)
+      if (s.sled) pose = 'sled'; // Frostmere: driving a dog sled
       // v1.9: on a bike: sat on the saddle, feet on the pedals, hands on the bars, leaning into turns
       if (s.bike?.id) {
         if (this.bikeId !== s.bike.id) {
@@ -204,8 +289,16 @@ export class Actor {
         this.root.rotation.z = s.bike.lean || 0;
         pose = 'bike';
       } else if (this.bikeObj) this.bikeObj.visible = false;
-      // v1.14.11: swimming in the valley's lakes and rivers: treading water at the surface, a crawl when moving
-      if (this.mode === 'swim') {
+      // v1.15 Open Waters: swimming. Treading water at the surface, lying out flat underwater
+      if (s.swim) {
+        this.root.rotation.order = 'YXZ';
+        const want = s.swim === 2 ? 1.25 + Math.max(-0.5, Math.min(0.5, (s.swimPitch || 0) - 0.3)) : 0.25;
+        this.swimTilt = (this.swimTilt ?? want) + (want - (this.swimTilt ?? want)) * Math.min(1, dt * 4);
+        this.root.rotation.x = this.swimTilt;
+        this.body.position.set(0, s.swim === 2 ? -0.35 : -1.05, 0);
+        pose = s.moving || s.swim === 2 ? 'swim' : 'tread';
+        if (/[pb]/.test(s.dg || '')) pose += 'gun'; // the speargun held out ahead
+      } else if (this.mode === 'swim' && inValley(s.x)) { // v1.14.11: swimming in the valley's lakes and rivers
         this.root.rotation.order = 'YXZ';
         const want = s.moving ? 0.55 : 0.25;
         this.swimTilt = (this.swimTilt ?? want) + (want - (this.swimTilt ?? want)) * Math.min(1, dt * 4);
@@ -215,8 +308,10 @@ export class Actor {
         pose = s.moving ? 'swim' : 'tread';
       } else if (this.root.rotation.order !== 'XYZ') { this.root.rotation.order = 'XYZ'; this.swimTilt = null; }
     }
+    this.setDiveGear(s.swim ? s.dg || '' : '');
+    this.setBlades(!!s.blades && !s.swim && !s.sled);
     if (this.held && pose === 'idle') pose = 'hold';
-    const busyHands = ['photo', 'swim', 'tread', 'wave', 'cheer', 'shrug', 'clap', 'dance', 'orange', 'run', 'sleep', 'hold', 'row', 'oars', 'dig', 'bike', 'yell', 'cry', 'roast', 'eat'].includes(pose);
+    const busyHands = ['photo', 'swim', 'tread', 'swimgun', 'treadgun', 'wave', 'cheer', 'shrug', 'clap', 'dance', 'orange', 'run', 'sleep', 'hold', 'row', 'oars', 'dig', 'bike', 'yell', 'cry', 'roast', 'eat', 'bump', 'tuck', 'throw', 'skate', 'glide', 'sled'].includes(pose);
     this.placeRod(s.rod === 'back' || busyHands ? 'back' : 'hand');
     this.showShovel(pose === 'dig');
     if (pose === 'photo' || this.camProp) this.showCamera(pose === 'photo');

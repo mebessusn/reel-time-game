@@ -18,9 +18,12 @@ t('species: unique ids, valid zones/weights', () => {
   for (const s of SPECIES) assert.ok(s.weight[0] < s.weight[1], s.id);
 });
 
-t('40 achievements with unique ids', () => {
-  assert.equal(ACHIEVEMENTS.length, 40);
-  assert.equal(new Set(ACHIEVEMENTS.map((a) => a.id)).size, 40);
+t('40 achievements with unique ids, plus 8 for Open Waters and 15 for Frostmere', () => {
+  assert.equal(ACHIEVEMENTS.filter((a) => a.category !== 'Open Waters' && a.category !== 'Frostmere' && a.category !== 'Air Races').length, 40);
+  assert.equal(ACHIEVEMENTS.filter((a) => a.category === 'Air Races').length, 14);
+  assert.equal(ACHIEVEMENTS.filter((a) => a.category === 'Open Waters').length, 8);
+  assert.equal(ACHIEVEMENTS.filter((a) => a.category === 'Frostmere').length, 15);
+  assert.equal(new Set(ACHIEVEMENTS.map((a) => a.id)).size, 77);
 });
 
 t('v1.13: lakes climb base, deep end, landmark; a rod never catches shellfish', () => {

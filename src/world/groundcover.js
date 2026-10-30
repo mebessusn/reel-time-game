@@ -34,7 +34,7 @@ function open(x, z, pad = 0) {
 }
 
 // ---------------------------------------------------------------- shared wind sway
-function addWind(mat, wind, strength, key) {
+export function addWind(mat, wind, strength, key) {
   mat.onBeforeCompile = (sh) => {
     sh.uniforms.uWind = wind.uWind; sh.uniforms.uWT = wind.uWT;
     sh.vertexShader = sh.vertexShader
@@ -57,7 +57,7 @@ function addWind(mat, wind, strength, key) {
 }
 
 // ---------------------------------------------------------------- grass tufts
-function tuftGeometry(r) {
+export function tuftGeometry(r) {
   const geos = [];
   const blades = 7;
   for (let i = 0; i < blades; i++) {
@@ -83,22 +83,29 @@ function tuftGeometry(r) {
   return mergeGeometries(geos);
 }
 
+/** The grass tufts' material: swaying in the wind, and v1.8.2: both sides of a blade lit the same bright green (no
+ *  dark backs): the up-facing normal is kept on back faces instead of flipped, so the light doesn't change with which
+ *  side you see. (Also used for the Open Waters islands' grass.) */
+export function tuftMaterial(wind, key = 'grass-tufts') {
+  const mat = new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide });
+  addWind(mat, wind, 0.09, key);
+  const windCompile = mat.onBeforeCompile;
+  mat.onBeforeCompile = (sh, r) => {
+    windCompile?.(sh, r);
+    sh.fragmentShader = sh.fragmentShader.replace('#include <normal_fragment_begin>', '#include <normal_fragment_begin>\n\tnormal = normalize( vNormal );');
+  };
+  mat.customProgramCacheKey = () => `${key}-2side`;
+  return mat;
+}
+export const tuftGeo = () => tuftGeometry(rng(4242));
+
 class GrassField {
   constructor(scene, wind) {
     this.scene = scene;
     this.TILE = 12;
     this.tiles = new Map();
     this.geo = tuftGeometry(rng(4242));
-    this.mat = new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide });
-    addWind(this.mat, wind, 0.09, 'grass-tufts');
-    // v1.8.2: both sides of a blade lit the same bright green (no dark backs): keep the up-facing normal
-    // on back faces instead of flipping it, so the light doesn't change with which side you see
-    const windCompile = this.mat.onBeforeCompile;
-    this.mat.onBeforeCompile = (sh, r) => {
-      windCompile?.(sh, r);
-      sh.fragmentShader = sh.fragmentShader.replace('#include <normal_fragment_begin>', '#include <normal_fragment_begin>\n\tnormal = normalize( vNormal );');
-    };
-    this.mat.customProgramCacheKey = () => 'grass-tufts-2side';
+    this.mat = tuftMaterial(wind);
     this.radius = 30;
     this.t = 0;
   }
@@ -250,7 +257,7 @@ function footprintColliders(geo, cx, cz, ground, solid = false) { // solid (v1.1
   addCircle(mx, mz, b * k, opt);
 }
 
-function rockGeometry(r, size) {
+export function rockGeometry(r, size) {
   const g = lumpy(new THREE.IcosahedronGeometry(size, 1), r, 0.42);
   g.scale(1 + r() * 0.5, 0.55 + r() * 0.3, 1 + r() * 0.4);
   g.computeVertexNormals();
@@ -262,7 +269,7 @@ function rockGeometry(r, size) {
 }
 
 // ---------------------------------------------------------------- branches
-function branchGeometry(r) {
+export function branchGeometry(r) {
   const parts = [];
   const len = 0.5 + r() * 1.1, rad = 0.025 + r() * 0.025;
   const bark = C(['#6b4a2c', '#5e4630', '#7a5a3a'][Math.floor(r() * 3)]);

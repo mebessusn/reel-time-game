@@ -7,6 +7,8 @@ import { defaultAvatar } from '../data/avatarOptions.js';
 import { weekId } from '../core/clock.js';
 import { BAITS } from '../data/bait.js';
 import { seasonBoost } from '../data/seasons.js';
+import { OCEAN_SPECIES, OCEAN_ZONES } from '../data/oceanSpecies.js';
+import { NORTH_SPECIES, NORTH_ZONES } from '../data/northSpecies.js';
 
 export const CREEL_MAX = 20;
 export const STORAGE_MAX = 200;
@@ -139,20 +141,26 @@ export function tierOdds(ctx) {
   if (ctx.spotKind) { odds.rare *= 1.6; odds.epic *= 1.8; }
   if (ctx.spotKind === 'legend') odds.legendary *= 4;
   if (ctx.spotKind === 'mythic') { odds.mythic *= 2; odds.legendary *= 2; }
-  if (ctx.zone !== 'ruins' && ctx.spotKind !== 'mythic') odds.mythic = 0;
+  if (ctx.zone === 'abyss') { odds.common *= 0.3; odds.uncommon *= 0.5; odds.epic *= 2; odds.legendary *= 3; } // v1.15.12: the Abyss: few small fish, many monsters
+  if (ctx.zone === 'ridge' && (ctx.weather === 'storm' || ctx.weather === 'rain')) odds.legendary *= 3; // Frostmere: the Glacier King comes up in a snowstorm
+  if (ctx.zone === 'springs' && ctx.aurora) odds.mythic *= 6;
+  else if (ctx.zone !== 'ruins' && ctx.spotKind !== 'mythic') odds.mythic = 0;
   return odds;
 }
 
 export function eligibleSpecies(tier, ctx) {
-  return SPECIES.filter((s) => {
+  return (OCEAN_ZONES[ctx.zone] ? OCEAN_SPECIES : NORTH_ZONES[ctx.zone] ? NORTH_SPECIES : SPECIES).filter((s) => { // v1.15: the sea has its own fish (and Frostmere its own)
     if (tier && s.tier !== tier) return false;
     if (s.shell) return false; // v1.12: shellfish only come up in traps
+    if (s.spear && !ctx.spear) return false; // v1.15: some reef fish only come to a speargun
     if (s.spots) return !!ctx.spot && s.spots.includes(ctx.spot) && (s.times.includes('any') || s.times.includes(ctx.phase)) && (!s.weather || s.weather.includes(ctx.weather)); // lake exclusives live in their lake's deep end or landmark
     const zoneOk = s.zones.includes(ctx.zone) || (ctx.zone === 'ruins' && s.zones.includes('deep'));
     if (!zoneOk) return false;
-    if (!s.times.includes('any') && !s.times.includes(ctx.phase)) return false;
+    if (!s.times.includes('any') && !s.times.includes(ctx.phase) && !(s.deep && ctx.zone === 'abyss')) return false; // (v1.15.12: in the Abyss it's always night)
     if (s.weather && !s.weather.includes(ctx.weather)) return false;
     if (s.bloodMoon && !ctx.bloodMoon) return false;
+    if (s.great && !ctx.great) return false; // (v1.17.2: the Spirit Whitefish rises only on a Great Aurora)
+    if (s.aurora && !ctx.aurora) return false; // Frostmere: the Aurora Char rises only under the lights
     return true;
   });
 }
@@ -237,6 +245,7 @@ export function rollBite(ctx, r = Math.random) {
     if (s.bloodMoon) w *= 4; // and under a blood moon, the hunters crowd everything else out
     if (ctx.bait && BAITS[ctx.bait]) w *= BAITS[ctx.bait].likes(s);
     if (ctx.season) w *= seasonBoost(ctx.season, s.id);
+    if (ctx.boost?.[s.id]) w *= ctx.boost[s.id]; // v1.15.10: Open Waters' squid lights (and later, the sea's own events)
     return w;
   }, r);
   const vo = variantOdds(ctx);
@@ -248,12 +257,15 @@ export function rollBite(ctx, r = Math.random) {
 export function catchValue(speciesId, variant, weight) {
   const s = SPECIES_BY_ID[speciesId];
   if (!s) return 0;
+  // v1.15: big-game fish have their own price, scaled by weight (a big one pays for the charter)
+  if (s.value) return Math.max(1, Math.round(s.value.coins * VARIANTS[variant].coinMult * ((weight / s.weight[1]) * 0.6 + 0.4)));
   const t = TIER_INFO[s.tier];
   return Math.max(1, Math.round(t.coins * VARIANTS[variant].coinMult * ((weight / s.weight[1]) * 0.5 + 0.75)));
 }
 
 export function catchXp(speciesId) {
   const s = SPECIES_BY_ID[speciesId];
+  if (s?.value) return s.value.xp;
   return Math.round(TIER_INFO[s.tier].xp * (1 + 0.1 * s.difficulty));
 }
 
@@ -270,7 +282,7 @@ export function tradePearls(speciesId, variant) {
 
 export function isGreatCatch(c) {
   const s = SPECIES_BY_ID[c.speciesId];
-  return ['rare', 'epic', 'legendary', 'mythic'].includes(s.tier) || c.variant !== 'normal' || c.record;
+  return ['rare', 'epic', 'legendary', 'mythic'].includes(s.tier) || !!s.big || c.variant !== 'normal' || c.record;
 }
 
 const inc = (stats, k, n = 1) => { stats[k] = (stats[k] || 0) + n; };
@@ -308,7 +320,12 @@ export function applyCatch(p, c, now = Date.now()) {
   if (personalBest) entry.best = c.weight;
   p.fishpedia[s.id] = entry;
 
-  const all = Object.keys(p.fishpedia);
+  // v1.15: the valley's Fishpedia goals count the valley's fish; the sea's are counted on their own
+  const everything = Object.keys(p.fishpedia);
+  const all = everything.filter((id) => !SPECIES_BY_ID[id]?.ocean && !SPECIES_BY_ID[id]?.north); // (Frostmere's are counted on their own too)
+  st.oceanSpecies = everything.filter((id) => SPECIES_BY_ID[id]?.ocean).length;
+  st.northSpecies = everything.filter((id) => SPECIES_BY_ID[id]?.north).length;
+  st.northLegends = ['glacierking', 'oldsleeper', 'aurorachar'].filter((id) => p.fishpedia[id]).length;
   st.speciesCaught = all.length;
   for (const t of ['common', 'uncommon', 'rare', 'epic']) st[`species_${t}`] = all.filter((id) => SPECIES_BY_ID[id]?.tier === t).length;
   st.diamondSpecies = all.filter((id) => p.fishpedia[id].diamond > 0).length;
@@ -320,8 +337,12 @@ export function applyCatch(p, c, now = Date.now()) {
   st.weekScore = (st.weekScore || 0) + pts;
   st.allScore = (st.allScore || 0) + pts;
   if (c.variant === 'diamond') st.weekDiamonds = (st.weekDiamonds || 0) + 1;
-  st.weekHeaviest = Math.max(st.weekHeaviest || 0, c.weight);
-  st.heaviest = Math.max(st.heaviest || 0, c.weight);
+  if (s.ocean) st.oceanHeaviest = Math.max(st.oceanHeaviest || 0, c.weight); // a 300 lb tuna would bury every lake record
+  if (s.ocean && s.big) inc(st, 'owTrophy'); // v1.15 Open Waters achievements
+  else {
+    st.weekHeaviest = Math.max(st.weekHeaviest || 0, c.weight);
+    st.heaviest = Math.max(st.heaviest || 0, c.weight);
+  }
 
   // Lake records are decided by the save layer (shared across players); see save/*.js
   const record = false;
@@ -469,6 +490,20 @@ export function bumpStat(p, key, n = 1) {
   if (!allowed[key]) return;
   if (key === 'goodCompany' || key === 'avatarSaves') { p.stats[key] = Math.max(p.stats[key] || 0, 1); return; }
   inc(p.stats, key, Math.min(n, allowed[key]));
+}
+
+// v1.15 Open Waters: counters the sea keeps itself (a grand slam, billfish released, reef fish speared, beach games
+// won, whale breaches). They only ever go up, and only these keys can be set.
+export const OCEAN_STATS = { owGrandSlam: 5, owBillRelease: 1000, owReefSpeared: 8, owPartyWins: 5, owBreach: 1000,
+  // Frostmere's counters (src/north/progress.js), set the same way
+  fmHoles: 100000, fmFlags: 100000, fmTriple: 1000, fmThrough: 1000, fmSaunas: 100000, fmPlunge: 1000, fmGlide: 1000, fmDerby: 1000, fmTopDog: 1000, fmBearCubs: 1, fmAuroras: 10000, fmFlight3: 1000, fmGuide: 13, fmPages: 5,
+  // v1.17 Skye's Air Races (src/air/airraces.js)
+  arRaces: 100000, arWins: 100000, arGolds: 36, arGoldCircuits: 12, arPlat: 1000, arCuts: 12, arTricks: 1000000, arClean: 100000, arHurricane: 100000, arParty: 100000, arPerfect: 100000 };
+export function setOceanStats(p, map = {}) {
+  for (const [k, v] of Object.entries(map)) {
+    if (!(k in OCEAN_STATS) || !Number.isFinite(+v)) continue;
+    p.stats[k] = Math.max(p.stats[k] || 0, Math.min(OCEAN_STATS[k], Math.floor(+v)));
+  }
 }
 
 export function claimableAchievements(p) {

@@ -1,0 +1,218 @@
+/* Open Waters (v1.15): charter cards, the chart, the sea strip, the crew's help bar and the big-game reel extras.
+   Same "Pine & Bobber" system as the rest of the interface (src/ui/style.css). */
+.ow-modal { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 60; width: min(460px, calc(100vw - 32px)); max-height: calc(100vh - 40px); overflow: auto; padding: 16px 18px; border-radius: var(--r-lg); color: var(--on-dark); background: var(--glass); box-shadow: var(--sh-2); animation: fadeIn .2s ease-out; pointer-events: auto; }
+.ow-modal .close-x { position: absolute; top: 8px; right: 8px; }
+.ow-head { display: flex; align-items: center; gap: 12px; padding-right: 30px; }
+.ow-head b { display: block; font: 800 var(--t-l)/1.15 var(--font-head); }
+.ow-head span { font-size: var(--t-s); color: var(--on-dark-2); }
+.ow-badge { width: 44px; height: 44px; flex: none; border-radius: 50%; display: grid; place-items: center; background: radial-gradient(circle at 40% 35%, #3f9bb0, #15505a); color: #fff; box-shadow: 0 0 0 3px rgba(255, 255, 255, .2); }
+.ow-badge .ico-svg { width: 24px; height: 24px; }
+.ow-report { display: flex; gap: 8px; align-items: center; margin: 12px 0 4px; padding: 8px 10px; border-radius: var(--r); background: rgba(34, 106, 115, .35); font-size: var(--t-s); }
+.ow-report .ico-svg { flex: none; color: #ffe08a; }
+.ow-list { list-style: none; margin: 10px 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.ow-crew { display: grid; grid-template-columns: 48px 1fr auto; align-items: center; gap: 8px; padding: 6px 8px; border-radius: var(--r); background: rgba(255, 255, 255, .06); font-size: var(--t-m); }
+.ow-crew small { color: var(--on-dark-2); font-size: var(--t-xs); text-align: right; }
+.ow-crew.off { opacity: .55; }
+.ow-lv { font: 400 var(--t-xs)/1 var(--font-pixel); color: var(--brass); display: grid; place-items: center; }
+.ow-fee { margin: 8px 0 4px; font-weight: 800; color: var(--brass); }
+.ow-note { margin: 6px 0; font-size: var(--t-s); color: var(--on-dark-2); }
+.ow-acts { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+.ow-spots { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+.ow-chart-map { display: block; width: 100%; max-width: 330px; margin: 10px auto 0; }
+.ow-chart-map .sea { fill: #0f4d66; stroke: rgba(255, 255, 255, .15); }
+.ow-chart-map .reef { fill: #2b8f95; opacity: .55; }
+.ow-chart-map .isle { fill: #e2cf98; stroke: #6c8f4a; stroke-width: 1.5; }
+.ow-chart-map .lbl { fill: #f2f1ea; font: 700 9px var(--font-body); text-anchor: middle; paint-order: stroke; stroke: rgba(13, 31, 27, .7); stroke-width: 2.5px; }
+.ow-chart-map .isle-lbl { fill: #fff3cc; }
+.ow-chart-map .spot circle { fill: rgba(233, 185, 73, .18); stroke: var(--brass); stroke-width: 1.5; stroke-dasharray: 3 2; cursor: pointer; }
+.ow-chart-map .spot:hover circle, .ow-chart-map .spot:focus circle { fill: rgba(233, 185, 73, .38); }
+.ow-chart-map .spot.here circle { stroke-dasharray: none; fill: rgba(233, 185, 73, .3); }
+.ow-chart-map .spot.locked circle { stroke: #86a096; fill: none; cursor: default; }
+.ow-chart-map .spot.locked .lbl { fill: #86a096; }
+.ow-chart-map .isle.here { stroke: var(--brass); stroke-width: 2.5; }
+.ow-chart-map .moor { fill: var(--brass); }
+.ow-chart-map .boat { fill: #e0483a; stroke: #fff; stroke-width: 1.2; }
+.ow-chart-map .islet { fill: #d8c690; stroke: #6c7a5a; stroke-width: 1; }
+.ow-chart-map .platform { fill: #e0483a; stroke: #fff; stroke-width: 1; cursor: pointer; }
+.ow-chart-map .chart-fog { fill: #d9e2dc; opacity: .5; pointer-events: none; shape-rendering: crispEdges; }
+.ow-logbook .dim { opacity: .55; }
+.ow-chart-map .course { stroke: #fff; stroke-width: 1.2; stroke-dasharray: 4 3; opacity: .8; }
+.ow-roles { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px; }
+.ow-role { text-align: left; padding: 8px 10px; border-radius: var(--r); border: 2px solid transparent; background: rgba(255, 255, 255, .07); color: var(--on-dark); cursor: pointer; font: inherit; }
+.ow-role b { display: block; font: 800 var(--t-m)/1.2 var(--font-head); }
+.ow-role small { display: block; font-size: var(--t-xs); color: var(--on-dark-2); margin-top: 2px; }
+.ow-role.on { border-color: var(--brass); background: rgba(233, 185, 73, .16); }
+.ow-role:focus-visible { outline: 3px solid var(--focus); }
+/* the sea strip, top centre under the toasts */
+.ow-strip { position: absolute; right: 12px; top: 56px; z-index: 20; padding: 5px 14px; border-radius: var(--r-pill); background: rgba(13, 50, 60, .72); color: var(--on-dark); font: 700 var(--t-s) var(--font-body); white-space: nowrap; pointer-events: none; box-shadow: var(--sh-1); max-width: calc(100vw - 24px); overflow: hidden; text-overflow: ellipsis; }
+/* a crewmate's fight */
+.ow-help { position: absolute; left: 50%; bottom: calc(150px + var(--safe-b)); transform: translateX(-50%); z-index: 30; width: min(360px, calc(100vw - 32px)); padding: 10px 12px; border-radius: var(--r); color: var(--on-dark); background: var(--glass); pointer-events: none; }
+.ow-help-top { display: flex; align-items: center; gap: 8px; font-size: var(--t-s); }
+.ow-help-top span { flex: 1; }
+.ow-help-top b { font: 400 var(--t-s) var(--font-pixel); color: var(--brass); }
+.ow-help-bar { height: 6px; border-radius: 3px; background: rgba(255, 255, 255, .12); margin: 6px 0; overflow: hidden; }
+.ow-help-bar i { display: block; height: 100%; background: linear-gradient(90deg, #7cc3c2, #e9b949); }
+.ow-help-call { font-weight: 800; font-size: var(--t-s); color: var(--on-dark-2); }
+.ow-help-call.hot { color: #ffe08a; animation: owPulse .6s ease-in-out infinite alternate; }
+@keyframes owPulse { from { transform: scale(1); } to { transform: scale(1.04); } }
+/* the big-game extras on the reel HUD */
+.ow-big { display: grid; gap: 4px; margin-top: 6px; font-size: var(--t-xs); color: var(--on-dark-2); }
+.ow-big > div { display: grid; grid-template-columns: 44px 1fr; align-items: center; gap: 6px; }
+.ow-big .hidden { display: none; }
+.ow-meter { position: relative; height: 7px; border-radius: 4px; background: rgba(255, 255, 255, .12); overflow: hidden; }
+.ow-arms .ow-meter i { position: absolute; left: 0; top: 0; bottom: 0; background: #7fd18a; border-radius: 4px; transition: width .1s; }
+.ow-arms.low .ow-meter i { background: #e0483a; }
+.ow-gaff .ow-meter em { position: absolute; top: 0; bottom: 0; right: 0; background: rgba(127, 209, 138, .45); }
+.ow-gaff .ow-meter i { position: absolute; top: -2px; bottom: -2px; width: 3px; margin-left: -1px; background: #fff; border-radius: 2px; }
+.ow-tag { display: block !important; grid-column: 1 / -1; font-weight: 800; color: #ffe08a; text-align: center; }
+.tug.ow-running { box-shadow: 0 0 0 3px rgba(224, 72, 58, .55), var(--sh-2); }
+.tug-cue.cue-run, .tug-cue.cue-call { color: #ffb4a6; }
+.tug-cue.cue-gaff { color: #b8f0b0; }
+/* boarding: the screen fills with sea spray */
+.travel-fade.ow-spray { background: radial-gradient(circle at 50% 60%, rgba(240, 250, 255, .95), rgba(47, 127, 134, .95) 60%, var(--pine-950)); }
+@media (max-width: 560px) { .ow-roles { grid-template-columns: 1fr; } .ow-strip { top: 96px; } }
+.ow-dive { position: absolute; inset: 0; pointer-events: none; z-index: 15; }
+/* v1.15.19: the underwater tint (dive.look): light enough to see every fish, blue-green enough to feel wet */
+.ow-uw-tint { position: absolute; inset: 0; pointer-events: none !important; z-index: 0; opacity: 0; display: none; background: radial-gradient(ellipse at 50% 35%, rgba(70, 190, 200, .16), rgba(10, 70, 100, .42)); }
+.ow-uw-tint.on { display: block; }
+.ow-air { position: absolute; left: 50%; bottom: calc(96px + var(--safe-b)); transform: translateX(-50%); width: min(260px, 60vw); display: grid; grid-template-columns: 34px 1fr; align-items: center; gap: 6px; color: var(--on-dark); font: 800 var(--t-s) var(--font-body); padding: 6px 10px; border-radius: var(--r-pill); background: rgba(13, 50, 60, .7); }
+.ow-air .ow-meter i { position: absolute; left: 0; top: 0; bottom: 0; background: #7cd4f0; border-radius: 4px; transition: width .2s; }
+.ow-air.low .ow-meter i { background: #e0483a; }
+.ow-air.low { animation: owPulse .5s ease-in-out infinite alternate; }
+.ow-air { grid-template-columns: 34px 1fr auto; }
+.ow-air-s { font: 800 var(--t-xs, 11px) var(--font-body); opacity: .85; min-width: 26px; text-align: right; }
+.ow-gear { position: absolute; left: 50%; bottom: calc(132px + var(--safe-b)); transform: translateX(-50%); display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; width: min(420px, 90vw); }
+.ow-gear span { font: 700 var(--t-xs, 11px) var(--font-body); color: var(--on-dark); background: rgba(13, 50, 60, .6); padding: 3px 8px; border-radius: var(--r-pill); }
+.ow-cross { position: absolute; left: 50%; top: 50%; width: 26px; height: 26px; margin: -13px; border: 2px solid rgba(255, 255, 255, .85); border-radius: 50%; box-shadow: 0 0 0 1px rgba(0, 0, 0, .3); }
+.ow-cross::after { content: ''; position: absolute; left: 50%; top: 50%; width: 4px; height: 4px; margin: -2px; background: #fff; border-radius: 50%; }
+.ow-cross.loading { opacity: .35; }
+.ow-cross.hidden { display: none; }
+.ow-cross.nope { border-color: #e0483a; }
+.ow-cross.lock { border-color: #7cf09a; transform: scale(1.15); box-shadow: 0 0 0 1px rgba(0, 0, 0, .3), 0 0 10px rgba(124, 240, 154, .7); }
+.ow-cross { transition: transform .12s, border-color .12s; }
+.ow-cross.reef { border-color: #ffd08a; }
+.ow-cross[data-tip]:not([data-tip=''])::before { content: attr(data-tip); position: absolute; left: 50%; top: 32px; transform: translateX(-50%); white-space: nowrap; font: 800 var(--t-xs, 11px) var(--font-body); color: #ffe6b8; text-shadow: 0 1px 3px #000; }
+/* v1.15 stage 4: beach games on Palm Key */
+.bg-hud { position: absolute; left: 50%; top: calc(100px + var(--safe-t, 0px)); transform: translateX(-50%); z-index: 25; width: min(440px, calc(100vw - 32px)); padding: 8px 14px 10px; border-radius: var(--r); color: var(--on-dark); background: rgba(13, 50, 60, .8); box-shadow: var(--sh-1); text-align: center; pointer-events: auto; }
+.bg-title { display: block; font: 400 var(--t-xs) var(--font-pixel); color: var(--brass); letter-spacing: .04em; }
+.bg-big { font: 800 var(--t-l)/1.2 var(--font-head); margin-top: 2px; }
+.bg-small { font-size: var(--t-s); color: var(--on-dark-2); margin-top: 2px; }
+.bg-leave { position: absolute; top: 6px; right: 6px; padding: 2px 10px; min-height: 0; font-size: var(--t-xs); }
+.bg-hud.beat { box-shadow: 0 0 0 3px rgba(233, 185, 73, .75), var(--sh-1); }
+.bg-pop { position: absolute; left: 50%; top: 100%; margin-top: 6px; transform: translateX(-50%); padding: 3px 12px; border-radius: var(--r-pill); background: rgba(233, 185, 73, .95); color: #2a1e08; font: 800 var(--t-s) var(--font-body); white-space: nowrap; animation: bgPop .9s ease-out forwards; pointer-events: none; }
+@keyframes bgPop { 0% { opacity: 0; transform: translate(-50%, -4px) scale(.9); } 15% { opacity: 1; transform: translate(-50%, 0) scale(1.05); } 80% { opacity: 1; } 100% { opacity: 0; transform: translate(-50%, 4px); } }
+.bg-picks { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; margin-top: 8px; }
+.bg-pick { padding: 5px 10px; border-radius: var(--r-pill); border: 2px solid transparent; background: rgba(255, 255, 255, .1); color: var(--on-dark); font: 700 var(--t-s) var(--font-body); cursor: pointer; }
+.bg-pick.on { border-color: var(--brass); background: rgba(233, 185, 73, .22); }
+.bg-pick:focus-visible { outline: 3px solid var(--focus); }
+.bg-pick.c0 { box-shadow: inset 4px 0 0 #e2483a; } .bg-pick.c1 { box-shadow: inset 4px 0 0 #3a78d8; } .bg-pick.c2 { box-shadow: inset 4px 0 0 #f0b830; } .bg-pick.c3 { box-shadow: inset 4px 0 0 #9a58c8; }
+.bg-pick.undo { background: rgba(224, 72, 58, .18); }
+.bg-rows { display: grid; gap: 4px; margin: 10px 0 6px; }
+.bg-row { display: grid; grid-template-columns: 44px 1fr auto; gap: 8px; align-items: center; padding: 6px 10px; border-radius: var(--r); background: rgba(255, 255, 255, .07); }
+.bg-row b { font: 400 var(--t-s) var(--font-pixel); color: var(--brass); }
+.bg-row em { font-style: normal; font-weight: 800; }
+.bg-row.me { background: rgba(233, 185, 73, .18); }
+.bg-row.ai span { color: var(--on-dark-2); }
+.bg-join { margin-bottom: 4px; }
+@media (max-width: 560px) { .bg-hud { top: calc(130px + var(--safe-t, 0px)); } }
+/* v1.15 stage 5: the Fishpedia's Open Waters tab, the release card */
+.ow-grid { grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); }
+.ow-tile { position: relative; cursor: default; }
+.ow-tile .meta { font-size: var(--t-xs); color: var(--ink-2, #6a6a6a); text-align: center; }
+.ow-rel { position: absolute; top: 4px; right: 4px; padding: 1px 6px; border-radius: var(--r-pill); background: #2f9e8e; color: #fff; font: 800 10px var(--font-body); }
+/* the dive HUD never takes the mouse (a click in the middle of the screen fires the speargun, a drag turns the camera) */
+.ow-dive, .ow-dive * { pointer-events: none !important; }
+/* v1.15.5: the charter's fish finder */
+.ow-sonar { position: absolute; right: 12px; bottom: calc(96px + var(--safe-b, 0px)); z-index: 18; padding: 6px; border-radius: var(--r); background: #1e2a2e; box-shadow: 0 0 0 2px #4a5a5e, var(--sh-1); pointer-events: none; }
+.ow-sonar canvas { display: block; width: 168px; height: 86px; border-radius: 4px; image-rendering: pixelated; }
+.ow-sonar-d { position: absolute; left: 10px; top: 8px; font: 400 var(--t-xs) var(--font-pixel); color: #e8d070; }
+.ow-sonar-a { position: absolute; left: 0; right: 0; bottom: -20px; text-align: center; font: 800 var(--t-xs) var(--font-body); color: #ffb4a6; text-shadow: 0 1px 2px #000; }
+@media (max-width: 560px) { .ow-sonar { transform: scale(.8); transform-origin: right bottom; } }
+.ow-tackles { display: grid; gap: 8px; margin-top: 12px; }
+.ow-tackle { display: flex; align-items: center; gap: 10px; cursor: default; }
+.ow-tackle .grow { flex: 1; }
+/* v1.15.9: the trip report and Marlowe's first-trip lesson */
+.ow-report-card { width: min(500px, calc(100vw - 32px)); }
+.ow-rep-snap { display: block; width: 100%; aspect-ratio: 16 / 9; object-fit: cover; margin: 10px 0 4px; border-radius: var(--r); box-shadow: 0 0 0 3px rgba(255, 255, 255, .15); }
+.ow-rep-nums { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin: 10px 0 6px; }
+.ow-rep-nums > div { text-align: center; padding: 6px 4px; border-radius: var(--r); background: rgba(34, 106, 115, .35); }
+.ow-rep-nums b { display: block; font: 800 var(--t-l)/1.1 var(--font-head); }
+.ow-rep-nums small { font-size: var(--t-xs); color: var(--on-dark-2); }
+.ow-rep-verdict { margin: 6px 0; font-weight: 800; }
+.ow-rep-verdict.up { color: #a6e8a0; }
+.ow-rep-verdict.down { color: #ffc49a; }
+.ow-rep-list { list-style: none; margin: 4px 0; padding: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 2px 12px; font-size: var(--t-s); }
+.ow-rep-fish { display: flex; justify-content: space-between; gap: 6px; }
+.ow-note.dim { opacity: .7; font-size: var(--t-xs); }
+.ow-lesson { position: absolute; right: 12px; top: 96px; z-index: 19; width: min(250px, calc(100vw - 24px)); padding: 8px 10px; border-radius: var(--r); color: var(--on-dark); background: rgba(13, 50, 60, .8); box-shadow: var(--sh-1); font-size: var(--t-s); }
+.ow-lesson-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 4px; }
+.ow-lesson-top b { font: 800 var(--t-s) var(--font-head); color: var(--brass, #e9b949); }
+.ow-lesson ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 3px; }
+.ow-lesson li { display: grid; grid-template-columns: 18px 1fr; align-items: center; gap: 6px; opacity: .55; }
+.ow-lesson li i { font-style: normal; font-weight: 800; text-align: center; }
+.ow-lesson li.now { opacity: 1; font-weight: 800; color: #ffe08a; }
+.ow-lesson li.done { opacity: .8; text-decoration: line-through; }
+.ow-lesson .ico-svg { width: 14px; height: 14px; }
+@media (max-width: 560px) { .ow-lesson { top: 92px; transform: scale(.9); transform-origin: right top; } }
+/* v1.15.10: island evenings and night charters */
+.ow-night { display: grid; grid-template-columns: 22px 1fr; gap: 8px; align-items: start; margin: 8px 0; padding: 8px 10px; border-radius: var(--r); background: rgba(20, 30, 70, .45); cursor: pointer; }
+.ow-night input { width: 18px; height: 18px; margin-top: 2px; accent-color: #7cc3f0; }
+.ow-night b { display: block; }
+.ow-night small { color: var(--on-dark-2); font-size: var(--t-xs); }
+.ow-night-fade { position: absolute; inset: 0; z-index: 70; display: grid; place-items: center; background: #0a0e1c; color: #c8d4ff; font: 800 34px var(--font-head); letter-spacing: .3em; animation: fadeIn 1.2s ease-out; pointer-events: auto; transition: opacity 1.3s ease-in, background 1.3s; }
+.ow-night-fade.out { opacity: 0; background: #ffd8a0; }
+.ow-night-fade span { animation: owPulse 1s ease-in-out infinite alternate; }
+/* v1.15.11: the Billfish Derby board */
+.ow-derby-list { list-style: none; margin: 8px 0; padding: 0; display: grid; gap: 3px; }
+.ow-derby-list li { display: grid; grid-template-columns: 26px 1fr auto; gap: 8px; align-items: center; padding: 5px 8px; border-radius: var(--r); background: rgba(34, 106, 115, .3); font-size: var(--t-s); }
+.ow-derby-list li:first-child { background: rgba(233, 185, 73, .35); }
+.ow-derby-list li.me { box-shadow: inset 0 0 0 2px #7cd4f0; }
+.ow-derby-list i { font-style: normal; font-weight: 800; text-align: center; }
+.ow-derby-list span { color: var(--on-dark-2); }
+/* v1.15.13: your own boat */
+.ow-field { display: grid; grid-template-columns: 74px 1fr; gap: 8px; align-items: center; margin: 8px 0; font-size: var(--t-s); }
+.ow-field > span { color: var(--on-dark-2); font-weight: 800; }
+.ow-name { width: 100%; padding: 6px 10px; border-radius: var(--r); border: 2px solid rgba(255, 255, 255, .2); background: rgba(0, 0, 0, .25); color: var(--on-dark); font: 800 var(--t-m, 15px) var(--font-body); }
+.ow-swatches { display: flex; flex-wrap: wrap; gap: 6px; }
+.ow-sw { width: 28px; height: 28px; border-radius: 50%; border: 2px solid rgba(255, 255, 255, .35); cursor: pointer; padding: 0; }
+.ow-sw.on { box-shadow: 0 0 0 3px #ffe08a; border-color: #fff; }
+.ow-boat .ow-crew { grid-template-columns: 30px 1fr auto; row-gap: 2px; }
+.ow-boat .ow-crew.off { opacity: 1; }
+.ow-boat .ow-crew small { grid-column: 2 / 4; grid-row: 2; text-align: left; }
+.ow-boat .ow-crew .btn { grid-column: 3; grid-row: 1; }
+/* v1.15.14: the Open Waters title card (the Reel Time logo's font; a life ring for the O, letters on a swell) */
+.ow-title { position: absolute; inset: 0; z-index: 55; display: grid; place-items: center; pointer-events: none; animation: owTitleIn 1.1s cubic-bezier(.2, .8, .2, 1) both; }
+.ow-title.out { animation: owTitleOut 1.1s ease-in forwards; }
+.ow-title-in { display: flex; flex-direction: column; align-items: center; padding: 24px 40px; background: radial-gradient(closest-side, rgba(6, 30, 40, .55), rgba(6, 30, 40, 0)); }
+.ow-logo { font-size: clamp(3rem, 9vw, 6.2rem); color: var(--birch-50, #fbf6ea); text-shadow: 0 4px 0 rgba(6, 22, 30, .5), 0 18px 40px rgba(6, 22, 30, .4); }
+.ow-tl { display: inline-block; animation: owSwell 2.6s ease-in-out infinite; animation-delay: calc(var(--i) * -0.16s); }
+@keyframes owSwell { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(0.06em); } }
+.ow-ring { position: relative; display: inline-block; width: 0.74em; height: 0.74em; margin: 0 0.03em 0 0.02em; vertical-align: -0.02em; border-radius: 50%;
+  background: repeating-conic-gradient(var(--bobber, #e0483a) 0 45deg, #fbf6ea 45deg 90deg); box-shadow: 0 0 0 0.03em var(--pine-950, #0d1f1b), 0 0.07em 0 rgba(6, 22, 30, .45);
+  animation: owRing 2.6s ease-in-out infinite; }
+.ow-ring i { position: absolute; inset: 27%; border-radius: 50%; background: radial-gradient(circle, #2f7f9a, #1d5a70); box-shadow: inset 0 0 0 0.03em var(--pine-950, #0d1f1b); }
+@keyframes owRing { 0%, 100% { transform: translateY(0) rotate(-8deg); } 50% { transform: translateY(0.05em) rotate(8deg); } }
+.ow-wave { width: min(70vw, 520px); height: 14px; margin-top: 6px; opacity: .85;
+  background: radial-gradient(circle at 10px -4px, transparent 9px, #7cd4f0 10px, #7cd4f0 12px, transparent 13px) 0 0 / 20px 14px repeat-x;
+  -webkit-mask: linear-gradient(90deg, transparent, #000 18%, #000 82%, transparent); mask: linear-gradient(90deg, transparent, #000 18%, #000 82%, transparent);
+  animation: owWave 1.8s linear infinite; }
+@keyframes owWave { to { background-position: 20px 0; } }
+.ow-title-sub { text-align: center; max-width: 90vw; margin-top: 10px; font: 800 var(--t-l, 18px) var(--font-body); letter-spacing: .14em; text-transform: uppercase; color: var(--on-dark-2, #cfe3dc); text-shadow: 0 2px 6px rgba(0, 0, 0, .5); }
+@keyframes owTitleIn { from { opacity: 0; transform: scale(.92) translateY(10px); filter: blur(4px); } to { opacity: 1; transform: none; filter: none; } }
+@keyframes owTitleOut { to { opacity: 0; transform: translateY(-8px) scale(1.03); filter: blur(3px); } }
+@media (prefers-reduced-motion: reduce) { .ow-tl, .ow-ring, .ow-wave { animation: none; } .ow-title, .ow-title.out { animation-duration: .01s; } }
+@media (max-width: 560px) { .ow-title-sub { font-size: var(--t-s, 13px); } }
+
+/* v1.15.20 the big sea chart (seachart.js; the layout is the valley map's .mv-*) */
+.sc-stage { background: #0a2e40; }
+.sc-pin.here .mv-pin-in { box-shadow: 0 0 0 3px #fff, 0 0 12px 4px rgba(255, 255, 255, .5); }
+.sc-pin.small .mv-pin-in { transform: scale(.8); }
+.sc-acts { display: flex; flex-direction: column; gap: 6px; margin-top: auto; }
+.sc-acts .btn { justify-content: flex-start; }
+.sc-here { display: flex; align-items: center; gap: 6px; font-weight: 800; color: var(--ink-2, #3a4a44); }
+
+/* v1.15.22: the title card never catches the mouse while it fades */
+.ow-title, .ow-title * { pointer-events: none !important; }
+/* v1.17.1: towing a big speared fish back to the boat */
+.ow-tow { position: absolute; left: 50%; top: calc(64px + var(--safe-t, 0px)); transform: translateX(-50%); font: 800 var(--t-sm, 13px) var(--font-body); color: #fff4c8; background: rgba(13, 50, 60, .72); padding: 5px 12px; border-radius: var(--r-pill); border: 1px solid rgba(255, 210, 74, .5); white-space: nowrap; }
+.ow-tow.hidden { display: none; }

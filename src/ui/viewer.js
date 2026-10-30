@@ -2,7 +2,7 @@
 // double-click to reset. One small WebGL renderer is shared by every viewer that opens.
 import * as THREE from 'three';
 import { buildFish } from '../entities/fish.js';
-import { SPECIES_BY_ID, TIER_INFO } from '../data/species.js';
+import { SPECIES_BY_ID, TIER_INFO, tierOf } from '../data/species.js';
 import { h } from './dom.js';
 
 let renderer = null;
@@ -25,7 +25,7 @@ export function openFishViewer(root, opts) {
   const sp = SPECIES_BY_ID[opts.speciesId];
   if (!sp) return;
   const variant = opts.variant || 'normal';
-  const tier = TIER_INFO[sp.tier];
+  const tier = TIER_INFO[tierOf(sp)];
   const vname = variant === 'diamond' ? 'Diamond ' : variant === 'gold' ? 'Gold ' : '';
 
   const scene = new THREE.Scene();

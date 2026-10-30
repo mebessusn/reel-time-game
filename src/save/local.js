@@ -93,6 +93,7 @@ export class LocalSave {
     return a;
   }
   async bumpStat(key, n = 1) { R.bumpStat(this.profile, key, n); this.persist(); }
+  async setOceanStats(map) { R.setOceanStats(this.profile, map); this.persist(); }
 
   // ---- profile ----
   async saveAvatar(cfg) { this.profile.avatar = cfg; R.bumpStat(this.profile, 'avatarSaves'); this.persist(); }

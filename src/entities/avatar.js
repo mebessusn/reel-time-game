@@ -310,11 +310,24 @@ export function animateAvatar(av, state, t, extra = {}) {
     p.legR.rotation.x = bend + (extra.dangle ? Math.sin(t * 2 + 1.4) * 0.15 : 0);
   }
   switch (state) {
-    case 'swim': { // a front crawl with a flutter kick
+    case 'swim': { // v1.15: a front crawl with a flutter kick
       const k = Math.sin(t * 7), a = t * 2.4;
       p.legL.rotation.x = k * 0.35; p.legR.rotation.x = -k * 0.35;
       p.armL.rotation.set(-Math.PI + Math.sin(a) * 1.1, 0, 0.25); p.armR.rotation.set(-Math.PI + Math.sin(a + Math.PI) * 1.1, 0, -0.25);
       p.head.rotation.x = -0.7;
+      break;
+    }
+    case 'swimgun': { // v1.15.7: swimming with a speargun, the gun held out ahead in the right hand, a one-armed stroke
+      const k = Math.sin(t * 7), a = t * 2.4;
+      p.legL.rotation.x = k * 0.35; p.legR.rotation.x = -k * 0.35;
+      p.armL.rotation.set(-Math.PI + Math.sin(a) * 1.1, 0, 0.25); p.armR.rotation.set(-Math.PI + 0.12, 0, -0.08);
+      p.head.rotation.x = -0.7;
+      break;
+    }
+    case 'treadgun': { // treading water with a speargun: the gun held out in front, the free hand sculling
+      const k = Math.sin(t * 3);
+      p.legL.rotation.x = k * 0.3; p.legR.rotation.x = -k * 0.3;
+      p.armL.rotation.set(-0.5, 0, 0.9 + k * 0.25); p.armR.rotation.set(-Math.PI / 2 + 0.15, 0, -0.1);
       break;
     }
     case 'tread': { // treading water: slow kicks, hands sculling
@@ -327,6 +340,29 @@ export function animateAvatar(av, state, t, extra = {}) {
       p.legL.rotation.x = sw * 0.6; p.legR.rotation.x = -sw * 0.6;
       p.armL.rotation.x = -sw * 0.5; p.armR.rotation.x = sw * 0.5;
       break;
+    case 'skate': { // Frostmere: skating, long side-pushing strides, leaning forward, arms swinging across
+      const k = Math.sin(t * 4.2), a = Math.max(0, k), b = Math.max(0, -k);
+      p.legL.rotation.set(-a * 0.25, 0, -0.08 - a * 0.42); p.legR.rotation.set(-b * 0.25, 0, 0.08 + b * 0.42);
+      p.armL.rotation.set(-0.3 + k * 0.5, 0, -0.25); p.armR.rotation.set(-0.3 - k * 0.5, 0, 0.25);
+      p.body.rotation.set(0.32, -k * 0.12, 0);
+      p.head.rotation.x = -0.25;
+      break;
+    }
+    case 'glide': { // Frostmere: gliding on skates, both blades down, a slight crouch and the arms out for balance
+      p.legL.rotation.set(-0.15, 0, -0.06); p.legR.rotation.set(0.1, 0, 0.06);
+      p.armL.rotation.set(-0.2, 0, -0.55 + Math.sin(t * 1.3) * 0.05); p.armR.rotation.set(-0.2, 0, 0.55 - Math.sin(t * 1.3) * 0.05);
+      p.body.rotation.set(0.2, 0, 0);
+      p.head.rotation.x = -0.15;
+      break;
+    }
+    case 'sled': { // Frostmere: driving a dog sled, standing on the runners, both hands on the handlebar
+      const k = Math.sin(t * 6) * 0.04;
+      p.legL.rotation.set(-0.12, 0, -0.04); p.legR.rotation.set(-0.12, 0, 0.04);
+      p.armL.rotation.set(-1.15 + k, 0, 0.12); p.armR.rotation.set(-1.15 - k, 0, -0.12);
+      p.body.rotation.set(0.22, 0, 0);
+      p.head.rotation.x = -0.18;
+      break;
+    }
     case 'run': {
       // a light jog: longer, quicker strides, arms pumping a little bent forward, a small forward lean
       const sr = Math.sin(t * 13);
@@ -406,6 +442,17 @@ export function animateAvatar(av, state, t, extra = {}) {
     case 'cheer':
       p.armL.rotation.z = -2.7; p.armR.rotation.z = 2.7; p.body.position.y = av.parts.body.userData.baseY + Math.abs(Math.sin(t * 8)) * 0.15;
       break;
+    case 'bump': // v1.15 beach volleyball: arms together, out in front and low
+      p.armL.rotation.set(-1.0, 0, -0.32); p.armR.rotation.set(-1.0, 0, 0.32);
+      p.legL.rotation.x = -0.35; p.legR.rotation.x = -0.35; p.body.rotation.x = 0.18;
+      break;
+    case 'tuck': // v1.15 cannonball: knees up, arms hugging them
+      p.legL.rotation.x = -1.9; p.legR.rotation.x = -1.9;
+      p.armL.rotation.set(-1.5, 0, 0.35); p.armR.rotation.set(-1.5, 0, -0.35); p.head.rotation.x = 0.4;
+      break;
+    case 'throw': // v1.15 coconut toss: the throwing arm back (power winds it further)
+      p.armR.rotation.set(-2.4 - (extra.power || 0) * 0.6, 0, 0.2); p.armL.rotation.set(-0.8, 0, -0.2);
+      break;
     case 'shrug':
       p.armL.rotation.z = -0.5; p.armR.rotation.z = 0.5; p.armL.rotation.x = -0.6; p.armR.rotation.x = -0.6; p.head.rotation.z = 0.15;
       break;
@@ -437,6 +484,15 @@ export function animateAvatar(av, state, t, extra = {}) {
       p.head.rotation.set(-0.12 + j * 0.1, w * 0.1, 0);
       p.armR.rotation.set(-1.45 - j * 0.35, 0, 0.12);
       p.armL.rotation.set(0.15, 0, -0.75);
+      break;
+    }
+    case 'drum': {
+      // v1.15.10: the fireside player on Palm Key: both hands beating a standing drum in front, one then the other,
+      // swaying with the rhythm
+      const L = Math.max(0, Math.sin(t * 7.2)), R = Math.max(0, Math.sin(t * 7.2 + Math.PI)), sway = Math.sin(t * 1.8);
+      p.armL.rotation.set(-0.95 + L * 0.45, 0, 0.35); p.armR.rotation.set(-0.95 + R * 0.45, 0, -0.35);
+      p.body.rotation.set(0.12, sway * 0.08, sway * 0.05);
+      p.head.rotation.set(0.1 + Math.max(L, R) * 0.06, sway * 0.15, 0);
       break;
     }
     case 'roast': {

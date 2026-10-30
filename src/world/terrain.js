@@ -5,6 +5,7 @@
 // Lilymarsh (SE), Fern Pond (SW) and Pinewood Lodge (N), linked by trails.
 import { makeNoise2D } from '../core/rng.js';
 import { buildSmoothTerrain, blurGrid, cornersOf, KIND } from './smoothterrain.js';
+import { applySwash } from './waterfx.js';
 import { applyCaustics } from './caustics.js';
 
 export const HALF = 224; // world spans -224..223 on x and z
@@ -84,13 +85,23 @@ const scTrail = (pts) => {
   }
   return out;
 };
+/** v1.17.1: round off a sharp bend in a trail: the corner at index i becomes a curve (a quadratic Bezier from `kIn` of
+ *  the way back along the leg before it to `kOut` of the way along the leg after it, with the corner as its pull). */
+function roundCorner(pts, i, kIn = 0.5, kOut = 0.6, n = 8) {
+  const [px, pz] = pts[i - 1], [cx, cz] = pts[i], [nx, nz] = pts[i + 1];
+  const a = [cx + (px - cx) * kIn, cz + (pz - cz) * kIn], b = [cx + (nx - cx) * kOut, cz + (nz - cz) * kOut], arc = [];
+  for (let k = 0; k <= n; k++) { const t = k / n, u = 1 - t; arc.push([u * u * a[0] + 2 * u * t * cx + t * t * b[0], u * u * a[1] + 2 * u * t * cz + t * t * b[1]]); }
+  return [...pts.slice(0, i), ...arc, ...pts.slice(i + 1)];
+}
 export const TRAILS = {
   pond: { to: 'FERN POND', pts: scTrail([[-4, 46], [-22, 56], [-42, 66], [-58, 72]]) },
-  frost: { to: 'FROSTPINE', pts: scTrail([[-16, 46], [-38, 34], [-46, 8], [-48, -22], [-53, -42]]) },
-  lodge: { to: 'LODGE', pts: scTrail([[-48, -22], [-30, -48], [-10, -58], [0, -70], [0, -86]]) },
+  frost: { to: 'FROSTPINE', pts: [...scTrail([[-16, 46], [-38, 34], [-46, 8], [-48, -22]]), [-78, -52], [-85, -71], [-93.3, -87.7], [-109.7, -80.3], [-116, -78]] }, // (v1.17.2: down the east bank, then one square crossing of Frostrun Creek)
+  lodge: { to: 'LODGE', pts: roundCorner(scTrail([[-48, -22], [-30, -48], [-10, -58], [0, -70], [0, -86]]), 2) }, // (v1.17.1: the hard right-hander below the lodge is a long sweeping bend now)
   quarry: { to: 'QUARRY', pts: scTrail([[10, 41], [26, 31], [40, 19], [44, 15], [44, 3], [47, -6], [56, -24], [64, -46], [72, -62]]) },
   marsh: { to: 'LILYMARSH', pts: scTrail([[9, 43], [22, 51], [32, 62], [34, 70]]) },
   // v1.14.9: the Ridgeback Loop, a dirt bike trail round Lookout Mesa in the south woods, off the Lilymarsh trail
+  // Frostmere (map 3): a spur off the Frostpine trail down to Skye's seaplane base on the lake's east shore
+  seabase: { to: 'SEAPLANE BASE', pts: [[-93.3, -87.7], [-92, -100], [-86, -116], [-76, -128], [-70, -134]] },
   loop: { to: 'RIDGEBACK LOOP', pts: [[46, 108], [40, 120], [36, 131], ...Array.from({ length: 25 }, (_, i) => { const a = Math.PI * 0.5 + (i / 24) * Math.PI * 2; return [25 + Math.cos(a) * 27 + Math.sin(a * 3) * 3, 156 - Math.sin(a) * 25]; })] },
 };
 // Flattened clearings for the settlements
@@ -114,6 +125,12 @@ export const CLEARINGS = {
   wagon3: { x: 98, z: -32, r: 6, h: 2 },
   wagon4: { x: 62, z: 104, r: 6, h: 2 },
   wagon5: { x: -92, z: 120, r: 6, h: 2 },
+  seabase: { x: -62, z: -140, r: 14, h: 1 }, // Frostmere: Skye Halloran's seaplane base (src/north/base.js)
+  logcabin: { x: 22, z: 86, r: 8, h: 3, ry: Math.PI / 2 }, // v1.17.1: the Polyfork log cabin (src/world/polyfork.js), door to the Lilymarsh trail
+  // v1.17.1, the Polyfork campground batch (src/world/campground.js): a ranger station below the Ridge Lookout, and an
+  // A-frame cabin up the bank from Frostpine Lake's north shore
+  ranger: { x: -143, z: -38, r: 8, h: 3 },
+  aframe: { x: -124, z: -80, r: 8, h: 3 },
 };
 // Hills and mountains: [x, z, radius, height]
 const BUMPS0 = [[-88, -102, 40, 12], [-110, -62, 32, 9], [-50, -108, 24, 7], [104, -104, 30, 9], [110, 20, 24, 5], [-110, 16, 26, 5],
@@ -339,6 +356,12 @@ for (let z = DOCK.z0 - 2; z <= DOCK.z1; z++) for (let x = DOCK.x0 - 1; x <= DOCK
   const h = heights[idx(x, z)];
   if (z > 36 && h > 2) heights[idx(x, z)] = 2;
 }
+// v1.17.1: Frostpine Lake's south-west corner (below Tarn Run, by the seaplane base trail) had a bar of 0-deep
+// shallows right off the bank that boats ran aground on: dredge it so you can row straight in from the shore
+for (let x = -124; x <= -84; x++) for (let z = -130; z <= -96; z++) {
+  const h = heights[idx(x, z)];
+  if (h <= 0 && h > -2) heights[idx(x, z)] = -2;
+}
 
 // ---------------------------------------------------------------- the smooth surface
 // What you see and walk on: the block heights blurred into slopes. Underwater blocks are lifted 0.7 before
@@ -347,7 +370,18 @@ const M = N + 1;
 const SURF = (() => {
   const v = new Float32Array(N * N);
   for (let i = 0; i < N * N; i++) v[i] = heights[i] > 0 ? heights[i] : heights[i] + 0.7;
-  return cornersOf(blurGrid(v, N, 1.1), N);
+  // v1.17.1: the creeks' riffles sat only 0.15 under the water line, so the water's swell kept uncovering the bed and
+  // the creek flickered in and out: their beds sit 0.45 under now (still wadeable: walkY lets you wade a creek deeper)
+  for (let x = -HALF; x < HALF; x++) for (let z = -HALF; z < HALF; z++) { const i = idx(x, z); if (heights[i] === 0 && creekAt(x, z).sd < 0.3) v[i] = WATER_Y - 0.6; }
+  // v1.17.1 (fidelity pass): the water's edge is where the 1 m grid shows most (a saw-tooth shoreline), so the ground
+  // within a metre and a half of the water line gets a second, wider blur: shorelines and creek banks run in curves
+  const b = blurGrid(v, N, 1.1), wide = blurGrid(b, N, 1.7);
+  for (let i = 0; i < N * N; i++) {
+    const d = Math.abs(b[i] - WATER_Y); if (d >= 1.6) continue;
+    const t = 1 - d / 1.6, k = t * t * (3 - 2 * t);
+    b[i] += (wide[i] - b[i]) * k;
+  }
+  return cornersOf(b, N);
 })();
 let GRASS = null;
 /** 0..1: how much of the ground at (x, z) is grass (0 before the terrain is built). */
@@ -361,7 +395,25 @@ export function grassAt(x, z) {
 }
 
 /** Height of the smooth ground surface at (x, z), matching the rendered triangles exactly. */
+// v1.15 Open Waters: a far-away world in the same scene (the ocean, far east of the valley). It registers its own
+// lookups here, and every terrain lookup asks it first for points beyond FAR_X, so the player, fishing, boats and
+// other anglers work there unchanged. (Registered by ocean/geo-hooks.js; terrain stays free of ocean imports.)
+export const FAR_X = 1200;
+let FAR = null, WEST = null;
+export function setFarWorld(w) { FAR = w; }
+/** Frostmere (map 3): a second far world, out past -FAR_X (west of the valley). */
+export function setWestWorld(w) { WEST = w; }
+export const farWorld = () => FAR;
+/** Is x in the valley (not out in Open Waters or Frostmere)? */
+export const inValley = (x) => x <= FAR_X && x >= -FAR_X;
+export const inWest = (x) => x < -FAR_X;
+// (the lookups below ask `far(x)` once: Open Waters out east, Frostmere out west)
+const pickFar = (x) => (x > FAR_X ? FAR : x < -FAR_X ? WEST : null);
+let FARX = null;
+const far = (x) => (FARX = pickFar(x));
+
 export function surfaceY(x, z) {
+  if (far(x)) return FARX.surfaceY(x, z);
   const fx = x + HALF, fz = z + HALF;
   const a = Math.max(0, Math.min(N - 1, Math.floor(fx))), b = Math.max(0, Math.min(N - 1, Math.floor(fz)));
   const u = Math.max(0, Math.min(1, fx - a)), w = Math.max(0, Math.min(1, fz - b));
@@ -372,6 +424,7 @@ export function surfaceY(x, z) {
 }
 
 export function heightAt(x, z) {
+  if (far(x)) return FARX.heightAt(x, z);
   const ix = Math.floor(x), iz = Math.floor(z);
   if (ix < -HALF || iz < -HALF || ix >= HALF || iz >= HALF) return 30;
   return heights[idx(ix, iz)];
@@ -471,17 +524,30 @@ export const BRIDGES = (() => {
   for (const tr of Object.values(TRAILS)) for (let i = 0; i < tr.pts.length - 1; i++) for (const rv of RIVER_LIST) for (let j = 0; j < rv.pts.length - 1; j++) {
     const hit = segCross(tr.pts[i], tr.pts[i + 1], rv.pts[j], rv.pts[j + 1]);
     if (!hit || out.some((b) => Math.hypot(b.cx - hit[0], b.cz - hit[1]) < 8)) continue;
-    // v1.8.1: the deck crosses straight over the water (square to the river where the trail meets it), bank
-    // to bank, instead of following the trail, which could run it along the river for a long way.
-    const rd = [rv.pts[j + 1][0] - rv.pts[j][0], rv.pts[j + 1][1] - rv.pts[j][1]], rl = Math.hypot(rd[0], rd[1]);
-    let ux = -rd[1] / rl, uz = rd[0] / rl;
-    if (ux * hit[2][0] + uz * hit[2][1] < 0) { ux = -ux; uz = -uz; } // same way as the trail runs
-    // walk out each way to where the visible bank rises out of the water
+    // v1.17.2: the deck runs along the trail itself, from where the trail leaves one bank to where it reaches the other, so both
+    // ends land on the path. (A trail that follows the water too long falls back to crossing square, as it did from v1.8.1.)
     const wet = (x, z) => surfaceY(x, z) < WATER_Y + 0.2;
-    let a = 0, b = 0;
-    while (a < 16 && wet(hit[0] - ux * a, hit[1] - uz * a)) a += 0.25;
-    while (b < 16 && wet(hit[0] + ux * b, hit[1] + uz * b)) b += 0.25;
-    const cx = hit[0] + ux * (b - a) / 2, cz = hit[1] + uz * (b - a) / 2, span = (a + b) / 2;
+    const pts = tr.pts, walk = (dir) => { // along the trail from the crossing to the first dry ground
+      let k = dir > 0 ? i + 1 : i, x = hit[0], z = hit[1], d = 0;
+      while (k >= 0 && k < pts.length && d < 26) {
+        const l = Math.hypot(pts[k][0] - x, pts[k][1] - z);
+        for (let t = 0.25; t < l; t += 0.25) { const qx = x + (pts[k][0] - x) * t / l, qz = z + (pts[k][1] - z) * t / l; if (!wet(qx, qz)) return [qx, qz]; }
+        d += l; x = pts[k][0]; z = pts[k][1]; k += dir;
+      }
+      return null;
+    };
+    const pa = walk(-1), pb = walk(1);
+    let ux, uz, cx, cz, span;
+    if (pa && pb) { const dx = pb[0] - pa[0], dz = pb[1] - pa[1], l = Math.hypot(dx, dz); ux = dx / l; uz = dz / l; cx = (pa[0] + pb[0]) / 2; cz = (pa[1] + pb[1]) / 2; span = l / 2; }
+    else {
+      const rd = [rv.pts[j + 1][0] - rv.pts[j][0], rv.pts[j + 1][1] - rv.pts[j][1]], rl = Math.hypot(rd[0], rd[1]);
+      ux = -rd[1] / rl; uz = rd[0] / rl;
+      if (ux * hit[2][0] + uz * hit[2][1] < 0) { ux = -ux; uz = -uz; } // same way as the trail runs
+      let a = 0, b = 0;
+      while (a < 16 && wet(hit[0] - ux * a, hit[1] - uz * a)) a += 0.25;
+      while (b < 16 && wet(hit[0] + ux * b, hit[1] + uz * b)) b += 0.25;
+      cx = hit[0] + ux * (b - a) / 2; cz = hit[1] + uz * (b - a) / 2; span = (a + b) / 2;
+    }
     const base = Math.max(1, Math.min(surfaceY(cx - ux * (span + 1.2), cz - uz * (span + 1.2)), surfaceY(cx + ux * (span + 1.2), cz + uz * (span + 1.2))));
     out.push({ cx, cz, ux, uz, span, half: span + 1.6, w: 2, peak: Math.max(3.9, base + 2.0), base: Math.min(base, 3) }); // v1.8.2: a high arch, boats pass well under
   }
@@ -514,7 +580,7 @@ export function jettyAt(x, z) { return JETTIES.find((j) => inRect(x, z, j)) || n
 export const WALKWAYS = [];
 export function addWalkway(w) { WALKWAYS.push(w); }
 export function walkwayAt(x, z) {
-  for (const W of WALKWAYS) { const dx = x - W.cx, dz = z - W.cz; if (Math.abs(dx * W.ux + dz * W.uz) < W.half && Math.abs(-dx * W.uz + dz * W.ux) < W.w / 2) return W; }
+  for (const W of WALKWAYS) { if (W.active && !W.active()) continue; const dx = x - W.cx, dz = z - W.cz; if (Math.abs(dx * W.ux + dz * W.uz) < W.half && Math.abs(-dx * W.uz + dz * W.ux) < W.w / 2) return W; }
   return null;
 }
 export function onBridge(x, z) { return !!bridgeAt(x, z); }
@@ -533,10 +599,11 @@ export function deckHit(x, z, r = 0.9) {
   for (let i = 0; i < 8; i++) { const a = (i / 8) * Math.PI * 2; if (hit(x + Math.cos(a) * r, z + Math.sin(a) * r)) return true; }
   return false;
 }
-export function onDock(x, z) { return onCoveDock(x, z) || !!jettyAt(x, z) || onBridge(x, z) || !!walkwayAt(x, z); }
+export function onDock(x, z) { if (far(x)) return !!FARX.onDeck?.(x, z); return onCoveDock(x, z) || !!jettyAt(x, z) || onBridge(x, z) || !!walkwayAt(x, z); }
 
 // Height a walker stands at, or null if not walkable on foot.
 export function groundY(x, z) {
+  if (far(x)) return FARX.groundY(x, z);
   if (onCoveDock(x, z) || jettyAt(x, z)) return DOCK.deckY;
   if (onBridge(x, z)) return bridgeY(x, z);
   const h = heightAt(x, z);
@@ -585,11 +652,13 @@ export function castClearance(x, z, ux, uz, max = 30) {
  *  (v1.8.1: the player wades to knee depth so climbing out of a boat never strands you). */
 export const WADE_DEPTH = 0.55;
 export function walkY(x, z, wade = 0.22) {
+  if (far(x)) return FARX.walkY(x, z, wade);
   if (onCoveDock(x, z) || jettyAt(x, z)) return DOCK.deckY;
   if (onBridge(x, z)) return bridgeY(x, z);
   const ww = walkwayAt(x, z);
   if (ww) return Math.max(ww.y, surfaceY(x, z));
   const s = surfaceY(x, z);
+  if (s != null && s < WATER_Y - wade && wade > 0 && s > WATER_Y - 0.62 && creekAt(x, z).sd < 0.5) wade = 0.62; // (v1.17.1: wade the creeks' deeper riffles)
   if (s == null || s < WATER_Y - wade || s > WALK_TOP) return null; // you can wade in at the edges
   const e = 0.35;
   const gx = Math.abs(surfaceY(x + e, z) - surfaceY(x - e, z)) / (2 * e);
@@ -603,6 +672,7 @@ let walkOverlay = null;
 export function setWalkOverlay(fn) { walkOverlay = fn; }
 
 export function zoneAt(x, z) {
+  if (far(x)) return FARX.zoneAt(x, z);
   if (!isWater(x, z)) return null;
   const d = lakeDist(x, z);
   const fallsD = Math.hypot(x - FALLS_C.x, z - FALLS_C.z);
@@ -623,6 +693,7 @@ export function zoneAt(x, z) {
 
 // Boats need at least depth 2 except near the cove launch.
 export function boatable(x, z) {
+  if (far(x)) return FARX.boatable(x, z);
   const h = heightAt(x, z);
   if (h <= -1 && poolAt(x, z).sd < 2) return false; // v1.14.9: the hidden pools are for wading and casting, not rowing
   return h <= -1 || (h <= 0 && Math.abs(x - 4) < 3 && z > 18 && z < 34);
@@ -654,9 +725,11 @@ export function nearestLanding(x, z) {
 }
 
 export function regionName(x, z) {
+  if (far(x)) return FARX.regionName(x, z);
   const names = { lodge: 'Pinewood Lodge', camp: 'Fern Camp', bog: 'Bog Hut', shed: 'Quarry Shed', park: "Sundae's Trailer Park", fernview: 'Fernview Campground',
-    tower: 'Ridge Lookout', trapper: "Trapper's Cabin", plane: 'Crash Clearing', hollis: "Hollis's Treehouse" };
-  for (const [k, c] of Object.entries(CLEARINGS)) if (names[k] && Math.hypot(x - c.x, z - c.z) < c.r + 6) return names[k];
+    tower: 'Ridge Lookout', trapper: "Trapper's Cabin", plane: 'Crash Clearing', hollis: "Hollis's Treehouse", seabase: 'Frostpine Seaplane Base',
+    ranger: 'Ranger Station', aframe: 'Frostpine A-Frame' };
+  for (const [k, c] of Object.entries(CLEARINGS)) if (names[k] && Math.hypot(x - c.x, z - c.z) < c.r + (k === 'seabase' ? 2 : 6)) return names[k]; // (the seaplane base's edge is close to Tarn Run)
   { const pw = poolAt(x, z); if (pw.sd < 10) return POOLS[pw.zone].name; }
   { const ck = creekAt(x, z); if (ck.sd < 5) return ck.which.name; }
   const w = valleyWater(x, z);
@@ -717,7 +790,8 @@ export function buildTerrainMesh() {
   applyCaustics(mesh.material);
   const caustic = mesh.material.onBeforeCompile;
   mesh.material.onBeforeCompile = (sh, r) => { splat(sh, r); caustic(sh, r); };
-  mesh.material.customProgramCacheKey = () => 'smooth-splat-caustics';
+  applySwash(mesh.material); // v1.17.1: and the wash running up the beaches (waterfx.js)
+  mesh.material.customProgramCacheKey = () => 'smooth-splat-caustics-swash';
   return mesh;
 }
 

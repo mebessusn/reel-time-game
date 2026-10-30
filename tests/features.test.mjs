@@ -16,7 +16,7 @@ import { eventFor } from '../src/game/worldevents.js';
 import { mapWeatherCode } from '../src/game/realweather.js';
 import { newTug, stepTug, tugWon, tugLost } from '../src/game/tug.js';
 import { Keymap, ACTIONS } from '../src/game/controls.js';
-import { homeLayout, sanitizeLayout, DECOR } from '../src/game/home.js';
+import { homeLayout, sanitizeLayout, DECOR, HOME_TIERS, tierNeeds, clampFloor, DEN, ROOM } from '../src/game/home.js';
 import { mulberry32 } from '../src/core/rng.js';
 import { SEASONS, seasonFor, seasonBoost } from '../src/data/seasons.js';
 import { rainbowNow } from '../src/game/living.js';
@@ -293,6 +293,23 @@ t('cabin layouts: small to share, and junk from peers is dropped', () => {
   assert.equal(bad.w, 'pine');
   assert.equal(bad.m.weight, SPECIES_BY_ID.carp.weight[1]);
   assert.ok(Object.keys(DECOR).length >= 10);
+});
+
+t('bigger homes: the Cottage needs a level and two collections, adds a den, and its seconds stay out of a cabin', () => {
+  assert.equal(HOME_TIERS[1].id, 'cottage');
+  assert.deepEqual(tierNeeds(1, { level: 12 }, { collections: { cove: 1, frost: 1 } }), []);
+  assert.equal(tierNeeds(1, { level: 4 }, { collections: { cove: 1 } }).length, 2);
+  assert.ok(HOME_TIERS[1].alt.pearls > 0 && HOME_TIERS[1].price.coins > 0, 'coins, or pearls instead');
+  // a cabin can't show the den's pieces (from your own save or a peer's presence)
+  const cabin = homeLayout({ home: { decor: ['rug', 'rug2'], tank: [], tier: 0 } }, { creel: [], storage: [] });
+  assert.deepEqual(cabin.d, ['rug']); assert.equal(cabin.h, 0);
+  assert.deepEqual(sanitizeLayout({ h: 0, d: ['rug2'] }).d, []);
+  const cot = sanitizeLayout(homeLayout({ home: { decor: ['rug', 'rug2', 'lamp2'], tank: [], tier: 1, pos: { rug2: [8, -1, 0] } } }, { creel: [], storage: [] }));
+  assert.equal(cot.h, 1); assert.deepEqual(cot.d, ['rug', 'rug2', 'lamp2']); assert.deepEqual(cot.p.rug2, [8, -1, 0]);
+  // furniture stays in the room it's in: the den in a Cottage, the main room otherwise
+  assert.deepEqual(clampFloor(9, 3, 0.5, 0.5, 1), [9, DEN.z1 - 0.5]);
+  assert.deepEqual(clampFloor(9, 0, 0.5, 0.5, 0), [ROOM.x1 - 0.5, 0]);
+  assert.equal(sanitizeLayout({ h: 1, d: ['rug2'], p: { rug2: [40, 9, 0] } }).p.rug2[0], DEN.x1 - 0.4);
 });
 
 t('seasons turn weekly and favour their own fish', () => {

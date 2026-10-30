@@ -9,6 +9,7 @@ You need Node.js 20 or newer (`node -v` to check).
 
 ```
 npm install
+npm run polyfork   # once: fetches the Polyfork models from polyfork.dev and builds the game's mesh data (they aren't kept here: see scripts/fetch-polyfork.mjs)
 npm run dev
 ```
 

@@ -2,7 +2,7 @@
 // (and hint at what's biting there), a rainbow after rain, and Gus remembering you.
 import * as THREE from 'three';
 import { softDot } from '../render/softdot.js';
-import { WATER_Y, isWater, zoneAt, CLEARINGS, LAKES, groundY, surfaceY, heightAt } from '../world/terrain.js';
+import { WATER_Y, isWater, zoneAt, CLEARINGS, LAKES, groundY, surfaceY, heightAt , inValley } from '../world/terrain.js';
 import { mulberry32 } from '../core/rng.js';
 import { CABIN, WIND } from '../world/props.js';
 import { SPECIES_BY_ID } from '../data/species.js';
@@ -169,7 +169,7 @@ export class Living {
     const p = g.player.pos;
     const fall = this.season === 'winter' ? 1.2 : this.season === 'autumn' ? 0.9 : 0.35;
     const night = wt.phase === 'night';
-    this.particles.visible = !(this.season === 'summer' && night) && wt.weather !== 'storm';
+    this.particles.visible = !(this.season === 'summer' && night) && wt.weather !== 'storm' && inValley(g.player.pos.x); // (not in Open Waters or Frostmere)
     if (this.particles.visible) {
       const w = WIND.uWind.value;
       this.pSeed.forEach((s, i) => {

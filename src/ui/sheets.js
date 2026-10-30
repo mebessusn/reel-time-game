@@ -1,4 +1,5 @@
 // Bottom sheets: Creel, Fishpedia, Shop, Leaderboard, Journal (achievements), Settings.
+import { renderNorthPedia, renderNorthJournal } from '../north/ui.js';
 import { openFishViewer } from './viewer.js';
 import { SHOVEL_PRICE } from '../game/treasure.js';
 import { h, clear, fmt, lb, ago } from './dom.js';
@@ -7,7 +8,7 @@ import { fishThumb, itemThumb, avatarThumb } from './thumbs.js';
 import { baitThumb, upgradeThumb, gearThumb, decorThumb, petThumb, wearThumb, emoteThumb } from './shopthumbs.js';
 // v1.12: every shop item gets a picture
 const anyThumb = (it, av) => itemThumb(it) || (it.kind === 'emote' ? emoteThumb(it, av) : wearThumb(it, av));
-import { SPECIES, SPECIES_BY_ID, TIER_INFO, ZONES, TIERS, BOTTLE_MESSAGES, PEDIA_SLOTS } from '../data/species.js';
+import { SPECIES, SPECIES_BY_ID, TIER_INFO, ZONES, TIERS, BOTTLE_MESSAGES, PEDIA_SLOTS, tierOf, zoneName } from '../data/species.js';
 import { ITEMS, ITEMS_BY_ID, PERK_TEXT, featuredItems } from '../data/items.js';
 import { ACHIEVEMENTS, ACH_TIER_COLOR } from '../data/achievements.js';
 import { catchValue, canTrade, tradePearls, creelMax, STORAGE_MAX, achievementProgress, countSlots, BOAT_LEVEL } from '../game/rules.js';
@@ -35,6 +36,8 @@ import { SEASONS } from '../data/seasons.js';
 import { FISH_LORE, VARIANT_LORE } from '../data/fishlore.js';
 import { FUN_FACTS, EXTRA_LORE } from '../data/funfacts.js';
 import { renderMapView } from './mapview.js';
+import { renderNorthMap } from '../north/northmap.js';
+import { renderSeaChart } from '../ocean/seachart.js';
 import { album, photoButtons } from './selfie.js';
 
 const priceEl = (price) => price ? h('span.price', h('img', { src: iconURL(price.coins ? 'coin' : 'pearl') }), fmt(price.coins || price.pearls)) : null;
@@ -48,7 +51,7 @@ const perkText = (item) => {
 const SHEET_ICON = { fieldguide: 'camera', valleyjournal: 'scroll', wagon: 'shop', loop: 'bike', social: 'users', admin: 'shield', settings: 'gear', creel: 'backpack', tackle: 'package', fishpedia: 'book', shop: 'shop', board: 'scroll', journal: 'star', map: 'map', legends: 'trophy', album: 'camera', bikes: 'bike' };
 const TIME_LABEL = { any: 'Any time', dawn: 'Dawn', day: 'Day', dusk: 'Dusk', night: 'Night' };
 // Colour-blind markers: a shape per tier, shown next to the colour when the setting is on.
-export const TIER_MARK = { common: '●', uncommon: '▲', rare: '◆', epic: '★', legendary: '♛', mythic: '✦' };
+export const TIER_MARK = { common: '●', uncommon: '▲', rare: '◆', epic: '★', legendary: '♛', mythic: '✦', trophy: '⚑' };
 const tierPill = (tier) => h('span.pill', { style: { '--c': TIER_INFO[tier].color }, 'data-mark': TIER_MARK[tier] }, TIER_INFO[tier].name);
 
 export class Sheets {
@@ -69,6 +72,7 @@ export class Sheets {
   }
 
   open(name) {
+    if (name === 'map' && this.game.ocean?.atSea && this.game.ocean.charter) this.game.ocean.voyage?.mark('chart'); // v1.15: at sea, the map is Marlowe's chart (v1.15.20: drawn by render_map)
     if (this.current?.name === name) { this.close(); return; }
     const had = !!this.current;
     this.close(true);
@@ -131,6 +135,8 @@ export class Sheets {
 
   // ---------------- World map ----------------
   render_map(c) {
+    if (this.game.ocean?.atSea && this.game.ocean.charter) { c.title.textContent = 'Marlowe\'s chart'; renderSeaChart(c.body, this.game, this); return; } // v1.15.20: the sea's own map
+    if (this.game.north?.here) { c.title.textContent = 'Frostmere'; renderNorthMap(c.body, this.game, this); return; } // v1.16.2: the north's own map
     c.title.textContent = 'Five Lakes Valley';
     this.tab(c, 'map', 'Map', 'mapTab');
     // v1.9.9: no fast travel from the map itself: the stones only work while you stand at one
@@ -167,7 +173,7 @@ export class Sheets {
       const [col, place] = medals[i];
       if (!t) { c.body.append(h('div.legend.paper.empty', h('span.legend-medal', { style: { '--c': col } }, place), h('div.grow', h('div.ttl', 'An empty hook'), h('div.meta', 'Waiting for a legend. Catch something rare and it might hang here.')))); continue; }
       const sp = SPECIES_BY_ID[t.speciesId];
-      const tier = TIER_INFO[sp.tier];
+      const tier = TIER_INFO[tierOf(sp)];
       const v = t.variant === 'diamond' ? 'Diamond ' : t.variant === 'gold' ? 'Gold ' : '';
       const when = new Date(t.ts);
       const pic = h(`button.legend-pic${t.variant !== 'normal' ? `.${t.variant}` : ''}`, { title: 'Look closer', on: { click: () => openFishViewer(this.ui.root, { speciesId: t.speciesId, variant: t.variant, weight: t.weight, sub: `Caught by ${t.name}` }) } }, h('img', { src: fishThumb(t.speciesId, t.variant) }));
@@ -176,7 +182,7 @@ export class Sheets {
         pic,
         h('div.grow',
           h('div.ttl', `${v}${sp.name}`),
-          h('div.legend-tags', h('span.pill', { style: { '--c': t.variant === 'diamond' ? '#3ab0d0' : t.variant === 'gold' ? '#d89a20' : tier.color } }, v ? `${v}${tier.name}` : tier.name), h('span', lb(t.weight)), t.zone && ZONES[t.zone] ? h('span', ZONES[t.zone].name) : null),
+          h('div.legend-tags', h('span.pill', { style: { '--c': t.variant === 'diamond' ? '#3ab0d0' : t.variant === 'gold' ? '#d89a20' : tier.color } }, v ? `${v}${tier.name}` : tier.name), h('span', lb(t.weight)), t.zone && zoneName(t.zone) ? h('span', zoneName(t.zone)) : null),
           h('div.legend-desc', FISH_LORE[t.speciesId] || '', t.variant !== 'normal' ? ` ${VARIANT_LORE[t.variant]}` : ''),
           h('div.meta', 'Caught by ', h('b', t.name), ` · ${when.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })} ${when.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })} (${ago(t.ts)})`))));
     }
@@ -243,7 +249,7 @@ export class Sheets {
       clear(tip);
       if (it.kind === 'fish') {
         const x = it.c, sp = SPECIES_BY_ID[x.speciesId];
-        tip.append(h('div.it-name', g.traits.label(x)), h('div.it-sub', tierPill(sp.tier), ` ${lb(x.weight)} · ${ZONES[x.zone]?.name || ''}`),
+        tip.append(h('div.it-name', g.traits.label(x)), h('div.it-sub', tierPill(tierOf(sp)), ` ${lb(x.weight)} · ${zoneName(x.zone) || ''}`),
           h('p', FISH_LORE[sp.id] || sp.desc || ''), h('div.it-val', icon('coin'), `${fmt(catchValue(x.speciesId, x.variant, x.weight))} coins`, canTrade(x) ? h('span', ' · ', icon('pearl'), `${tradePearls(x.speciesId, x.variant)} pearls`) : null, locked.has(x.id) ? h('span.it-lock', icon('lock'), 'Locked') : null));
       } else tip.append(h('div.it-name', it.name), h('p', it.desc), h('div.it-val', it.value));
       tip.hidden = false;
@@ -298,8 +304,8 @@ export class Sheets {
     } } }, 'Name');
     const after = (fn) => () => this.act(async () => { await fn(); this.state.invSel = null; });
     c.body.append(h(`div.list-row.inv-detail${isLocked ? '.locked-row' : ''}`,
-      h('img.zoomable', { src: fishThumb(x.speciesId, x.variant), style: filt ? { filter: filt } : {}, title: 'Look closer', on: { click: () => this.view(x.speciesId, x.variant, x.weight, ZONES[x.zone]?.name) } }),
-      h('div.grow', h('div.ttl', g.traits.label(x)), h('div.meta', tierPill(sp.tier), ` ${lb(x.weight)} · ${ZONES[x.zone]?.name || ''}`)),
+      h('img.zoomable', { src: fishThumb(x.speciesId, x.variant), style: filt ? { filter: filt } : {}, title: 'Look closer', on: { click: () => this.view(x.speciesId, x.variant, x.weight, zoneName(x.zone)) } }),
+      h('div.grow', h('div.ttl', g.traits.label(x)), h('div.meta', tierPill(tierOf(sp)), ` ${lb(x.weight)} · ${zoneName(x.zone) || ''}`)),
       h('div.row-btns',
         lockBtn,
         h('button.btn.gold.small', { disabled: isLocked, on: { click: after(() => g.sell([x.id])) } }, `Sell ${fmt(catchValue(x.speciesId, x.variant, x.weight))}c`),
@@ -323,7 +329,12 @@ export class Sheets {
     c.title.textContent = 'Fishpedia';
     this.tab(c, 'fish', 'Fish', 'pediaTab');
     this.tab(c, 'sets', `Collections${this.game.collections.claimable().length ? ' !' : ''}`, 'pediaTab');
+    const owp = this.game.ocean?.progress; // v1.15: the sea's fish have their own tab
+    if (owp && (p.level >= 20 || Object.keys(p.fishpedia).some((id) => SPECIES_BY_ID[id]?.ocean))) this.tab(c, 'ocean', `Open Waters${owp.claimable() ? ' !' : ''}`, 'pediaTab');
+    if (this.game.north && (p.level >= 25 || Object.keys(p.fishpedia).some((id) => SPECIES_BY_ID[id]?.north))) this.tab(c, 'north', 'Frostmere', 'pediaTab');
     if (this.state.pediaTab === 'sets') { this.renderSets(c); return; }
+    if (this.state.pediaTab === 'ocean' && owp) { owp.renderPedia(c, this); return; }
+    if (this.state.pediaTab === 'north') { renderNorthPedia(this.game, c); return; }
     const slots = countSlots(p);
     const sel = this.state.pediaSel && SPECIES_BY_ID[this.state.pediaSel];
     const have = Object.keys(p.fishpedia).length, pct = Math.round((slots / PEDIA_SLOTS) * 100);
@@ -367,7 +378,7 @@ export class Sheets {
     }
     let at = shown.findIndex((x) => x.id === this.state.pediaSel);
     if (at < 0) { at = 0; this.state.pediaSel = shown[0].id; }
-    const sp = shown[at], e = p.fishpedia[sp.id], t = TIER_INFO[sp.tier];
+    const sp = shown[at], e = p.fishpedia[sp.id], t = TIER_INFO[tierOf(sp)];
     const go = (d) => { const n = (at + d + shown.length) % shown.length; this.state.pediaSel = shown[n].id; this.state.pediaTurn = d > 0 ? 'next' : 'prev'; this.game.audio.sfx('page'); this.render(); };
     const best = e?.diamond ? 'diamond' : e?.gold ? 'gold' : 'normal';
     const facts = FUN_FACTS[sp.id] || [];
@@ -375,7 +386,7 @@ export class Sheets {
     const seasons = Object.entries(SEASONS).filter(([, x]) => x.fish.includes(sp.id)).map(([, x]) => x.name);
     const when = sp.times.map((x) => TIME_LABEL[x]).join(', ') + (sp.weather ? ` (${sp.weather.join(' or ')} only)` : '') + (sp.moonBoost ? ' · loves a full moon' : '') + (sp.bloodMoon ? ' · Blood Moon only' : '');
     const left = h('div.page.page-l',
-      h('div.pg-tier', { style: { '--c': t.color } }, h('span', TIER_MARK[sp.tier]), t.name),
+      h('div.pg-tier', { style: { '--c': t.color } }, h('span', TIER_MARK[tierOf(sp)]), t.name),
       h(`div.pg-pic${e ? '.zoomable' : '.unknown'}`, { title: e ? 'Look closer' : '', on: e ? { click: () => this.view(sp.id, best, e.best, 'your best') } : {} },
         h('img', { src: fishThumb(sp.id, best), alt: e ? sp.name : '', style: e ? {} : { filter: 'brightness(0) opacity(0.3)' } })),
       h('h3.pg-name', e ? sp.name : '???'),
@@ -511,7 +522,7 @@ export class Sheets {
       return h(`button.item-card${x.id === selId ? '.sel' : ''}${owns(x) ? '.owned' : ''}`, { style: { '--c': TIER_INFO[r].color }, 'aria-pressed': String(x.id === selId), title: x.name, on: { click: () => { this.state[selKey] = x.id; this.game.audio.sfx('page'); this.render(); } } },
         h('span.ic-frame', th ? h('img', { src: th, alt: '' }) : icon(x.kind === 'emote' ? 'smile' : 'shirt')),
         h('span.ic-name', x.name),
-        eq ? h('span.ic-tag.eq', 'Equipped') : owns(x) ? h('span.ic-tag', 'Owned') : x.source !== 'shop' ? h('span.ic-tag', 'Achievement') : x.level && p.level < x.level ? h('span.ic-tag', icon('lock'), `Lv ${x.level}`) : priceEl(x.price),
+        eq ? h('span.ic-tag.eq', 'Equipped') : owns(x) ? h('span.ic-tag', 'Owned') : x.source !== 'shop' ? h('span.ic-tag', x.source === 'beach' ? 'Beach games' : x.source === 'charter' ? "Marlowe's locker" : x.source === 'north' ? 'Frostmere' : 'Achievement') : x.level && p.level < x.level ? h('span.ic-tag', icon('lock'), `Lv ${x.level}`) : priceEl(x.price),
         featured.includes(x.id) ? h('span.ic-flag', 'Featured') : null);
     })));
   }
@@ -525,7 +536,7 @@ export class Sheets {
       if (['rod', 'lure', 'boat'].includes(it.kind)) btn = equipped ? h('button.btn.small', { disabled: true }, 'Equipped') : h('button.btn.green', { on: { click: () => this.act(() => g.equip(it.kind, it.id)) } }, 'Equip');
       else if (it.kind === 'emote') btn = h('button.btn.small', { disabled: true }, 'Owned');
       else btn = h('button.btn.green', { on: { click: () => { this.close(); g.openCreator(); } } }, 'Wear');
-    } else if (it.source !== 'shop') btn = h('button.btn.small', { disabled: true, title: 'Earned from an achievement' }, 'Earned from an achievement');
+    } else if (it.source !== 'shop') { const how = it.source === 'beach' ? 'Win a beach game on Palm Key' : it.source === 'charter' ? "Sold at Captain Marlowe's tackle locker" : it.source === 'north' ? (it.northPrice ? 'Sold at Pell\'s Trading Post in Frostmere' : 'Earned in Frostmere') : 'Earned from an achievement'; btn = h('button.btn.small', { disabled: true, title: how }, how); }
     else {
       const need = Math.max(it.kind === 'boat' ? BOAT_LEVEL : 1, it.level || 1);
       const lvlLock = p.level < need;
@@ -767,6 +778,7 @@ export class Sheets {
     c.body.append(h(`div.list-row${g.quests.dailyBonusReady() ? '.me' : ''}`, { style: { marginTop: '6px' } }, icon('gift'),
       h('div.grow', h('div.ttl', 'Daily bonus'), h('div.meta', q.bonus ? 'Claimed today. New requests at midnight UTC.' : `Claim all three requests for ${DAILY_BONUS.coins} coins and ${DAILY_BONUS.xp} XP.`)),
       q.bonus ? h('span.pill', { style: { '--c': '#5eae3e' } }, 'Done') : g.quests.dailyBonusReady() ? h('button.btn.gold.small', { on: { click: () => this.act(() => g.quests.claimDailyBonus()) } }, 'Claim') : null));
+    g.ocean?.quests?.render(c, this); // v1.15: the sea's bonus requests
     const n = q.npc;
     if (n) {
       c.body.append(h('div.section-title', 'A local is asking'));
@@ -882,6 +894,7 @@ export class Sheets {
       ['ach', 'Awards', 'trophy', claimable.length > 0],
       ['bottles', 'Bottles', 'chat', false],
       ['woods', 'Woods', 'leaf', false], // v1.14.9 The Wild Woods (woodsui.js)
+      ...(g.north?.d.flights || g.north?.here ? [['north', 'North', 'star', Object.values(g.north.d.quests || {}).some((q) => q.done && !q.claimed)]] : []), // Frostmere (src/north/ui.js)
     ];
     const cur = this.state.journalTab || 'climb';
     for (const [id, label, ic, dot] of TABS) {
@@ -892,6 +905,7 @@ export class Sheets {
     B.classList.add('j-page');
 
     if (cur === 'woods') { this.render_woodsTab?.(c); return; }
+    if (cur === 'north') { renderNorthJournal(this, c); return; }
     if (cur === 'climb') {
       // your climb: the next thing a level opens, and level rewards you're owed
       const nu = nextUnlock(p.level);

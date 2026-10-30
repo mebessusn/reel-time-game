@@ -1,0 +1,92 @@
+/* Skye's Air Races: the race HUD, the race board and the results */
+.air-hud { position: absolute; inset: 0; pointer-events: none !important; font-family: 'Baloo 2', system-ui, sans-serif; color: #fff; z-index: 40; text-shadow: 0 1px 3px rgba(0,0,0,0.55); }
+.air-hud * { pointer-events: none !important; }
+#ui.airracing > *:not(.air-hud):not(.air-panel):not(.air-load):not(.travel-fade):not(.pop-word):not(.toasts) { display: none !important; }
+.air-hud .ar-left { position: absolute; top: 12px; left: 14px; }
+.air-hud .ar-lap { font: 800 20px/1 'Baloo 2', sans-serif; letter-spacing: 0.04em; }
+.air-hud .ar-pos { font: 800 38px/1.05 'Baloo 2', sans-serif; color: #ffd24a; }
+.air-hud .ar-board { margin-top: 6px; font: 600 13px/1.45 'Baloo 2', sans-serif; background: rgba(16,28,44,0.45); border-radius: 8px; padding: 4px 9px; min-width: 130px; }
+.air-hud .ar-board:empty { display: none; }
+.air-hud .ar-board i { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; }
+.air-hud .ar-board .me { color: #ffe68a; font-weight: 800; }
+.air-hud .ar-mid { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); text-align: center; }
+.air-hud .ar-time { font: 800 30px/1 'Baloo 2', ui-monospace, monospace; font-variant-numeric: tabular-nums; background: rgba(16,28,44,0.45); border-radius: 10px; padding: 4px 14px; }
+.air-hud .ar-best { font: 600 13px/1.6 'Baloo 2', sans-serif; opacity: 0.9; }
+.air-hud .ar-split { font: 800 20px/1.2 'Baloo 2', sans-serif; opacity: 0; transition: opacity 0.2s; }
+.air-hud .ar-split.on { opacity: 1; }
+.air-hud .ar-split.good { color: #7aff9a; } .air-hud .ar-split.bad { color: #ff8a7a; }
+.air-hud .ar-map { position: absolute; top: 12px; right: 12px; width: 150px; height: 150px; }
+.air-hud .ar-banner { position: absolute; top: 28%; left: 50%; transform: translate(-50%, -50%) scale(0.9); font: 800 34px/1.1 'Baloo 2', sans-serif; letter-spacing: 0.05em; opacity: 0; transition: opacity 0.15s, transform 0.15s; white-space: nowrap; max-width: 94vw; overflow: hidden; text-overflow: ellipsis; }
+.air-hud .ar-banner.on { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+.air-hud .ar-banner.bad { color: #ff8a7a; } .air-hud .ar-banner.warn { color: #ffd0a0; } .air-hud .ar-banner.good { color: #ffe070; } .air-hud .ar-banner.cut { color: #9af6ff; } .air-hud .ar-banner.info { color: #e8f4ff; font-size: 26px; }
+.air-hud .ar-count { position: absolute; top: 40%; left: 50%; transform: translate(-50%, -50%); font: 800 110px/1 'Baloo 2', sans-serif; color: #ffd24a; opacity: 0; transition: opacity 0.2s; }
+.air-hud .ar-lights { position: absolute; top: 22%; left: 50%; transform: translate(-50%, -50%) scale(0.9); display: flex; gap: 14px; padding: 12px 16px; border-radius: 16px; background: linear-gradient(#26292e, #15171a); box-shadow: 0 6px 18px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.08); border-bottom: 4px solid #f2c21a; opacity: 0; transition: opacity 0.25s, transform 0.25s; }
+.air-hud .ar-lights.on { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+.air-hud .ar-lights i { width: 46px; height: 46px; border-radius: 50%; display: block; box-shadow: inset 0 3px 8px rgba(0,0,0,0.6); transition: background 0.08s, box-shadow 0.08s; }
+.air-hud .ar-lights i.red { background: #4a1612; } .air-hud .ar-lights i.yellow { background: #4a3a10; } .air-hud .ar-lights i.green { background: #123a1a; }
+.air-hud .ar-lights i.red.lit { background: radial-gradient(circle at 40% 35%, #ffd0c0, #ff3a22 45%, #b01808); box-shadow: 0 0 22px 6px rgba(255,58,34,0.75), inset 0 -3px 6px rgba(0,0,0,0.3); }
+.air-hud .ar-lights i.yellow.lit { background: radial-gradient(circle at 40% 35%, #fff4c0, #ffc21a 45%, #b07a08); box-shadow: 0 0 22px 6px rgba(255,194,26,0.75), inset 0 -3px 6px rgba(0,0,0,0.3); }
+.air-hud .ar-lights i.green.lit { background: radial-gradient(circle at 40% 35%, #d0ffd8, #2aff5a 45%, #0a9a2a); box-shadow: 0 0 26px 8px rgba(42,255,90,0.8), inset 0 -3px 6px rgba(0,0,0,0.3); }
+@media (max-width: 640px) { .air-hud .ar-lights i { width: 34px; height: 34px; } }
+.air-hud .ar-count.on { opacity: 1; } .air-hud .ar-count.small { font-size: 44px; color: #fff; } .air-hud .ar-count.go { color: #7aff9a; }
+.air-hud .ar-meter { position: absolute; left: 50%; bottom: 120px; transform: translateX(-50%); display: flex; align-items: center; gap: 8px; font: 800 11px/1 'Baloo 2', sans-serif; letter-spacing: 0.08em; color: #fff4c8; }
+.air-hud .ar-meter i { width: 180px; height: 9px; border-radius: 5px; background: rgba(20,34,52,0.55); overflow: hidden; display: block; }
+.air-hud .ar-meter b { display: block; height: 100%; width: 0; background: linear-gradient(90deg, #4ad8f2, #b8faff); transition: width 0.1s linear; }
+.air-hud .ar-meter.on b { background: linear-gradient(90deg, #ff7a3a, #ffd84a); box-shadow: 0 0 10px #ffb84a; }
+.air-hud .ar-spd { font-style: normal; min-width: 64px; }
+.air-hud .ar-tags { position: absolute; left: 50%; bottom: 140px; transform: translateX(-50%); display: flex; gap: 8px; font: 800 11px/1 'Baloo 2', sans-serif; letter-spacing: 0.08em; }
+.air-hud .ar-tags span { opacity: 0; color: #9af6ff; transition: opacity 0.2s; } .air-hud .ar-tags span.on { opacity: 1; }
+.air-hud .ar-tip { position: absolute; bottom: 40px; left: 50%; transform: translateX(-50%); background: rgba(20,34,52,0.55); padding: 5px 12px; border-radius: 10px; font-size: 13px; white-space: nowrap; max-width: 92%; overflow: hidden; text-overflow: ellipsis; }
+.air-hud .ar-tip:empty { display: none; }
+.air-hud .ar-btns { position: absolute; right: 14px; bottom: 90px; display: flex; gap: 6px; }
+.air-hud .ar-btns .btn, .air-hud .ar-quit { pointer-events: auto !important; }
+.air-hud .ar-quit { position: absolute; top: 168px; right: 14px; }
+.air-hud.finished .ar-btns, .air-hud.finished .ar-meter, .air-hud.finished .ar-tags, .air-hud.finished .ar-quit { display: none; }
+.air-hud .fl-blur { position: absolute; inset: 0; opacity: 0; backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px);
+  -webkit-mask-image: radial-gradient(ellipse at center, transparent 38%, black 85%); mask-image: radial-gradient(ellipse at center, transparent 38%, black 85%); transition: opacity 0.15s linear; }
+@media (max-width: 640px) { .air-hud .ar-map { width: 110px; height: 110px; } .air-hud .ar-quit { top: 128px; } .air-hud .ar-board { display: none; } .air-hud .ar-pos { font-size: 30px; } .air-hud .ar-time { font-size: 22px; } }
+
+/* loading */
+.air-load { position: absolute; inset: 0; z-index: 60; display: grid; place-items: center; background: linear-gradient(#3f7fd0, #cfe2f0); color: #fff; font: 800 26px/1.3 'Baloo 2', sans-serif; text-align: center; text-shadow: 0 1px 3px rgba(0,0,0,0.4); }
+.air-load small { display: block; font-size: 15px; font-weight: 600; opacity: 0.9; }
+.air-load i { display: block; margin: 12px auto 0; width: 220px; height: 8px; border-radius: 4px; background: rgba(255,255,255,0.35); overflow: hidden; }
+.air-load i b { display: block; height: 100%; width: 0; background: #ffd24a; transition: width 0.2s; }
+
+/* the race board (Skye's) and the results: panels over the game */
+.air-panel { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 70; width: min(760px, calc(100vw - 24px)); max-height: calc(100vh - 32px); overflow: auto; padding: 16px 18px; border-radius: 16px; }
+.air-panel h2 { margin: 0 0 2px; font: 800 26px/1.1 'Baloo 2', sans-serif; }
+.air-panel .ap-sub { opacity: 0.8; margin-bottom: 10px; font-size: 14px; }
+.air-panel .ap-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
+.air-panel .ap-rank { font: 700 13px/1.3 'Baloo 2', sans-serif; text-align: right; }
+.air-panel .ap-rank b { display: block; font-size: 18px; color: #ffd24a; }
+.air-panel .ap-row { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0 10px; }
+.air-panel .ap-label { font: 800 12px/1 'Baloo 2', sans-serif; letter-spacing: 0.08em; text-transform: uppercase; opacity: 0.7; margin-top: 8px; }
+.air-panel .ap-circuits { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 8px; margin: 6px 0 10px; }
+.air-panel .ap-c { text-align: left; padding: 8px 10px; border-radius: 10px; border: 2px solid transparent; background: rgba(255,255,255,0.07); cursor: pointer; font: inherit; color: inherit; }
+.air-panel .ap-c.on { border-color: #ffb84a; background: rgba(255,184,74,0.14); }
+.air-panel .ap-c[disabled] { opacity: 0.45; cursor: not-allowed; }
+.air-panel .ap-c b { display: block; font-size: 15px; }
+.air-panel .ap-c small { display: block; opacity: 0.75; font-size: 12px; }
+.air-panel .ap-c .md { float: right; font-size: 13px; letter-spacing: 1px; }
+.air-panel .ap-desc { font-size: 14px; margin: 4px 0 8px; min-height: 2.6em; }
+.air-panel .ap-chip { padding: 5px 11px; border-radius: 999px; border: 2px solid rgba(255,255,255,0.18); background: transparent; cursor: pointer; font: 700 13px/1.2 'Baloo 2', sans-serif; color: inherit; }
+.air-panel .ap-chip.on { border-color: #ffb84a; background: rgba(255,184,74,0.18); }
+.air-panel .ap-chip[disabled] { opacity: 0.45; cursor: not-allowed; }
+.air-panel .ap-go { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; margin-top: 12px; }
+.air-panel table { width: 100%; border-collapse: collapse; font-size: 15px; margin: 6px 0; }
+.air-panel td { padding: 4px 6px; border-bottom: 1px solid rgba(255,255,255,0.1); }
+.air-panel tr.me td { font-weight: 800; background: rgba(255,210,74,0.18); }
+.air-panel .ap-medal { font: 800 20px/1.3 'Baloo 2', sans-serif; margin: 6px 0; }
+.air-panel .ap-small { font-size: 13px; opacity: 0.8; }
+.medal-1 { color: #e8a070; } .medal-2 { color: #dce4ec; } .medal-3 { color: #ffd24a; } .medal-4 { color: #8ae8f8; }
+.air-panel .close-x { position: absolute; top: 10px; right: 10px; }
+.air-panel .ap-head { padding-right: 46px; }
+/* v1.17.1: mouse flying: the stick in the middle of the screen (centre ring, the dot is where you're pushing) */
+.air-hud .ar-stick { position: absolute; left: 50%; top: 50%; width: 112px; height: 112px; margin: -56px 0 0 -56px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.28); box-shadow: inset 0 0 0 9px rgba(255,255,255,0.05); pointer-events: none; opacity: 0; transition: opacity 0.25s; }
+.air-hud .ar-stick.on { opacity: 1; }
+.air-hud .ar-stick::before { content: ''; position: absolute; left: 50%; top: 50%; width: 14px; height: 14px; margin: -7px 0 0 -7px; border-radius: 50%; border: 1.5px dashed rgba(255,255,255,0.35); }
+.air-hud .ar-stick i { position: absolute; left: 50%; top: 50%; width: 16px; height: 16px; margin: -8px 0 0 -8px; border-radius: 50%; background: rgba(255,244,200,0.9); box-shadow: 0 0 8px rgba(255,220,120,0.6); }
+.air-hud .ar-stick.boost i { background: #ffd24a; box-shadow: 0 0 14px #ffb020; }
+/* v1.17.1: the board in three rows: easy, medium and hard circuits */
+.air-panel .ap-tier { font: 800 11px/1 'Baloo 2', sans-serif; letter-spacing: 0.1em; text-transform: uppercase; margin: 8px 0 0; opacity: 0.8; }
+.air-panel .ap-tier.t1 { color: #7fd99a; } .air-panel .ap-tier.t2 { color: #ffd24a; } .air-panel .ap-tier.t3 { color: #ff8a6a; }

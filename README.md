@@ -90,6 +90,7 @@ Open an issue: https://github.com/mebessusn/reel-time-game/issues
 
 ```
 npm ci
+npm run polyfork         # once: fetches the Polyfork models from polyfork.dev (they are not kept in this repo)
 npm run dev              # play at http://localhost:5173
 npm test                 # unit tests
 npm run build:artifact   # the single-file game: dist-artifact/reel-time.html

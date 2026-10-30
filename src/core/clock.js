@@ -10,11 +10,18 @@ let forcedWeather = params.get('weather');
 let forcedMoon = params.has('moon') ? parseInt(params.get('moon'), 10) : null;
 
 export function setDebugTime(phase) { fixedPhase = phase; }
+// v1.15.10 Open Waters: a charter keeps its own clock (a night charter, or sleeping till dawn on an island). The
+// crew share the shift in the charter's state, so everyone aboard sees the same sky. 0 everywhere else.
+let shiftMs = 0;
+export function setTimeShift(ms) { shiftMs = Number.isFinite(ms) ? ms : 0; }
+export function timeShift() { return shiftMs; }
+/** Pure: the shift (ms, added to the last one) that brings the day fraction from `f` forward to `target`. */
+export function shiftTo(f, target) { return ((((target - f) % 1) + 1) % 1) * DAY_MS; }
 export function setDebugWeather(w) { forcedWeather = w; }
 
 export function dayFraction(now = Date.now()) {
-  if (fixedPhase != null && !Number.isNaN(fixedPhase)) return ((fixedPhase % 1) + 1) % 1;
-  return (now % DAY_MS) / DAY_MS;
+  if (fixedPhase != null && !Number.isNaN(fixedPhase)) return ((((fixedPhase + shiftMs / DAY_MS) % 1) + 1) % 1);
+  return (((now + shiftMs) % DAY_MS) + DAY_MS) % DAY_MS / DAY_MS;
 }
 
 export function dayIndex(now = Date.now()) {

@@ -77,7 +77,7 @@ def cove():
         s.part('cyl', bar, (math.cos(a) * 0.43, math.sin(a) * 0.35, z), (0.035, 0.035, 0.025), (math.degrees(math.sin(a)) * 0, 90, math.degrees(a)), seg=6, top=0.5, smooth=False)
     for i, a in enumerate((-2.0, -1.2, 0.4, 1.6, 2.6)):  # kelp strands draped from the shoulder
         s.part('cyl', weed, (math.cos(a) * 0.38, math.sin(a) * 0.3, 0.75), (0.035, 0.012, 0.42), (math.sin(a) * 12, math.cos(a) * 12, 0), seg=5, top=0.2)
-    s.part('cyl', drift, (0.15, 0.32, 0.12), (0.09, 0.09, 0.7), (6, 90, 18), amp=0.02, seed=4, seg=8)
+    # (v1.17.1: the driftwood log at its foot is gone: it read as a stick poking out)
     s.part('torus', rope, (0, 0, 1.32), (0.4, 0.33, 0.4), (0, 0, 0), tube=0.07, seg=14, ring=5)
     s.part('cyl', shell, (-0.36, -0.42, 0.06), (0.09, 0.07, 0.04), (80, 0, 20), seg=8, top=0.15)
     s.part('cyl', shell, (0.42, -0.25, 0.05), (0.06, 0.05, 0.03), (75, 0, -40), seg=8, top=0.15)
