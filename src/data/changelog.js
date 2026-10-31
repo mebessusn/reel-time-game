@@ -13,6 +13,14 @@ export const CHANGE_KINDS = {
 
 export const CHANGELOG = [
   {
+    version: 'v1.17.4', date: 'Oct 31 2026', title: 'Credits',
+    changes: {
+      world: [
+        '3D models by Polyfork (https://polyfork.dev), used with permission.',
+      ],
+    },
+  },
+  {
     version: 'v1.17.3', date: 'Oct 30 2026', title: 'Round the Ring',
     changes: {
       ui: [
