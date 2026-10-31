@@ -100,6 +100,10 @@ The plugin lives in [`claude-plugin/`](claude-plugin) (tests: `claude plugin tes
 Blender from `art/src/*.py` (`pip install bpy`, then `python3 art/src/<name>.py`) and turned into plain JS modules with
 `node scripts/glb-to-js.mjs`, so the game file embeds no binary blobs. More detail: [SETUP.md](SETUP.md).
 
+## Credits
+
+3D models by [Polyfork](https://polyfork.dev), used with permission.
+
 ## License
 
 Reel Time is © 2026 Megan Bess, released under the [PolyForm Noncommercial License 1.0.0](LICENSE): free to play,
