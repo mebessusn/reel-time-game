@@ -416,6 +416,10 @@ export function animateAvatar(av, state, t, extra = {}) {
       p.head.rotation.x = -lean * 0.4;
       break;
     }
+    case 'ride': { // v1.17.2: astride a snowmobile or jet ski: leaning in, both hands on the bars
+      p.body.rotation.set(0.42, 0, 0); p.armL.rotation.set(-1.32, 0, 0.1); p.armR.rotation.set(-1.32, 0, -0.1); p.head.rotation.set(-0.3, 0, 0);
+      break;
+    }
     case 'bike': {
       // on a bike (v1.9): legs push the pedals round (opposite legs, half a turn apart), body leans over the
       // bars, hands on the grips turning a touch with the steering; backing up, you look over your shoulder

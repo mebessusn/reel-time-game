@@ -44,7 +44,7 @@ export class Airbases {
     const B = BASE;
     const hg = node('ab_hangar'); hg.position.set(B.hangar.x, 1.0, B.hangar.z); hg.rotation.y = B.hangar.ry; hg.scale.setScalar(B.hangar.s); vb.add(hg);
     this.hangSign(hg);
-    const sign = signBoard('FROSTPINE AIR', 5.0 * B.hangar.s, 0.78 * B.hangar.s); sign.position.set(B.hangar.x - 8.42 * B.hangar.s, 1.0 + 6.05 * B.hangar.s, B.hangar.z); sign.rotation.y = -Math.PI / 2; vb.add(sign); // (v1.17.1: the lettering sits on the hangar's own sign board over the door (art/src/snowgoose.py: 0, H + 1.45, D + 0.2))
+    const sign = signBoard('FROSTPINE AIR', 5.0 * B.hangar.s, 0.78 * B.hangar.s); sign.position.set(B.hangar.x - 8.07 * B.hangar.s, 1.0 + 6.05 * B.hangar.s, B.hangar.z); sign.rotation.y = -Math.PI / 2; vb.add(sign); // (v1.17.1: the lettering sits on the hangar's own sign board over the door (art/src/snowgoose.py: 0, H + 1.45, D + 0.2))
     // (hangar walls: the back and both sides; the open front faces the lake)
     const hw = 8.5 * B.hangar.s, hd = 7 * B.hangar.s;
     addBox(B.hangar.x + hd - 0.3, B.hangar.z - hw, B.hangar.x + hd + 0.3, B.hangar.z + hw);
@@ -90,7 +90,7 @@ export class Airbases {
     hg.position.y = this.game.north.groundAt(S.hangar.x, S.hangar.z) ?? 2;
     g.add(hg);
     this.hangSign(hg);
-    const sign = signBoard('HEARTHWICK AIR', 3.6, 0.55); sign.position.set(S.hangar.x, hg.position.y + 6.05 * S.hangar.s, S.hangar.z - 8.42 * S.hangar.s); // (v1.17.2: out in front of the roof's edge)
+    const sign = signBoard('HEARTHWICK AIR', 3.6, 0.55); sign.position.set(S.hangar.x, hg.position.y + 6.05 * S.hangar.s, S.hangar.z - 8.07 * S.hangar.s); // (v1.17.2: out in front of the roof's edge)
     sign.rotation.y = Math.PI; g.add(sign);
     const hw = 8.5 * S.hangar.s, hd = 7 * S.hangar.s;
     addBox(S.hangar.x - hw, S.hangar.z + hd - 0.3, S.hangar.x + hw, S.hangar.z + hd + 0.3);

@@ -5,7 +5,7 @@
 import * as THREE from 'three';
 import { toLocal, inNorth, kindAt, isIce, K, P, ICE_Y, trailDist } from './geo.js';
 
-const MAX = 700, LIFE = 100;
+const MAX = 700, LIFE = 8; // (seconds: a mark lasts a moment, then shrinks away)
 
 export class Tracks {
   constructor(north) {
@@ -70,13 +70,13 @@ export class Tracks {
     for (const t of [...N.sleds.teams, ...(N.sleds.soloTeam ? [N.sleds.soloTeam] : [])]) if (t.visible) this.step(t, t.sled.position.x, t.sled.position.y, t.sled.position.z, t.sled.rotation.y, 'runner');
     // redraw (cheaply: the pool only changes when a mark is added, and once a second as old ones shrink)
     this.redrawT = (this.redrawT || 0) - dt;
-    if (!this.dirty && this.redrawT > 0) return;
-    this.dirty = false; this.redrawT = 1;
+    if ((!this.dirty && this.redrawT > 0) || (!this.mesh.count && !this.marks.length)) return;
+    this.dirty = false; this.redrawT = 0.2;
     let n = 0;
     for (const m of this.marks) {
       const age = this.time - m.t;
       if (age > LIFE) continue;
-      const k = age > LIFE * 0.7 ? 1 - (age - LIFE * 0.7) / (LIFE * 0.3) : 1;
+      const k = age > LIFE * 0.5 ? 1 - (age - LIFE * 0.5) / (LIFE * 0.5) : 1;
       const [w, l] = m.kind === 'foot' ? [0.13, 0.26] : m.kind === 'skate' ? [0.03, 0.85] : m.kind === 'tread' ? [0.44, 1.05] : [0.06, m.kind === 'runner' ? 1.05 : 0.8];
       this.e.set(0, m.yaw, 0); this.q.setFromEuler(this.e);
       this.v.set(m.x, m.y, m.z); this.s.set(w * k, 1, l * k);

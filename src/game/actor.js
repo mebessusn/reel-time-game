@@ -273,6 +273,7 @@ export class Actor {
         this.twist = Math.max(-1.1, Math.min(1.1, Math.atan2(Math.sin(d), Math.cos(d))));
       } else this.twist = 0;
       if (s.shiver) this.body.position.x += Math.sin(t * 52) * 0.016 * s.shiver; // (v1.17.2: freezing, up north)
+      if (s.tilt) { this.root.rotation.order = 'YXZ'; this.root.rotation.x = s.tilt[0]; this.root.rotation.z = s.tilt[1]; this.tilted = true; } else if (this.tilted) { this.root.rotation.x = 0; this.root.rotation.z = 0; this.tilted = false; } // (the rider tips with the machine)
       if (s.moving && pose === 'idle' && !s.seat) pose = s.running ? 'run' : 'walk';
       if (s.skate && (pose === 'walk' || pose === 'run' || pose === 'idle')) pose = s.skate > 1 ? 'skate' : s.moving ? 'glide' : 'idle'; // Frostmere: on skates (2 pushing, 1 gliding)
       if (s.sled) pose = 'sled'; // Frostmere: driving a dog sled
@@ -311,7 +312,7 @@ export class Actor {
     this.setDiveGear(s.swim ? s.dg || '' : '');
     this.setBlades(!!s.blades && !s.swim && !s.sled);
     if (this.held && pose === 'idle') pose = 'hold';
-    const busyHands = ['photo', 'swim', 'tread', 'swimgun', 'treadgun', 'wave', 'cheer', 'shrug', 'clap', 'dance', 'orange', 'run', 'sleep', 'hold', 'row', 'oars', 'dig', 'bike', 'yell', 'cry', 'roast', 'eat', 'bump', 'tuck', 'throw', 'skate', 'glide', 'sled'].includes(pose);
+    const busyHands = ['photo', 'swim', 'tread', 'swimgun', 'treadgun', 'wave', 'cheer', 'shrug', 'clap', 'dance', 'ride', 'orange', 'run', 'sleep', 'hold', 'row', 'oars', 'dig', 'bike', 'yell', 'cry', 'roast', 'eat', 'bump', 'tuck', 'throw', 'skate', 'glide', 'sled'].includes(pose);
     this.placeRod(s.rod === 'back' || busyHands ? 'back' : 'hand');
     this.showShovel(pose === 'dig');
     if (pose === 'photo' || this.camProp) this.showCamera(pose === 'photo');

@@ -359,6 +359,7 @@ export class NorthWorld {
       if (riverDist(u, v).d < RIVER_W) return false;
       if (trailDist(u, v) < 6) return false; // (the sled trails and the Ring Line)
       if (groomed(u, v)) return false; // (Skyline's piste and the Big Air Jump)
+      if (u > -345 && u < 40 && Math.abs(v - 60) < 18) return false; // (the plane's way in and out over the western shore)
       return true;
     };
     const kinds = [

@@ -98,6 +98,11 @@ export class Hearthwick {
     // a cabin's stoop by the door, and the woodpile by the side wall
     if (B.stoop) floor(-1.8, B.hd, -0.2, B.hd + 0.95, y + 0.36);
     if (B.woodpile) { const p = rot(B.woodpile[0], B.woodpile[1]); addCircle(p.x, p.z, 0.65, { top: y + 0.95 }); }
+    if (B.id === 'trading') { // (v1.17.2: the logs stop at the eaves: board in the gable under the back of the roof)
+      const sh = new THREE.Shape([new THREE.Vector2(-4.75, 0), new THREE.Vector2(4.75, 0), new THREE.Vector2(0, 2.55)]);
+      const gable = new THREE.Mesh(new THREE.ShapeGeometry(sh), new THREE.MeshLambertMaterial({ color: '#6e4a2c', side: THREE.DoubleSide }));
+      const p = rot(0, -3.62); gable.position.set(p.x, y + 3.62, p.z); gable.rotation.y = B.ry; gable.castShadow = true; this.group.add(gable);
+    }
     if (B.sign) {
       const [text, sw, sh, [lx, ly, lz]] = B.sign;
       const s = signBoard(text, sw, sh, { bg: '#8c2f28', fg: '#f4e8c8', edge: '#c9a24a' });

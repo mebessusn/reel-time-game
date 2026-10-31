@@ -13,6 +13,22 @@ export const CHANGE_KINDS = {
 
 export const CHANGELOG = [
   {
+    version: 'v1.17.3', date: 'Oct 30 2026', title: 'Round the Ring',
+    changes: {
+      ui: [
+        'Change your outfit from the Esc menu: Dress your angler sits right under Resume.',
+      ],
+      fix: [
+        'The Ring Line works: press E at a station, pick a stop, and you wait for the next chair. It joins the Skyline lift without getting off, signs and map pins mark the stations, stations are solid, and while riding you can choose to get off at the next stop.',
+        'Three pieces of cold-weather gear now stop the cold entirely (one slows it, two slow it more).',
+        'Footprints, skate lines and tracks fade after a few seconds.',
+        'You stay put on the jet ski, the snowmobile and Marlowe\'s deck, and you lean in with your hands on the bars. The jet ski\'s handlebars are back within reach.',
+        'The plane keeps clear of the Leviathan, the shore trees and the Ring Line. The sun sets behind the Frostmere mountains, not into them.',
+        'Pell\'s Trading Post has a wall under the back of its roof, the Palm Key signpost no longer blocks the Beach Games board, and the hangar lettering sits on its board.',
+      ],
+    },
+  },
+  {
     version: 'v1.17.2', date: 'Oct 30 2026', title: 'Out on the Snow',
     changes: {
       new: [

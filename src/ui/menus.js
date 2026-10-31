@@ -110,6 +110,7 @@ export class Menus {
     const item = (label, ic, fn, cls = '') => h(`button.pause-item${cls}`, { on: { click: () => { g.audio.sfx('click'); fn(); } } }, icon(ic), h('span', label));
     const list = h('nav.pause-list', { 'aria-label': 'Menu' },
       item('Resume', 'play', () => this.close(), '.main'),
+      item('Dress your angler', 'shirt', () => { this.close(); g.openCreator(); }),
       item('Settings', 'gear', () => { this.close(); g.ui.sheets.open('settings'); }),
       item('Friends & party', 'users', () => { this.close(); g.ui.sheets.open('social'); }),
       item('Play with friends (invites)', 'link', () => { this.close(); this.friends(); }),

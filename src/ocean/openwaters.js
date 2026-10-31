@@ -584,9 +584,13 @@ export class OpenWaters {
     this.boat.update(dt, this.course, g.engine.sky.night || 0);
     if (was && pl.mode === 'shore') {
       // ride along: same spot on deck after the boat moved and turned
+      // v1.17.2: stood still, you keep the very same deck spot from frame to frame (re-solving it each frame made you creep and jitter)
+      const A = this.deckAnchor, still = A && Math.hypot(A.x - pl.pos.x, A.z - pl.pos.z) < 0.002;
+      if (still) { was.x = A.lx; was.z = A.lz; }
       const w = this.boat.toWorld(was.x, was.z);
       const dyaw = this.lastYaw != null ? Math.atan2(Math.sin(this.boat.pose.yaw - this.lastYaw), Math.cos(this.boat.pose.yaw - this.lastYaw)) : 0;
       pl.pos.x = w.x; pl.pos.z = w.z; pl.yaw += dyaw;
+      this.deckAnchor = { x: w.x, z: w.z, lx: was.x, lz: was.z };
       if (pl.target && this.boat.pose.moving) pl.target = null;
     } else if (this.jetski.on) { // (v1.17.2: riding: never counted as fallen in the water)
     } else if (this.goingHome) {

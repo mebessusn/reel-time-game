@@ -33,6 +33,7 @@ export function installTestKit(game) {
         act('Birds now', () => { if (!g.ocean.life.summon('birds')) g.ui.toast('Go to sea first.'); }),
         // Frostmere (v1.16)
         act('Fly north now', () => { close(); if (g.north?.here) g.ui.toast('Already up north.'); else if (g.profile.level < 25) g.ui.toast('Level 25 first (button above).'); else if (g.ocean?.charter) g.ui.toast('Come home from sea first.'); else g.north.board('north'); }),
+        act('Teleport to Hearthwick', () => { close(); if (g.north?.here) g.ui.toast('Already up north.'); else if (g.ocean?.charter) g.ui.toast('Come home from sea first.'); else g.north.teleportTown(); }),
         // Skye's Air Races (v1.17)
         act('Air races', () => { close(); if (g.profile.level < 25) { g.ui.toast('Level 25 first (button above).'); return; } g.ext.change((d) => { d.north.flights = Math.max(1, d.north.flights || 0); }); g.north?.air?.open(); }),
         act('Unlock all air races', () => { g.ext.change((d) => { d.north.flights = Math.max(1, d.north.flights || 0); d.air.testAll = !d.air.testAll; }); g.ui.toast(g.ext.d.air.testAll ? 'Every circuit, class, plane and paint is open (test kit).' : 'Air races back to normal unlocks.'); }),

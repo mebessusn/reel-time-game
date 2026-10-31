@@ -10,8 +10,8 @@ import { oceanWave, oceanSlope } from './waves.js';
 import { oceanSurfaceY, OCEAN, islandAt, jettyAt } from './geo.js';
 
 addLibrary(JETSKI_MATS, JETSKI_NODES);
-export const JET = { price: 6000, max: 26, boost: 32, reverse: 4, accel: 9, brake: 14, drag: 1.6, grav: 13, seat: 0.84, back: 0.6, dip: 0.12 };
-const WATER_Y = 0.85;
+export const JET = { price: 6000, max: 26, boost: 32, reverse: 4, accel: 9, brake: 14, drag: 1.6, grav: 13, seat: 0.84, back: 0.5, dip: 0.12 };
+const WATER_Y = 0.85, seatOff = new THREE.Vector3();
 
 export class JetSki {
   constructor(ow) { this.ow = ow; this.game = ow.game; this.on = false; this.v = 0; this.vy = 0; this.y = 0; this.steer = 0; this.sound = new EngineSound(this.game.audio); this.remote = new Map(); this.pitch = 0; this.roll = 0; this.air = false; }
@@ -93,7 +93,7 @@ export class JetSki {
     const wantR = Math.atan(across) * (this.air ? 0.4 : 1) - this.steer * Math.min(1, sp / 12) * 0.42;
     this.pitch += (wantP - this.pitch) * Math.min(1, dt * 6); this.roll += (wantR - this.roll) * Math.min(1, dt * 6);
     p.pos.y = this.y - JET.dip; p.baseY = p.pos.y; p.vy = 0; p.moving = false; p.target = null; p.dir.set(fx, 0, fz);
-    const M = this.mesh; M.position.set(p.pos.x + fx * JET.back, p.pos.y, p.pos.z + fz * JET.back); M.rotation.order = 'YXZ'; M.rotation.set(this.pitch, p.yaw, this.roll);
+    const M = this.mesh; M.rotation.order = 'YXZ'; M.rotation.set(this.pitch, p.yaw, this.roll); seatOff.set(0, 0, -JET.back).applyEuler(M.rotation); M.position.set(p.pos.x - seatOff.x, p.pos.y - seatOff.y, p.pos.z - seatOff.z); // (the seat stays under you, however it tips)
     this.sound.set(0.2 + Math.min(1, sp / JET.max) * 0.75 * (f > 0 ? 1 : 0.55));
     if (!this.air && sp > 2) this.spray(dt, sp, fx, fz);
     g.engine.cam.target.set(p.pos.x, p.pos.y + 1, p.pos.z);
@@ -114,7 +114,7 @@ export class JetSki {
     }
     this.ripT = (this.ripT || 0) - dt; if (this.ripT <= 0) { this.ripT = 0.16; g.engine.water?.ripple?.(p.pos.x - fx * 1.2, p.pos.z - fz * 1.2, 0.8); }
   }
-  seat() { return this.on ? { h: JET.seat, yaw: this.game.player.yaw } : null; }
+  seat() { return this.on ? { h: JET.seat, yaw: this.game.player.yaw, ride: true, tilt: [this.pitch, this.roll] } : null; }
   contextActions() { return this.on ? [{ id: 'jet-off', label: 'Hop off the jet ski', color: 'green', fn: () => this.dismount() }] : []; }
   stateExtra() { const p = this.game.player; return this.on ? { js: [+p.pos.x.toFixed(1), +p.pos.z.toFixed(1), +p.yaw.toFixed(2), +p.pos.y.toFixed(2)] } : null; }
   update(dt = 1 / 60) {

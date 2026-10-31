@@ -85,6 +85,10 @@ export const P = {
   skyline: { u: 180, v: 296, name: 'Skyline Base' },
   summit: { u: 180, v: 364, name: 'Skyline Summit' },
   skijump: { u: 250, v: 330, name: 'The Big Air Jump' },
+  ringhearth: { u: 30, v: 216, name: 'Ring Line: Hearthwick' },
+  ringaurora: { u: 232, v: -36, name: 'Ring Line: Aurora Hill' },
+  ringshore: { u: 40, v: -188, name: 'Ring Line: North Shore' },
+  ringgalena: { u: -136, v: 118, name: 'Ring Line: Galena' },
 };
 export const PLACE_LIST = Object.entries(P).map(([id, p]) => ({ id, ...p }));
 /** Building pads: level ground for Hearthwick and the outposts ({ u, v, r, h, tilt } tilt: rise per metre southward). */
@@ -98,7 +102,7 @@ export const PADS = [
   { u: 24, v: 288, r: 28, h: 3, tilt: 0 }, // Ember Hollow
   { u: 180, v: 296, r: 16, h: 4, tilt: 0 }, // Skyline's base station
   { u: 180, v: 364, r: 15, h: 27.5, tilt: 0 }, // Skyline's summit
-  { u: 30, v: 216, r: 11, h: 3, tilt: 0 }, { u: 150, v: 284, r: 11, h: 3.5, tilt: 0 }, { u: 232, v: -36, r: 11, h: 5, tilt: 0 }, { u: 40, v: -188, r: 11, h: 3, tilt: 0 }, { u: -136, v: 118, r: 11, h: 3, tilt: 0 }, // the Ring Line's stations
+  { u: 30, v: 216, r: 11, h: 3, tilt: 0 }, { u: 232, v: -36, r: 11, h: 5, tilt: 0 }, { u: 40, v: -188, r: 11, h: 3, tilt: 0 }, { u: -136, v: 118, r: 11, h: 3, tilt: 0 }, // the Ring Line's stations
 ];
 
 // ---------------------------------------------------------------- the height grid
@@ -329,10 +333,10 @@ export const SLED_ROUTES = {
 };
 /** v1.17.2 the Ring Line, a chairlift right round the map: its line, and its five stations (src/north/lifts.js). */
 export const RING_STOPS = [
-  { id: 'hearth', name: 'Hearthwick', u: 30, v: 216 }, { id: 'sky', name: 'Skyline', u: 150, v: 284 }, { id: 'aurora', name: 'Aurora Hill', u: 232, v: -36 },
+  { id: 'hearth', name: 'Hearthwick', u: 30, v: 216 }, { id: 'sky', name: 'Skyline', u: 180, v: 281 }, { id: 'aurora', name: 'Aurora Hill', u: 232, v: -36 },
   { id: 'shore', name: 'North Shore', u: 40, v: -188 }, { id: 'galena', name: 'Galena', u: -136, v: 118 },
 ];
-export const RING = [[30, 216], [90, 262], [150, 284], [230, 270], [292, 220], [312, 120], [300, 30], [232, -36], [206, -130], [150, -182], [40, -188], [-60, -190], [-150, -178], [-192, -100], [-200, 0], [-136, 118], [-104, 190], [-40, 226]];
+export const RING = [[30, 216], [100, 264], [180, 281], [240, 268], [292, 220], [312, 120], [300, 30], [232, -36], [206, -130], [150, -182], [40, -188], [-60, -190], [-150, -178], [-192, -100], [-200, 0], [-136, 118], [-104, 190], [-40, 226]];
 export const TRAILS = [SLED_TRAIL, ...Object.values(SLED_ROUTES).map((r) => r.pts), [...RING, RING[0]]];
 /** Distance to the nearest sled trail (to keep the trees off them). */
 export function trailDist(u, v) { let d = 1e9; for (const t of TRAILS) d = Math.min(d, polyDist(u, v, t).d); return d; }

@@ -13,6 +13,7 @@ import { h } from '../ui/dom.js';
 const WARM_SHIRTS = new Set(['puffer', 'sweater', 'raincoat', 'flannel', 'cardigan', 'hoodie', 'parka', 'shirt_parka', 'shirt_sweater_snow', 'shirt_sweater_deer', 'shirt_raincoat_yellow', 'shirt_musher']);
 const WARM_HATS = new Set(['beanie', 'trapper', 'hat_earflap', 'hat_bobble', 'hat_aviator']);
 const WARM_ACC = new Set(['acc_scarf', 'acc_mittens', 'acc_aurora_scarf']);
+const WARM_SHOES = new Set(['boots', 'shoes_furboots']);
 const B = Object.fromEntries(BUILDINGS.map((b) => [b.id, b]));
 
 export class Warmth {
@@ -26,16 +27,19 @@ export class Warmth {
     this.vignette = h('div.frost-vignette');
     this.game.ui.root.append(this.el, this.vignette);
   }
-  /** How well your clothes keep the cold out: 1 (t-shirt) down to about 0.45 (parka, earflap hat, mittens). */
-  clothes() {
-    const a = this.game.profile.avatar || {}, e = this.game.profile.equipped || {};
-    let k = 1;
-    if (WARM_SHIRTS.has(a.shirt) || WARM_SHIRTS.has(e.shirt)) k -= a.shirt === 'parka' || e.shirt === 'shirt_parka' ? 0.4 : 0.3;
-    if (WARM_HATS.has(a.hat) || WARM_HATS.has(e.hat)) k -= 0.12;
-    if (WARM_ACC.has(a.accessory) || WARM_ACC.has(e.accessory)) k -= 0.08;
-    if (e.extra === 'acc_mittens' || a.accessory === 'acc_mittens') k -= 0.05;
-    return Math.max(0.4, k);
+  /** v1.17.2: how many pieces of cold-weather gear you have on (a parka counts as two). */
+  pieces() {
+    const a = this.game.profile.avatar || {}, e = this.game.profile.equipped || {}, on = (set, k) => set.has(a[k]) || set.has(e[k]);
+    let n = 0;
+    if (on(WARM_SHIRTS, 'shirt')) n += a.shirt === 'parka' || a.shirt === 'shirt_parka' || e.shirt === 'shirt_parka' ? 2 : 1;
+    if (on(WARM_HATS, 'hat')) n++;
+    if (WARM_ACC.has(a.accessory) || WARM_ACC.has(e.accessory) || WARM_ACC.has(e.extra)) n++;
+    if (WARM_SHOES.has(a.shoes)) n++;
+    if (a.eyewear === 'eye_snowgoggles') n++;
+    return n;
   }
+  /** How fast the cold gets to you: one piece slows it, two slow it more, three or more stop it (unless you're soaked). */
+  clothes() { return [1, 0.6, 0.3, 0][Math.min(3, this.pieces())]; }
   /** Where warmth comes from right now (per second), and a word for it. */
   source() {
     const N = this.north, p = this.game.player.pos, V = N.village;
@@ -65,14 +69,14 @@ export class Warmth {
       let drain = 0.24 * (1 + night * 0.6) * (st.weather === 'storm' ? 1.7 : st.weather === 'rain' ? 1.35 : st.weather === 'overcast' ? 1.15 : 1);
       if (N.ice?.onIce()) drain *= 1.15;
       drain *= this.clothes();
-      if (this.soaked > 0) { drain *= 4; this.soaked = Math.max(0, this.soaked - dt); }
+      if (this.soaked > 0) { drain = Math.max(drain, 0.12) * 4; this.soaked = Math.max(0, this.soaked - dt); }
       if (this.buff) drain *= this.buff.mult;
       this.warm = Math.max(0, this.warm - drain * dt);
     }
     // the bar, the shiver and the frost
     this.bar.style.width = `${this.warm}%`;
     this.el.classList.toggle('cold', this.warm < 30); this.el.classList.toggle('soaked', this.soaked > 0); this.el.classList.toggle('buffed', !!this.buff);
-    this.tag.textContent = this.soaked > 0 ? 'Soaked!' : src ? src[1] : this.buff ? this.buff.name : this.warm < 30 ? 'Freezing' : '';
+    this.tag.textContent = this.soaked > 0 ? 'Soaked!' : src ? src[1] : this.buff ? this.buff.name : this.warm < 30 ? 'Freezing' : this.pieces() >= 3 ? 'Dressed for it' : '';
     const cold = Math.max(0, (45 - this.warm) / 45);
     this.vignette.style.opacity = (Math.min(1, cold * 1.25) + (this.soaked > 0 ? 0.25 : 0)).toFixed(3);
     g.player.speedMult = 1 - cold * 0.18;
@@ -82,7 +86,7 @@ export class Warmth {
     if (this.shiver > 0.3) g.engine.shake = Math.max(g.engine.shake || 0, 0.12 + this.shiver * 0.14);
     if (this.shiver > 0.2 && Math.random() < dt * 1.2) { const p = g.player.pos; g.fx.mist(new THREE.Vector3(p.x, p.y + 1.5, p.z)); }
     if (src) { if (this.warm > 60) this.warned = 0; }
-    else for (const [at, lvl, title, text] of [[55, 1, 'Getting cold', 'Your warmth is dropping. Warm clothes slow it down.'], [30, 2, 'Freezing!', 'Get warm soon, or you\'ll pass out.'], [12, 3, 'You\'re about to pass out!', 'Get to a fire now.']]) {
+    else for (const [at, lvl, title, text] of [[55, 1, 'Getting cold', `Your warmth is dropping. Three pieces of warm gear stop it (you have ${this.pieces()} on).`], [30, 2, 'Freezing!', 'Get warm soon, or you\'ll pass out.'], [12, 3, 'You\'re about to pass out!', 'Get to a fire now.']]) {
       if (this.warm < at && (this.warned || 0) < lvl) { this.warned = lvl; g.audio.sfx('toggle'); g.ui.toast(`${text} ${this.nearest()}`, { title, icon: 'snow', ms: 7000 }); }
     }
     if (this.warm <= 0) this.frozen();
@@ -105,7 +109,7 @@ export class Warmth {
       h('li', 'The bar under your level is your warmth. It drains outdoors, faster at night, in snow and on the ice.'),
       h('li', 'When it gets low you shiver, frost creeps in and you slow down. At zero you pass out and wake by the bonfire.'),
       h('li', 'Warm up at a fire, in the Hearth Lodge, a shanty, a trail hut with its stove lit, or a hot pool.'),
-      h('li', 'Warm clothes make it last much longer: put on the Expedition Parka from your wardrobe, and buy more at Pell\'s. Cocoa helps too.')),
+      h('li', 'Warm clothes count: one piece slows the cold, two slow it more, and three or more (say a parka and a warm hat) stop it. Hats, boots, goggles, scarves and mittens all count. Pell sells them.')),
     h('button.btn.gold.small', { on: { click: close } }, 'Got it'));
     g.ui.root.append(el);
   }

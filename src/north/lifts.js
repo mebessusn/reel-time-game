@@ -8,6 +8,7 @@ import { instanced } from './instancing.js';
 import { polyforkModel, placeModels } from '../world/polyfork.js';
 import { natureMaterial } from '../world/nature.js';
 import { addCircle } from '../world/colliders.js';
+import { signBoard } from './plane.js';
 
 const ROPE_Y = 8, ARM = 1.84, SEAT_DROP = 4, HOP = 0.55; // (rope height above the ground, half the rope spacing, seat below the rope)
 const NEAR = 240; // chairs are only drawn this close to you
@@ -54,6 +55,7 @@ export class Lifts {
   ground(x, z) { return this.north.groundAt(x, z) ?? 3; }
   build(group) {
     const G = new THREE.Group(); G.name = 'north-lifts'; group.add(G);
+    this.ringGeo = new THREE.RingGeometry(1.1, 1.4, 28).rotateX(-Math.PI / 2); this.ringMat = new THREE.MeshBasicMaterial({ color: '#ffd080', transparent: true, opacity: 0.6, depthWrite: false });
     const chair = polyforkModel('chairlift-chair').body, mat = natureMaterial(), node = (x, z) => ({ x, z, y: this.ground(x, z) + ROPE_Y });
     // ---- the Ring Line: a smooth closed path through RING, pylons about every 60 m
     const curve = new THREE.CatmullRomCurve3(RING.map(([u, v]) => { const w = toWorld(u, v); return new THREE.Vector3(w.x, 0, w.z); }), true, 'centripetal');
@@ -73,10 +75,15 @@ export class Lifts {
     const stationItems = [];
     for (const st of sts) {
       const f = frames.find((q2) => q2.k === st.k), y = this.ground(f.x, f.z) - 0.05;
-      stationItems.push({ m: 'ski-lift-base-station', x: f.x, z: f.z, ry: f.yaw + Math.PI / 2, y, solid: false });
-      for (const [a, b] of [[5.6, 4.6], [-5.6, 4.6], [5.6, -4.6], [-5.6, -4.6]]) addCircle(f.x + f.sx * a + Math.sin(f.yaw) * b, f.z + f.sz * a + Math.cos(f.yaw) * b, 0.5);
+      stationItems.push({ m: 'ski-lift-base-station', x: f.x, z: f.z, ry: f.yaw + Math.PI / 2, y });
       const landX = f.x + f.sx * 8.5, landZ = f.z + f.sz * 8.5;
       this.stops.push({ id: st.id, name: st.name, line: 'ring', x: landX, z: landZ, ropes: [[A, A.sNear(f.x, f.z)], [B, B.sNear(f.x, f.z)]] });
+      // a sign you can see from a way off, and a glowing ring where you wait
+      const gy = this.ground(landX, landZ), yw = f.yaw, sx = landX + Math.sin(yw) * 2.4, sz = landZ + Math.cos(yw) * 2.4, board = signBoard(`RING LINE: ${st.name.toUpperCase()}`, 3.4, 0.5, { bg: '#2c4060', fg: '#f4f0e8', edge: '#e8a030' });
+      board.position.set(sx, gy + 3, sz); board.rotation.y = Math.atan2(f.sx, f.sz); G.add(board);
+      const board2 = board.clone(); board2.rotation.y += Math.PI; board2.position.x -= f.sx * 0.03; board2.position.z -= f.sz * 0.03; G.add(board2); // (it reads from both sides)
+      const post = new THREE.Mesh(new THREE.BoxGeometry(0.14, 3, 0.14), new THREE.MeshLambertMaterial({ color: '#3a3f46' })); post.position.set(sx, gy + 1.5, sz - 0.0); post.position.x -= Math.sin(board.rotation.y) * 0.05; post.position.z -= Math.cos(board.rotation.y) * 0.05; G.add(post); addCircle(sx, sz, 0.15);
+      const rg = new THREE.Mesh(this.ringGeo, this.ringMat); rg.position.set(landX, gy + 0.08, landZ); G.add(rg);
     }
     G.add(placeModels('north-ring-stations', stationItems));
     // ---- Skyline's lift: up one arm of the pylons and down the other, round the wheels at each end
@@ -86,32 +93,47 @@ export class Lifts {
     span.forEach((p, i) => { const y = this.ground(p.x, p.z) + ROPE_Y; sky[i].y = y; sky[sky.length - 2 - i].y = y; });
     const R = new Rope(G, sky, 8, 3.6, chair, mat); this.ropes.push(R);
     const base = { x: S.x, z: S.z + 7.5 }, top = { x: T.x - 2, z: T.z - 5.5 };
-    this.stops.push({ id: 'skybase', name: 'the base station', line: 'sky', ...base, ropes: [[R, 0]] }, { id: 'skytop', name: 'the summit', line: 'sky', ...top, ropes: [[R, R.cum[6]]] });
+    this.stops.push({ id: 'skybase', name: 'Skyline Base', line: 'sky', ...base, ropes: [[R, 0]] }, { id: 'skytop', name: 'Skyline Summit', line: 'sky', ...top, ropes: [[R, R.cum[6]]] });
   }
   update(dt) {
     const me = this.game.player.pos;
     for (const r of this.ropes) { r.t += dt; r.draw(me); }
     const b = this.ride; if (b) this.step(dt);
   }
-  /** Board at `from`, for `to`: the shorter way round. */
+  /** Board at `from`, for `to`: the shorter way round, changing at Skyline between the Ring Line and the summit lift if need be. */
   board(from, to) {
+    const hub = (line) => this.stops.find((s) => s.id === (line === 'ring' ? 'sky' : 'skybase'));
+    this.north.sno.dismount();
+    if (from.line !== to.line) {
+      const out = hub(from.line), into = hub(to.line);
+      if (from === out) { this.leg(into, to, null, from); return; }
+      this.leg(from, out, [into, to]); return;
+    }
+    this.leg(from, to, null);
+  }
+  leg(from, to, next, walkFrom = null) {
     let best = null;
     for (const [r, s] of from.ropes) { const e = to.ropes.find(([q2]) => q2 === r); if (!e) continue; const d = ((e[1] - s) % r.len + r.len) % r.len; if (!best || d < best.d) best = { r, s, d, end: e[1] }; }
-    this.north.sno.dismount();
-    this.ride = { phase: 'wait', ...best, to, chair: -1 };
-    this.game.ui.toast(`Next chair for ${to.name} coming up.`, { title: 'Chairlift', icon: 'star', ms: 3000 });
+    this.ride = { phase: 'wait', ...best, to, next, chair: -1, walkFrom };
+    if (!next || !walkFrom) this.game.ui.toast(`Next chair for ${(next ? next[1] : to).name} coming up.`, { title: 'Chairlift', icon: 'star', ms: 3000 });
+  }
+  /** The next station ahead on your rope, if it isn't already where you're getting off. */
+  nextStop() {
+    const R = this.ride; if (!R || R.phase !== 'ride') return null;
+    let best = null, bd = 1e9;
+    for (const s of this.stops) for (const [r, at] of s.ropes) { if (r !== R.r) continue; const gap = ((at - R.s) % r.len + r.len) % r.len; if (gap > R.done + 8 && gap < bd) { bd = gap; best = s; } }
+    return best && best !== R.to ? { s: best, d: bd } : null;
   }
   step(dt) {
     const R = this.ride, g = this.game, p = g.player, r = R.r;
     if (R.phase === 'wait') {
-      if (Math.hypot(p.pos.x - R.to.x, p.pos.z - R.to.z) < 0.1) { this.ride = null; return; }
       const i = r.nearest(R.s, 1.4 * r.speed * Math.max(dt, 1 / 30));
-      if (i >= 0) { R.chair = i; R.phase = 'on'; R.k = 0; R.from = p.pos.clone(); R.done = 0; g.audio.sfx('creak'); }
+      if (i >= 0) { R.chair = i; R.phase = 'on'; R.k = 0; R.from = p.pos.clone(); R.done = 0; { const q = new THREE.Vector3(); r.at(r.chairS(i), q); R.hop = Math.max(HOP, Math.hypot(q.x - p.pos.x, q.z - p.pos.z) / 5); } g.audio.sfx('creak'); }
       return;
     }
     const yaw = r.at(r.chairS(R.chair), pv), seatY = pv.y - SEAT_DROP;
     if (R.phase === 'on') {
-      R.k = Math.min(1, R.k + dt / HOP); const e = R.k * R.k * (3 - 2 * R.k);
+      R.k = Math.min(1, R.k + dt / R.hop); const e = R.k * R.k * (3 - 2 * R.k);
       p.pos.set(R.from.x + (pv.x - R.from.x) * e, R.from.y + (seatY - R.from.y) * e, R.from.z + (pv.z - R.from.z) * e);
       if (R.k >= 1) R.phase = 'ride';
     } else if (R.phase === 'ride') {
@@ -121,7 +143,7 @@ export class Lifts {
     } else {
       R.k = Math.min(1, R.k + dt / HOP); const e = R.k * R.k * (3 - 2 * R.k), to = R.to, y = this.ground(to.x, to.z);
       p.pos.set(R.from.x + (to.x - R.from.x) * e, R.from.y + (y - R.from.y) * e, R.from.z + (to.z - R.from.z) * e);
-      if (R.k >= 1) { this.ride = null; p.baseY = y; p.vy = 0; g.engine.cam.target.set(to.x, y + 0.8, to.z); if (to.line === 'ring') g.ui.toast(`${to.name}.`, { title: 'Ring Line', icon: 'star' }); else if (to.id === 'skytop') { g.ext.change((d) => { d.north.summit = 1; }); g.reward('north', 'summit', { coins: 200, xp: 200 }, 'Skyline Summit'); } return; }
+      if (R.k >= 1) { this.ride = null; p.baseY = y; p.vy = 0; g.engine.cam.target.set(to.x, y + 0.8, to.z); if (R.next) { this.leg(R.next[0], R.next[1], null, to); return; } if (to.line === 'ring') g.ui.toast(`${to.name}.`, { title: 'Ring Line', icon: 'star' }); else if (to.id === 'skytop') { g.ext.change((d) => { d.north.summit = 1; }); g.reward('north', 'summit', { coins: 200, xp: 200 }, 'Skyline Summit'); } return; }
     }
     p.baseY = p.pos.y; p.vy = 0; p.yaw = yaw; p.moving = false; p.target = null;
     g.engine.cam.target.set(p.pos.x, p.pos.y + 1.2, p.pos.z);
@@ -130,16 +152,18 @@ export class Lifts {
   control() { return !!this.ride && this.ride.phase !== 'wait'; }
   seat() { return this.ride && this.ride.phase !== 'wait' ? { h: 0.8, yaw: this.game.player.yaw } : null; }
   menu(stop) {
-    const g = this.game, others = this.stops.filter((s) => s !== stop && s.line === 'ring');
-    g.dialogue.open({ npc: { name: 'Ring Line', title: 'Chairlift station', look: null }, title: `${stop.name} station`, text: 'The chairs run all the way round the map. Where to?', choices: [...others.map((s) => ({ label: s.name, fn: () => setTimeout(() => this.board(stop, s), 150) })), { label: 'Not now' }] });
+    const g = this.game, others = this.stops.filter((s) => s !== stop && s.id !== (stop.id === 'sky' ? 'skybase' : stop.id === 'skybase' ? 'sky' : ''));
+    g.dialogue.open({ npc: { name: 'Ring Line', title: 'Chairlift station', look: null, pos: new THREE.Vector3(stop.x + 1.2, g.player.pos.y, stop.z), actor: { headWorld: (v) => v.set(stop.x + 1.2, g.player.pos.y + 1.6, stop.z) } }, title: `${stop.name} station`, text: 'The chairs run right round the map, and up to Skyline Summit. Where to?', choices: [...others.map((s) => ({ label: s.label || s.name, fn: () => setTimeout(() => this.board(stop, s), 150) })), { label: 'Not now' }] });
   }
   contextActions() {
-    const me = this.game.player.pos, near = (s) => Math.hypot(s.x - me.x, s.z - me.z) < 4, out = [];
-    if (this.ride) return this.ride.phase === 'wait' ? [{ id: 'lift-wait', label: 'Step back from the line', fn: () => { this.ride = null; } }] : [];
-    for (const s of this.stops) if (near(s)) {
-      if (s.line === 'ring') out.push({ id: `ring-${s.id}`, label: 'Ride the Ring Line', color: 'gold', fn: () => this.menu(s) });
-      else { const other = this.stops.find((q2) => q2.line === 'sky' && q2 !== s); out.push({ id: s.id === 'skybase' ? 'lift' : 'lift-down', label: s.id === 'skybase' ? 'Ride the chairlift' : 'Ride the chairlift down', color: 'gold', fn: () => this.board(s, other) }); }
+    const me = this.game.player.pos, out = [];
+    const R = this.ride;
+    if (R) {
+      if (R.phase === 'wait') return [{ id: 'lift-wait', label: 'Step back from the line', fn: () => { this.ride = null; } }];
+      const n = this.nextStop();
+      return n ? [{ id: 'lift-next', label: `Get off at ${n.s.label || n.s.name}`, color: 'gold', fn: () => { R.d = n.d; R.to = n.s; R.next = null; this.game.ui.toast(`Getting off at ${n.s.label || n.s.name}.`, { title: 'Chairlift', icon: 'star' }); } }] : [];
     }
+    for (const s of this.stops) if (Math.hypot(s.x - me.x, s.z - me.z) < 5) out.push({ id: s.line === 'ring' ? `ring-${s.id}` : s.id === 'skybase' ? 'lift' : 'lift-down', label: 'Ride the chairlift', color: 'gold', fn: () => this.menu(s) });
     return out;
   }
 }

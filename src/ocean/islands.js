@@ -374,7 +374,8 @@ export class Islands {
     }
     for (const [i, c] of S.canoes.entries()) { const a = Math.atan2(c.x - ISLAND_BY_ID.palm.x, c.z - ISLAND_BY_ID.palm.z) + Math.PI / 2 + i * 0.3; prop('isle_canoe', c.x, c.z, a, 1, null, 0); addCircle(c.x, c.z, 1.0); this.take(c.x, c.z, 2.6); }
     prop('isle_netrack', S.nets.x, S.nets.z, Math.atan2(S.nets.x - ISLAND_BY_ID.palm.x, S.nets.z - ISLAND_BY_ID.palm.z)); this.take(S.nets.x, S.nets.z, 2);
-    const sp = off(D, 3.5, -2.2); prop('isle_signpost', sp.x, sp.z, yaw + 2.6, 1, null, 0.12); this.take(sp.x, sp.z, 0.6);
+    const sp = off(D, 3.5, 3.2); // (v1.17.2: across the path from the Beach Games board, not in front of it)
+    prop('isle_signpost', sp.x, sp.z, yaw + 2.6, 1, null, 0.12); this.take(sp.x, sp.z, 0.6);
   }
 
   // ---- Turtle Atoll: the research tent, the motu with its hammock, a fire on the dunes

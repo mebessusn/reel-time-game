@@ -14,6 +14,7 @@ import { natureMaterial } from '../world/nature.js';
 import { northSfx } from './sounds.js';
 import { SoftSpray } from '../render/softspray.js';
 
+const seatOff = new THREE.Vector3();
 const SEAT_BACK = 0.6; // (you sit on the bench, this far behind the machine's middle)
 export const SNO = { max: 24, boost: 29, reverse: 5, accel: 11, brake: 22, coast: 4, grav: 15, price: 2400, pup: 500 };
 
@@ -109,7 +110,7 @@ export class Snowmobile {
     const pitch = this.air ? -Math.atan2(this.vy, Math.max(4, sp)) * 0.7 : Math.atan2(tail - nose, 2.4);
     this.pitch = (this.pitch ?? 0) + (pitch - (this.pitch ?? 0)) * Math.min(1, dt * 8);
     this.lean = (this.lean ?? 0) + ((-this.steer * Math.min(1, sp / 12) * 0.2) - (this.lean ?? 0)) * Math.min(1, dt * 5);
-    M.position.set(p.pos.x + fx * SEAT_BACK, this.y, p.pos.z + fz * SEAT_BACK); M.rotation.order = 'YXZ'; M.rotation.set(this.pitch, p.yaw, this.lean);
+    M.rotation.order = 'YXZ'; M.rotation.set(this.pitch, p.yaw, this.lean); seatOff.set(0, 0, -SEAT_BACK).applyEuler(M.rotation); M.position.set(p.pos.x - seatOff.x, this.y - seatOff.y, p.pos.z - seatOff.z); // (the bench stays under you, however it tips)
     { const L = this.lamp, e = g.engine.sky.night || 0; L.intensity = e * 34; // (a little above the nose, aimed down the snow ahead)
       L.position.set(M.position.x + fx * 1.3, this.y + 1.05, M.position.z + fz * 1.3); L.target.position.set(M.position.x + fx * 15, this.y - 0.4, M.position.z + fz * 15); L.target.updateMatrixWorld(); }
     this.sound.set(0.15 + Math.min(1, sp / SNO.max) * 0.8 * (f ? 1 : 0.6));

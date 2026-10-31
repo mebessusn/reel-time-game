@@ -598,13 +598,13 @@ export class Game {
     if (this.selfie.active) pose = this.selfie.pose;
     if (this.cookout.active) pose = 'roast';
     if (this.cookout.eating) pose = 'eat';
-    const gp = this.ocean.games.pose() || this.north.pose?.(); // v1.15 beach games: bump, tuck, throw... (and Frostmere's snowballs and auger)
+    const gp = this.ocean.games.pose() || (this.ocean.jetski?.on ? 'ride' : null) || this.north.pose?.(); // v1.15 beach games: bump, tuck, throw... (and Frostmere's snowballs and auger)
     if (gp) pose = gp;
     this.pose = pose;
     // The rod is in your hands while fishing (or if you took it out with T); otherwise it rides on your back.
     const fishingNow = this.fishing.state !== 'idle';
     this.rodPlace = fishingNow || (!this.rodStowed && pl.mode === 'shore' && !this.ocean.games.busy) ? 'hand' : 'back';
-    this.actor.update(dt, t, { shiver: this.north?.warmth?.shiver || 0, x: pl.pos.x, y: pl.pos.y, z: pl.pos.z, yaw: pl.yaw, mode: pl.mode, pose, moving: pl.moving, bobber: this.fishing.bobberState(), power: this.fishing.power, tension: this.tugTension(), lean: this.fishing.state === 'reeling' ? this.rodAim || 0 : 0, rod: this.rodPlace, seat: this.rideSeat()?.h ?? (this.chairs.seat ? this.chairs.seat.h || SEAT_H : 0), seatYaw: this.rideSeat()?.yaw ?? this.chairs.seat?.yaw, running: pl.sprint && pl.moving && pl.mode === 'shore' && !this.bikes.riding, passenger: !!this.riding, bike: this.bikes.state(), swim: this.ocean.dive.on ? (this.ocean.dive.under ? 2 : 1) : 0, swimPitch: this.engine.cam.pitch, dg: this.ocean.dive.on ? this.ocean.dive.wearing : '', skate: this.north.skate?.pose() || 0, blades: !!(this.north.skate?.on && this.north.here), sled: this.north.sleds?.riding ? 1 : 0 });
+    this.actor.update(dt, t, { tilt: this.rideSeat()?.tilt, shiver: this.north?.warmth?.shiver || 0, x: pl.pos.x, y: pl.pos.y, z: pl.pos.z, yaw: pl.yaw, mode: pl.mode, pose, moving: pl.moving, bobber: this.fishing.bobberState(), power: this.fishing.power, tension: this.tugTension(), lean: this.fishing.state === 'reeling' ? this.rodAim || 0 : 0, rod: this.rodPlace, seat: this.rideSeat()?.h ?? (this.chairs.seat ? this.chairs.seat.h || SEAT_H : 0), seatYaw: this.rideSeat()?.yaw ?? this.chairs.seat?.yaw, running: pl.sprint && pl.moving && pl.mode === 'shore' && !this.bikes.riding, passenger: !!this.riding, bike: this.bikes.state(), swim: this.ocean.dive.on ? (this.ocean.dive.under ? 2 : 1) : 0, swimPitch: this.engine.cam.pitch, dg: this.ocean.dive.on ? this.ocean.dive.wearing : '', skate: this.north.skate?.pose() || 0, blades: !!(this.north.skate?.on && this.north.here), sled: this.north.sleds?.riding ? 1 : 0 });
     this.cookout.afterActor(dt);
 
     this.places.update(dt);

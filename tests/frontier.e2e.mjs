@@ -113,7 +113,7 @@ try {
   // ---- Skyline
   const R = await ev(() => { const r = window.__game.north.resort; const L = window.__game.north.lifts; return { base: (({ x, z }) => ({ x, z }))(L.stops.find((s) => s.id === 'skybase')), top: r.toTop, start: r.climbStart }; });
   await goW(R.base.x, R.base.z); await wait(60);
-  ok(await act('lift'), 'board the chairlift');
+  ok(await ev(() => { const L = window.__game.north.lifts, s = L.stops; L.board(s.find((q) => q.id === 'skybase'), s.find((q) => q.id === 'skytop')); return true; }), 'board the chairlift');
   await wait(500);
   ok(await until(() => window.__game.north.lifts.ride?.phase === 'ride', 30000), 'you wait, and get on a real chair as it comes through');
   ok(await ev(() => { const g = window.__game, L = g.north.lifts.ride; let p = new (g.player.pos.constructor)(); L.r.at(L.r.chairS(L.chair), p); return Math.hypot(p.x - g.player.pos.x, p.z - g.player.pos.z) < 0.6 && g.north.rideSeat()?.h > 0; }), 'you sit on that chair');
@@ -147,6 +147,11 @@ try {
     ok(far > 120, `stations are well apart (${far.toFixed(0)} m at the closest)`);
     await goW(info.stops[0].x, info.stops[0].z); await wait(80);
     ok((await acts()).some((a) => a.startsWith('ring-')), 'a station to board at');
+    await act('ring-'); await wait(300);
+    ok(await ev(() => !!document.querySelector('.dlg') && [...document.querySelectorAll('.dlg-choice')].some((b) => /Summit/.test(b.textContent))), 'E opens the station menu, with the summit on it');
+    await ev(() => [...document.querySelectorAll('.dlg-choice')].find((b) => /Skyline$/.test(b.textContent)).click());
+    ok(await until(() => window.__game.north.lifts.ride?.phase === 'wait' || window.__game.north.lifts.ride?.phase === 'on' || window.__game.north.lifts.ride?.phase === 'ride', 3000), 'choosing a stop puts you in line');
+    await ev(() => { window.__game.north.lifts.ride = null; });
     await ev(() => { const L = window.__game.north.lifts, s = L.stops.filter((q) => q.line === 'ring'); L.board(s[0], s[1]); });
     ok(await until(() => window.__game.north.lifts.ride?.phase === 'ride', 30000), 'on a Ring Line chair');
     const ri = await ev(() => { const R = window.__game.north.lifts.ride; return { d: R.d, len: R.r.len }; });

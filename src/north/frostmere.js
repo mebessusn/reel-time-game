@@ -9,7 +9,7 @@ import { FAR_X, WATER_Y } from '../world/terrain.js';
 import { NORTH, ICE_Y, inNorth, toLocal, toWorld, landAt, kindAt, isIce, P, regionOf } from './geo.js';
 import { installWestWorld } from './hooks.js';
 import { NorthWorld } from './world.js';
-import { Hearthwick, SAUNA_HOLE } from './hearthwick.js';
+import { Hearthwick, SAUNA_HOLE, GREEN } from './hearthwick.js';
 import { buildAlpine } from './alpine.js';
 import { SeaMonster } from './seamonster.js';
 import { Snowmobile, toggleRide, SNO } from './sno.js';
@@ -188,6 +188,23 @@ export class Frostmere {
     if (mode === 'quick') { await this.world.build(); this.onNorthBuilt(); this.arrive(); return; }
     this.board('north');
   }
+  /** Test kit: straight to the green at Hearthwick, no flight. */
+  async teleportTown() {
+    const g = this.game;
+    if (this.trip) return;
+    if (g.profile.level < FM.LEVEL) g.profile.level = FM.LEVEL;
+    if (g.fishing.busy) g.fishing.cancel();
+    if (g.chairs.seat) g.chairs.stand();
+    if (g.bikes?.riding) g.bikes.dismount();
+    if (g.player.mode !== 'shore') { g.player.mode = 'shore'; g.actor.setMode('shore'); }
+    g.ui.closeAll?.();
+    await this.world.build(); this.onNorthBuilt(); this.world.setVisible(true);
+    const w = toWorld(GREEN.u, GREEN.v + 5), y = this.floorAt(w.x, w.z) ?? this.groundAt(w.x, w.z);
+    g.player.pos.set(w.x, y, w.z); g.player.baseY = y; g.player.target = null;
+    g.engine.cam.target.set(w.x, y + 0.8, w.z);
+    setTimeout(() => this.welcome(), 500);
+    g.pushMeta?.();
+  }
   get d() { return this.game.ext.d.north || {}; }
   get here() { return this.game.player.pos.x < -FAR_X; }
   get level() { return this.game.profile.level; }
@@ -284,15 +301,15 @@ export class Frostmere {
       const M = BASE.mooring, y = WATER_Y - 0.3;
       T.plane = this.bases.plane; this.bases.atMooring = false;
       T.path = new Path([
-        // (nose west off the mooring, up the east side of the lake, round a wide loop clear of the leviathan's bones, and off to the south)
-        [M.x, y, M.z, 2], [-95, y, -146, 5], [-101, y, -153, 6], [-101, y, -163, 7], [-105, y, -172, 7], [-112, y, -177, 7], [-120, y, -172, 8], [-122, y, -160, 12], [-118, y, -145, 22], [-114, y, -128, 29], [-112, y + 0.6, -110, 31], [-112, 6, -92, 32], [-111, 18, -66, 34], [-110, 34, -36, 36],
+        // (nose west off the mooring, a turn in the east of the lake, and away north up the line clear of the leviathan's bones)
+        [M.x, y, M.z, 2], [-94, y, -150, 5], [-93, y, -162, 6], [-95, y, -171, 6], [-99, y, -174, 6], [-103, y, -167, 8], [-102, y, -152, 14], [-102, y, -135, 24], [-103, y + 0.6, -120, 29], [-106, 6, -104, 31], [-109, 12, -88, 32], [-111, 18, -66, 34], [-110, 34, -36, 36],
       ], { from: M.yaw });
       T.water = true;
     } else {
       const S = STRIP.park, y = ICE_Y - 0.02;
       T.plane = this.northPlane;
-      const [a, b, c] = TAXI_OUT.slice(1).map(([u, v]) => toWorld(u, v)), d = toWorld(-60, 60), e = toWorld(-110, 60), f = toWorld(-150, 58), gg = toWorld(-200, 52), hh = toWorld(-250, 45);
-      T.path = new Path([[S.x, y, S.z, 2], [a.x, y, a.z, 6], [b.x, y, b.z, 8], [c.x, y, c.z, 14], [d.x, y, d.z, 26], [e.x, y + 0.6, e.z, 31], [f.x, 6, f.z, 33], [gg.x, 20, gg.z, 35], [hh.x, 38, hh.z, 36]], { from: S.yaw });
+      const [a, b, c] = TAXI_OUT.slice(1).map(([u, v]) => toWorld(u, v)), d = toWorld(-40, 60), e = toWorld(-80, 60), f = toWorld(-130, 58), gg = toWorld(-190, 52), hh = toWorld(-250, 45); // (up well before the Ring Line's rope and the shore's trees)
+      T.path = new Path([[S.x, y, S.z, 2], [a.x, y, a.z, 6], [b.x, y, b.z, 8], [c.x, y, c.z, 14], [d.x, y, d.z, 26], [e.x, y + 0.6, e.z, 31], [f.x, 9, f.z, 33], [gg.x, 27, gg.z, 35], [hh.x, 38, hh.z, 36]], { from: S.yaw });
       T.water = false;
     }
     T.stage = 'taxi'; T.t = 0; T.lastYaw = T.tilt = T.swing = null; T.bank = 0;
@@ -305,14 +322,14 @@ export class Frostmere {
       this.onNorthBuilt();
       const y = ICE_Y - 0.02, pk = STRIP.park;
       T.plane = this.northPlane; T.plane.group.visible = true;
-      const p0 = toWorld(-330, 66), p1 = toWorld(-230, 62), p2 = toWorld(-150, 60), p3 = toWorld(-90, 60), p4 = toWorld(-20, 60), [p5, p6] = TAXI_IN.slice(0, 2).map(([u, v]) => toWorld(u, v));
-      T.path = new Path([[p0.x, 78, p0.z, 36], [p1.x, 36, p1.z, 31], [p2.x, y + 0.4, p2.z, 26], [p3.x, y, p3.z, 18], [p4.x, y, p4.z, 9], [p5.x, y, p5.z, 5], [p6.x, y, p6.z, 3], [pk.x, y, pk.z, 1]], { to: pk.yaw }); // (it swings round on the spot to park nose north)
+      const p0 = toWorld(-330, 66), p1 = toWorld(-230, 62), p2 = toWorld(-110, 60), p3 = toWorld(-70, 60), p4 = toWorld(-15, 60), [p5, p6] = TAXI_IN.slice(0, 2).map(([u, v]) => toWorld(u, v));
+      T.path = new Path([[p0.x, 84, p0.z, 36], [p1.x, 48, p1.z, 31], [p2.x, y + 0.4, p2.z, 26], [p3.x, y, p3.z, 18], [p4.x, y, p4.z, 9], [p5.x, y, p5.z, 5], [p6.x, y, p6.z, 3], [pk.x, y, pk.z, 1]], { to: pk.yaw }); // (it swings round on the spot to park nose north)
       T.water = false;
     } else {
       const y = WATER_Y - 0.3, M = BASE.mooring;
       T.plane = this.bases.plane; T.plane.group.visible = true; this.bases.atMooring = false; // (or the mooring's bob pins it at the dock while the camera follows the approach)
       // (down onto the lake, along the south of the dock, and a slow U-turn in the bay to come alongside nose west)
-      T.path = new Path([[-112, 40, -16, 34], [-112, 20, -58, 30], [-112, y + 0.5, -102, 25], [-112, y, -128, 15], [-111, y, -146, 8], [-103, y, -156, 5], [-93, y, -156.5, 4], [-85.5, y, -155, 3], [-82.8, y, -150.3, 2.5], [-85.5, y, -146, 2.5], [M.x, y, M.z, 1]], { to: M.yaw });
+      T.path = new Path([[-110, 40, -16, 34], [-109, 24, -58, 30], [-106, 11, -88, 28], [-104, y + 0.5, -112, 22], [-102, y, -128, 15], [-101, y, -146, 8], [-99, y, -156, 5], [-93, y, -156.5, 4], [-85.5, y, -155, 3], [-82.8, y, -150.3, 2.5], [-85.5, y, -146, 2.5], [M.x, y, M.z, 1]], { to: M.yaw });
       T.water = true;
     }
     T.stage = 'land'; T.t = 0; T.look = T.wrote = T.lastYaw = T.tilt = T.swing = null; T.bank = 0; // (the landing starts from the chase view, whatever angle you took off with)
@@ -527,6 +544,7 @@ export class Frostmere {
       if (this.builtExtras && here) { this.expeditions.update(dt, t); this.resort.update(dt, t); this.lifts.update(dt); this.wilds.update(dt, t); this.sno.update(dt); }
       this.skate.update(dt); this.tracks.update(dt); this.sleds.update(dt); this.races.update(dt, t); this.snowballs.update(dt); this.lodge.update(dt, t);
     }
+    g.engine.sky.sunR = here ? 790 : 0; // (the sun sits out past the far mountains up here, so it goes down behind them)
     if (here) { this.northSky(g.engine.sky); this.northLight(g.engine.sky); }
     this.sky.update(dt, t);
     // the camera sees further up here (the far peaks); back to the lake's own range when you leave
@@ -561,6 +579,7 @@ export class Frostmere {
     if (this.here) out.push(...(this.lodge?.contextActions() || []));
     if (this.sleds?.riding) return this.sleds.contextActions();
     if (this.sno?.on) return this.sno.contextActions();
+    if (this.lifts?.ride) return this.lifts.contextActions();
     if (this.here && this.builtExtras && (this.expeditions.soak || this.expeditions.aboard)) return this.expeditions.contextActions();
     if (this.here && this.village) out.push(...this.wildActions(), ...this.boardActions());
     if (this.here && this.builtExtras) out.push(...this.lifts.contextActions(), ...this.expeditions.contextActions(), ...this.resort.contextActions(), ...this.wilds.contextActions());
@@ -743,13 +762,13 @@ export class Frostmere {
   rideSeat() {
     if (!this.here) return null;
     const yaw = this.game.player.yaw;
-    if (this.sno?.on) return { h: 0.72, yaw };
+    if (this.sno?.on) return { h: 0.72, yaw, ride: true, tilt: [this.sno.pitch || 0, this.sno.lean || 0] };
     { const l = this.lifts?.seat(); if (l) return l; }
     if (this.resort?.sledRun) return { h: 0.3, yaw };
     if (this.expeditions?.soak) return { h: 0.2, yaw };
     return null;
   }
-  pose() { if (!this.here) return null; if (this.ice?.drill) return 'reel'; return this.snowballs?.pose() || null; }
+  pose() { if (!this.here) return null; if (this.sno?.on) return 'ride'; if (this.ice?.drill) return 'reel'; return this.snowballs?.pose() || null; }
   /** The boards by the lodge door, and the skates (last: E picks the first action). */
   boardActions() {
     const V = this.village, p = this.game.player.pos, out = [];

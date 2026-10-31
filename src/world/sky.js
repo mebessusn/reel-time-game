@@ -161,7 +161,8 @@ export class Sky {
 
     const ang = (wt.f - 0.25) * Math.PI * 2;
     const sunDir = new THREE.Vector3(Math.cos(ang), Math.sin(ang), -0.35).normalize();
-    const R = 200;
+    const R = this.sunR || 200;
+    this.sunSprite.scale.set(24 * R / 200, 24 * R / 200, 1);
     this.sunSprite.position.copy(focus).addScaledVector(sunDir, R);
     this.sunSprite.visible = sunDir.y > -0.1 && gloom < 0.6 && !this.hideSky;
     this.stars.visible = !this.hideSky; this.clouds.visible = !this.hideSky;
