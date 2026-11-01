@@ -1,0 +1,22 @@
+node_modules/
+dist/
+dist-single/
+.env
+.env.local
+*.log
+.DS_Store
+dist-artifact/
+test-results/
+*.blend1
+.vercel/
+__pycache__/
+art/_build/
+
+# stray test output (a test once took the page URL as its output folder)
+http:/
+https:/
+art/polyfork/
+src/data/polyforkMesh.js
+src/data/polyanimalMesh.js
+src/data/polyforkMesh.js
+art/polyfork/
