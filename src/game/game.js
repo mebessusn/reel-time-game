@@ -499,7 +499,6 @@ export class Game {
         case 'selfie': this.selfie.start(); break;
         case 'bait': this.tackle.cycle(); break;
         case 'bike': this.toggleRide(); break;
-        case 'crew': this.ocean.fight.crewKey(true); break;
         default: break;
       }
     });
@@ -510,7 +509,6 @@ export class Game {
       if (act === 'sprint') this.player.sprint = false;
       if (act === 'jump' && this.ocean) this.ocean.dive.upKey = false;
       if (act === 'cast') this.primaryUp();
-      if (act === 'crew') this.ocean?.fight.crewKey(false);
     });
     window.addEventListener('blur', () => { this.player.keys.clear(); this.player.sprint = false; });
   }

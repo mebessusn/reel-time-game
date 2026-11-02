@@ -33,7 +33,6 @@ export const ACTIONS = [
   { id: 'bait', label: 'Switch bait', key: 'v' },
   { id: 'bike', label: 'Get on / off your bike', key: 'n' },
   { id: 'social', label: 'Friends & party', key: 'o' },
-  { id: 'crew', label: 'Crew call at sea (gaff, chase, call it)', key: 'y' },
 ];
 export const ACTION_BY_ID = Object.fromEntries(ACTIONS.map((a) => [a.id, a]));
 

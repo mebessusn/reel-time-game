@@ -5,7 +5,6 @@ import * as THREE from 'three';
 import { buildFish } from '../entities/fish.js';
 import { SPECIES_BY_ID } from '../data/species.js';
 import { buildDecor, buildPlaque } from '../entities/decorModels.js';
-import { buildOceanDecor } from '../ocean/decor.js';
 
 export const DECOR = {
   rug: { name: 'Braided Rug', price: { coins: 450 }, slot: 'floor' },
@@ -27,9 +26,6 @@ export const DECOR = {
   plaque_river: { name: 'Willow River Plaque', earned: 'river', color: '#7ab0d8' },
   plaque_quarry: { name: 'Quarry Plaque', earned: 'quarry', color: '#b8b0a0' },
   plaque_deep: { name: 'Legends Plaque', earned: 'deep', color: '#c890ff' },
-  // v1.15.11: the Billfish Derby's cup, and the tide pools' collections
-  ow_shells: { name: 'Shell Shadow Box', earned: 'ocean', how: 'Find all six shells in the island tide pools at low tide', slot: 'wall' },
-  ow_glassjar: { name: 'Sea Glass Jar', earned: 'ocean', how: 'Find all five colours of sea glass in the island tide pools', slot: 'floor' },
   // v1.17.1: seconds for the Cottage's den (the same pieces, a second of each; `tier` = the home they need)
   rug2: { name: 'Den Rug', model: 'rug', price: { coins: 450 }, slot: 'floor', tier: 1, desc: 'A second braided rug. Needs the Cottage.' },
   armchair2: { name: 'Den Armchair', model: 'armchair', price: { coins: 900 }, slot: 'seat', tier: 1, desc: 'A second armchair. Needs the Cottage.' },
@@ -69,8 +65,6 @@ export const MOVABLE = {
   lamp2: { at: [10.5, 1.6, 0], size: [0.5, 0.5] },
   plant2: { at: [5.6, -3.4, 0], size: [0.9, 0.9] },
   shelf2: { at: [10.75, -0.6, Math.PI], size: [0.5, 1.8] },
-  ow_squid: { at: [4.4, 0.6, 0], size: [0.7, 0.7] },
-  ow_glassjar: { at: [-4.3, 1.6, 0], size: [0.5, 0.5] },
 };
 export const ROOM = { x0: -5, x1: 5, z0: -4, z1: 4 };
 // the Cottage's den, east of the main room, and the doorway between them (in the main room's east wall)
@@ -87,11 +81,6 @@ export const WALL_ITEMS = {
   painting: { at: [0, 0.8, 2.3], size: [1.8, 1.2] },
   banner: { at: [1, 0.4, 2.2], size: [0.9, 1.4] },
   mount: { at: [1, 2.0, 2.4], size: [1.6, 0.9] },
-  ow_bill: { at: [0, 0.25, 2.7], size: [1.5, 0.42] },
-  ow_jaw: { at: [1, -2.4, 2.1], size: [0.86, 0.82] },
-  ow_bottle: { at: [1, -0.9, 1.5], size: [1.0, 0.5] },
-  ow_cup: { at: [0, 2.2, 1.6], size: [0.45, 0.6] },
-  ow_shells: { at: [1, 1.25, 1.5], size: [0.66, 0.5] },
 };
 const WALL_TOP = 3.1;
 const DEN_BED = { x: 8.7, z: -2.8, w: 1.7, d: 2.3 };
@@ -283,8 +272,6 @@ export class HomeScene {
     };
     if (has('painting')) placeWall('painting', buildDecor('painting'));
     if (has('banner')) placeWall('banner', buildDecor('banner'));
-    for (const id of ['ow_bill', 'ow_jaw', 'ow_bottle', 'ow_cup', 'ow_shells']) if (has(id)) placeWall(id, buildOceanDecor(id)); // v1.15 sea trophies
-    for (const id of ['ow_squid', 'ow_glassjar']) if (has(id)) placeItem(id, buildOceanDecor(id));
     // collection plaques: a row of golden fish on boards along the right of the back wall
     L.d.filter((id) => id.startsWith('plaque_')).forEach((id, i) => {
       const x = 4.4 - (i % 4) * 0.75, y = 2.9 - Math.floor(i / 4) * 0.7;

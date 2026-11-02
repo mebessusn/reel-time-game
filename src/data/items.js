@@ -3,8 +3,6 @@
 // source: 'starter' (owned by everyone), 'shop', 'achievement' (granted by an achievement only).
 
 export const PERK_TEXT = {
-  troll: () => 'Fish while the charter runs (trolling)',
-  bigGame: () => 'A 3,600 lb line and quicker fights at sea',
   hookWindow: (v) => `Hook window +${v}s`,
   castDistance: (v) => `Cast distance +${v}`,
   reelZone: (v) => `Reel zone +${Math.round(v * 100)}%`,
