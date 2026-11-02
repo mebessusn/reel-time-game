@@ -1,4 +1,6 @@
+// Three.js groups from the generated mesh modules (art/src/*.py -> scripts/glb-to-js.mjs).
 import * as THREE from 'three';
+import { applyDetail } from '../world/detail.js';
 
 const lin = (a) => new THREE.Color().setRGB(a[0], a[1], a[2], THREE.LinearSRGBColorSpace);
 const cache = new WeakMap();
@@ -13,7 +15,7 @@ function materials(MATS, opts = {}) {
     if (e[0] + e[1] + e[2] > 0.05) return new THREE.MeshLambertMaterial({ color, emissive: lin(e), emissiveIntensity: 0.8 });
     if (x.metal > 0.5) return new THREE.MeshPhongMaterial({ color, shininess: 70, specular: '#e8eef4' });
     if (x.rough < 0.45) return new THREE.MeshPhongMaterial({ color, shininess: 60, specular: '#ffffff' });
-    return new THREE.MeshLambertMaterial({ color });
+    return applyDetail(new THREE.MeshLambertMaterial({ color }));
   });
   cache.set(MATS, m);
   return m;

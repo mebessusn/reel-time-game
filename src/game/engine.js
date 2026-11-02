@@ -6,6 +6,10 @@ import { buildProps } from '../world/props.js';
 import { Sky } from '../world/sky.js';
 import { updateLightBudget, precompile } from '../render/lightbudget.js';
 
+import { VolClouds } from '../world/volclouds.js';
+
+import { DETAIL } from '../world/detail.js';
+
 const QUALITY = {
   low: { scale: 0.55, shadows: false },
   medium: { scale: 0.75, shadows: true },
@@ -47,6 +51,8 @@ export class Engine {
 
   setQuality(q) {
     this.quality = QUALITY[q] ? q : 'medium';
+    VolClouds.quality = this.quality;
+    DETAIL.uDetailK.value = this.quality === 'low' ? 0 : 1;
     const Q = QUALITY[this.quality];
     this.resScale = 1; // automatic resolution (v1.13.19) starts back at the quality's own setting
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2) * Q.scale);
@@ -89,10 +95,11 @@ export class Engine {
       c.fit = want < (c.fit ?? 1) ? want : (c.fit ?? 1) + (want - (c.fit ?? 1)) * Math.min(1, dt * 2.5);
       if (c.fit < 0.999) { x = c.target.x + (x - c.target.x) * c.fit; y = c.target.y + (y - c.target.y) * c.fit; z = c.target.z + (z - c.target.z) * c.fit; }
     }
-    this.camera.position.set(x, Math.max(y, this.camFloor ? this.camFloor(x, z) : WATER_Y + 1.2), z); // v1.15: at sea, above the waves
+    this.camera.position.set(x, Math.max(y, this.camFloor ? this.camFloor(x, z) : WATER_Y + 1.2), z); // (a far world can set its own floor), above the waves
     if (look > 0) {
-      const tilt = Math.min(1.45, look * 1.1);
-      const hx = c.target.x - x, hz = c.target.z - z, hl = Math.hypot(hx, hz) || 1;
+      // (the tilt starts from where the view already is, aimed down at you, so there's no jump at the horizon)
+      const hx = c.target.x - x, hz = c.target.z - z, hl = Math.hypot(hx, hz) || 1, aim = Math.atan2(c.target.y + 0.6 - this.camera.position.y, hl);
+      const tilt = Math.min(1.45, aim + look * 1.1);
       this.camera.lookAt(x + hx / hl, this.camera.position.y + Math.tan(tilt), z + hz / hl);
     } else this.camera.lookAt(c.target.x, c.target.y + 0.6, c.target.z);
     if (this.shake > 0.001) {

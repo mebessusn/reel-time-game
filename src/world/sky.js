@@ -4,7 +4,8 @@ import { nightWindows } from './nightwindows.js';
 import { softDot } from '../render/softdot.js';
 import { worldTime } from '../core/clock.js';
 import { HALF, heightAt, isWater, scatterSpots } from './terrain.js';
-import { buildClouds, updateClouds, buildStars, Moon, buildGroundFog, fogAmount, updateGroundFog, sunTexture } from './skyfx.js';
+import { VolClouds } from './volclouds.js';
+import { buildStars, Moon, buildGroundFog, fogAmount, updateGroundFog, sunTexture } from './skyfx.js';
 
 const KEYS = [
   { f: 0.0, sky: '#1b2646', fog: '#1b2646', sun: 0.0, amb: 0.42, ambCol: '#7f8fd0', light: [0.42, 0.48, 0.72] },
@@ -69,8 +70,10 @@ export class Sky {
     this.stars = buildStars();
     scene.add(this.stars);
     this.starMat = this.stars.material;
-    this.clouds = buildClouds();
-    scene.add(this.clouds);
+    this.clouds = new VolClouds({ y0: 62, y1: 118, scale: 1 / 120, maxD: 1100, cover: 0.46, dense: 0.11 });
+    scene.add(this.clouds.mesh);
+    // (the sun, moon and stars are behind the clouds)
+    this.sunSprite.renderOrder = -20; halo.renderOrder = -21; this.stars.renderOrder = -30; 
     this.groundFog = buildGroundFog();
     scene.add(this.groundFog);
     this.renderer = renderer;
@@ -129,7 +132,8 @@ export class Sky {
   }
 
   update(dt, t, focus, water, props) {
-    const wt = worldTime();
+    let wt = worldTime();
+    if (this.forceWeather) wt = { ...wt, weather: this.forceWeather }; // (a quest's storm, on your screen alone: src/game/saga.js)
     this.state = wt;
     const k = sampleKeys(wt.f);
     const wx = wt.weather;
@@ -165,7 +169,7 @@ export class Sky {
     this.sunSprite.scale.set(24 * R / 200, 24 * R / 200, 1);
     this.sunSprite.position.copy(focus).addScaledVector(sunDir, R);
     this.sunSprite.visible = sunDir.y > -0.1 && gloom < 0.6 && !this.hideSky;
-    this.stars.visible = !this.hideSky; this.clouds.visible = !this.hideSky;
+    this.stars.visible = !this.hideSky; this.clouds.mesh.visible = !this.hideSky;
     const night = 1 - Math.min(1, k.sun * 3);
     this.night = night * (1 - gloom * 0.3) + gloom * 0.5; // how dark it is, 0..1 (used by personal lights)
     this.moon.update(focus, wt.f, wt.moon, night > 0.05 && gloom < 0.75 && !this.hideSky, gloom, blood);
@@ -224,7 +228,8 @@ export class Sky {
 
     // Clouds drift; ground fog pools at dawn, wisps at dusk and night
     const tint = sky.clone().lerp(new THREE.Color('#ffffff'), 0.55 + k.sun * 0.4).lerp(new THREE.Color('#9aa2ae'), gloom * 0.5);
-    updateClouds(this.clouds, dt, { tint, sun: k.sun, gloom, night });
+    { const light = sunDir.y > 0.02 ? sunDir : (this._moonDir ??= new THREE.Vector3(-0.4, 0.8, 0.3).normalize());
+      this.clouds.update(dt, { sun: light, lit: tint, shade: tint.clone().multiplyScalar(0.5).lerp(sky, 0.32), haze: fog, cover: 0.46 + gloom * 0.42, wind: 1 + gloom * 1.5 }); }
     const fogCol = fog.clone().lerp(new THREE.Color('#ffffff'), 0.35 + k.sun * 0.3);
     if (this.camera) updateGroundFog(this.groundFog, t, fogAmount(wt.f, wx), fogCol, this.camera.position);
 

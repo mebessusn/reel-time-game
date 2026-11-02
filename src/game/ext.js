@@ -24,6 +24,8 @@ export function extDefaults() {
     quests: { day: -1, list: [], npc: null },
     story: { step: 0, log: [] },
     story2: { step: 0, log: [] }, // The Valley Expedition (v1.8)
+    clips: {}, // tutorial clips you've seen (src/ui/clips.js)
+    saga: { lines: {}, unlocks: {} }, // v1.17.5 the primary quest lines (src/game/saga.js)
     milestones: {}, // collection quest id -> claimed timestamp
     treasure: { active: false, found: 0 },
     collections: {}, // set id -> claimed timestamp

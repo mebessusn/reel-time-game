@@ -14,6 +14,7 @@ export const TIER_INFO = {
   epic:      { name: 'Epic',      color: '#8E5BC4', coins: 80,  xp: 90,  points: 20,  pearlsTrade: 0 },
   legendary: { name: 'Legendary', color: '#E8A317', coins: 250, xp: 200, points: 60,  pearlsTrade: 2 },
   mythic:    { name: 'Mythic',    color: '#D9467A', coins: 800, xp: 500, points: 200, pearlsTrade: 6 },
+  // big-game fish (s.big) show as Trophy, above Legendary (their rarity for bites stays their own tier)
   trophy:    { name: 'Trophy',    color: '#C8452E', coins: 600, xp: 400, points: 120, pearlsTrade: 3 },
 };
 /** The tier a fish shows as: big-game fish are Trophies; everything else is its own tier. */
@@ -217,12 +218,22 @@ export const SPECIES = [
     { base: '#2a1a40', belly: '#5a3a80', accent: '#ffd060', fin: '#4a2a70' }, 'glow', { glow: '#ffd060' }),
 ];
 
-import { OCEAN_SPECIES } from './oceanSpecies.js';
-import { NORTH_SPECIES, NORTH_ZONES } from './northSpecies.js';
-import { OCEAN_ZONES } from './oceanSpecies.js';
-/** A fishing zone's display name, wherever it is (the valley, the sea, this). */
-export const zoneName = (z) => (ZONES[z] || OCEAN_ZONES[z] || NORTH_ZONES[z])?.name;
-export const SPECIES_BY_ID = Object.fromEntries([...SPECIES, ...OCEAN_SPECIES, ...NORTH_SPECIES].map((s) => [s.id, s]));
+// Another map's fish (an expansion's, added with addSpecies) are looked up like any other, but stay out of SPECIES,
+// the valley's list: its Fishpedia, collections and "catch every fish" goals count only those.
+export const SPECIES_BY_ID = Object.fromEntries(SPECIES.map((s) => [s.id, s]));
+/** Each added pack's fish by its tag (the flag its fish carry, e.g. s[tag] === true), and its zones' fish. */
+export const SPECIES_PACKS = {};
+export const ZONE_POOLS = {};
+const EXTRA_ZONES = {};
+export function addSpecies(tag, list, zones = {}) {
+  SPECIES_PACKS[tag] = list;
+  for (const s of list) SPECIES_BY_ID[s.id] = s;
+  for (const [id, z] of Object.entries(zones)) { EXTRA_ZONES[id] = z; ZONE_POOLS[id] = list; }
+}
+/** A fishing zone's display name, wherever it is. */
+export const zoneName = (z) => (ZONES[z] || EXTRA_ZONES[z])?.name;
+/** Is this one of the valley's own fish (not another map's)? */
+export const valleyFish = (id) => !!SPECIES_BY_ID[id] && !Object.keys(SPECIES_PACKS).some((t) => SPECIES_BY_ID[id][t]);
 
 // Junk and treasure (8% of bites).
 export const JUNK = [

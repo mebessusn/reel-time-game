@@ -127,6 +127,7 @@ function buildTrees() {
     if (!gentleAt(x + 0.5, z + 0.5, 0.7)) return false; // v1.9.1: no trees on cliffs and rock faces
     return true;
   });
+  for (let i = spots.length - 1; i >= 0; i--) if (Math.abs(spots[i].x + 107) < 15 && spots[i].z > -116 && spots[i].z < -60) spots.splice(i, 1);
   for (const s of spots) addCircle(s.x + 0.5, s.z + 0.5, 0.45); // trunks
   addCircle(-16.5, 46.5, 0.45);
   addCircle(16.5, 44.5, 0.45);

@@ -96,6 +96,7 @@ export function renderMapView(body, game, sheets) {
         h('span.mv-pin-in', icon(kind.icon)), h('span.mv-label', pl.name));
       pins.append(b);
     }
+    for (const p of g.saga?.pinsFor('valley') || []) pins.append(g.saga.pinButton(p, `${((p.x + HALF) / (HALF * 2)) * 100}%`, `${((p.z + HALF) / (HALF * 2)) * 100}%`));
     if (wp) pins.append(h(`button.mv-pin.k-wp${wp.name === 'Treasure X' ? '.k-treasure' : ''}${selected === 'wp' ? '.sel' : ''}`, { style: { left: `${((wp.x + HALF) / (HALF * 2)) * 100}%`, top: `${((wp.z + HALF) / (HALF * 2)) * 100}%`, '--c': '#e9b949' }, 'aria-label': 'Waypoint', on: { click: (e) => { e.stopPropagation(); select({ id: 'wp', kind: 'waypoint', name: wp.name, x: wp.x, z: wp.z }); } } }, wp.name === 'Treasure X' ? h('span.mv-pin-x', '\u2715') : h('span.mv-pin-in', icon('flag')), h('span.mv-label', wp.name)));
   }
   // v1.13: a lake's three levels, ticked once you've reached them

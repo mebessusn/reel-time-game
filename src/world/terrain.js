@@ -100,6 +100,7 @@ export const TRAILS = {
   quarry: { to: 'QUARRY', pts: scTrail([[10, 41], [26, 31], [40, 19], [44, 15], [44, 3], [47, -6], [56, -24], [64, -46], [72, -62]]) },
   marsh: { to: 'LILYMARSH', pts: scTrail([[9, 43], [22, 51], [32, 62], [34, 70]]) },
   // v1.14.9: the Ridgeback Loop, a dirt bike trail round Lookout Mesa in the south woods, off the Lilymarsh trail
+  // a spur off the Frostpine trail down to the clearing on the lake's east shore
   seabase: { to: 'SEAPLANE BASE', pts: [[-93.3, -87.7], [-92, -100], [-86, -116], [-76, -128], [-70, -134]] },
   loop: { to: 'RIDGEBACK LOOP', pts: [[46, 108], [40, 120], [36, 131], ...Array.from({ length: 25 }, (_, i) => { const a = Math.PI * 0.5 + (i / 24) * Math.PI * 2; return [25 + Math.cos(a) * 27 + Math.sin(a * 3) * 3, 156 - Math.sin(a) * 25]; })] },
 };
@@ -124,7 +125,7 @@ export const CLEARINGS = {
   wagon3: { x: 98, z: -32, r: 6, h: 2 },
   wagon4: { x: 62, z: 104, r: 6, h: 2 },
   wagon5: { x: -92, z: 120, r: 6, h: 2 },
-  seabase: { x: -62, z: -140, r: 14, h: 1 },
+  seabase: { x: -62, z: -140, r: 14, h: 1 }, // the clearing on Frostpine's east shore
   logcabin: { x: 22, z: 86, r: 8, h: 3, ry: Math.PI / 2 }, // v1.17.1: the Polyfork log cabin (src/world/polyfork.js), door to the Lilymarsh trail
   // v1.17.1, the Polyfork campground batch (src/world/campground.js): a ranger station below the Ridge Lookout, and an
   // A-frame cabin up the bank from Frostpine Lake's north shore
@@ -393,17 +394,19 @@ export function grassAt(x, z) {
 }
 
 /** Height of the smooth ground surface at (x, z), matching the rendered triangles exactly. */
+// v1.15: a far-away world in the same scene (far east of the valley). It registers its own
 // lookups here, and every terrain lookup asks it first for points beyond FAR_X, so the player, fishing, boats and
 // other anglers work there unchanged. (Registered by ocean/geo-hooks.js; terrain stays free of ocean imports.)
 export const FAR_X = 1200;
 let FAR = null, WEST = null;
 export function setFarWorld(w) { FAR = w; }
-/** this (map 3): a second far world, out past -FAR_X (west of the valley). */
+/** A second far world, out past -FAR_X (west of the valley). */
 export function setWestWorld(w) { WEST = w; }
 export const farWorld = () => FAR;
-/** Is x in the valley (not out in this or this)? */
+/** Is x in the valley (not out in a far world)? */
 export const inValley = (x) => x <= FAR_X && x >= -FAR_X;
 export const inWest = (x) => x < -FAR_X;
+// (the lookups below ask `far(x)` once: one far world out east, one out west)
 const pickFar = (x) => (x > FAR_X ? FAR : x < -FAR_X ? WEST : null);
 let FARX = null;
 const far = (x) => (FARX = pickFar(x));
@@ -784,10 +787,7 @@ export function buildTerrainMesh() {
     tint: (x, z) => 0.93 + fbm(x * 0.7 + 3, z * 0.7 - 9) * 0.07 + fbm(x * 2.3, z * 2.3) * 0.025,
   });
   // caustics patch the same shader: run the ground blend first, then the caustics
-  const splat = mesh.material.onBeforeCompile;
   applyCaustics(mesh.material);
-  const caustic = mesh.material.onBeforeCompile;
-  mesh.material.onBeforeCompile = (sh, r) => { splat(sh, r); caustic(sh, r); };
   applySwash(mesh.material); // v1.17.1: and the wash running up the beaches (waterfx.js)
   mesh.material.customProgramCacheKey = () => 'smooth-splat-caustics-swash';
   return mesh;

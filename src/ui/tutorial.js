@@ -10,9 +10,9 @@ const FISHING = ['flying', 'waiting', 'nibble', 'bite', 'reeling'];
 const STEPS = [
   { id: 'look', say: 'Welcome to Cozy Cove! I\'m Gus. First, have a look around: drag with the RIGHT mouse button (or two fingers) to turn the camera, and scroll to zoom.', done: (g, t) => Math.abs(g.engine.cam.yaw - t.yaw0) > 0.5 || Math.abs(g.engine.cam.zoom - t.zoom0) > 0.2 },
   { id: 'walk', say: 'Now walk out onto my dock, where the light is shining: WASD, or click the boards to walk there.', beam: true, done: (g) => g.player.onDock && g.player.pos.z < DOCK.z1 - 4 },
-  { id: 'cast', say: 'Lovely. Face the water, HOLD the left mouse button to charge, and let go to cast. A long cast lands when the bar is near full.', done: (g) => FISHING.includes(g.fishing.state) },
-  { id: 'wait', say: 'Now we wait. Watch the bobber. When it dips and a "!" pops up over your head, CLICK fast to hook it.', done: (g) => g.fishing.state === 'reeling', back: (g) => (g.fishing.state === 'idle' ? 'cast' : null) },
-  { id: 'fight', say: 'Fish on! HOLD to reel. Move the mouse the OPPOSITE way the fish pulls (the arrows show which way). If the dial goes red or it leaps, LET GO.', done: (g) => g.fishing.state === 'landed' || !!g.ui.revealCard?.isConnected, back: (g) => (g.fishing.state === 'idle' && !g.ui.revealCard?.isConnected ? 'cast' : null) },
+  { id: 'cast', say: 'Lovely. Face the water and have a cast.', done: (g) => FISHING.includes(g.fishing.state) },
+  { id: 'wait', say: 'Now we wait. Watch the bobber.', done: (g) => g.fishing.state === 'reeling', back: (g) => (g.fishing.state === 'idle' ? 'cast' : null) },
+  { id: 'fight', say: 'Fish on! Reel it in.', done: (g) => g.fishing.state === 'landed' || !!g.ui.revealCard?.isConnected, back: (g) => (g.fishing.state === 'idle' && !g.ui.revealCard?.isConnected ? 'cast' : null) },
   { id: 'keep', say: 'Beautiful! Keep it, and it goes in your backpack.', done: (g) => !g.ui.revealCard?.isConnected && g.fishing.state === 'idle' },
   { id: 'creel', say: 'Open your backpack: press C, or the glowing button. Everything you keep is in here, and you can sell it at my counter.', glow: 'creel', done: (g) => g.ui.sheets.current?.name === 'creel' },
   { id: 'map', say: 'Now the map: press M, or the glowing button. The lakes, shops and every place you find go on it. Right-click it to drop a waypoint.', glow: 'map', done: (g) => g.ui.sheets.current?.name === 'map' },

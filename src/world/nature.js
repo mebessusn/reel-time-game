@@ -4,6 +4,7 @@
 // Each model is turned into one vertex-coloured geometry, then stamped (merged) many times with a small
 // random tint so no two trees look exactly alike.
 import * as THREE from 'three';
+import { applyDetail } from './detail.js';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { NATURE_MATS, NATURE_NODES } from '../data/natureMesh.js';
 
@@ -45,7 +46,7 @@ function stamp(out, name, x, y, z, ry, scale, tint = 1, extra = null) {
   out.push(g);
 }
 
-export const natureMaterial = () => new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true });
+export const natureMaterial = () => applyDetail(new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true }));
 
 /** spots: [{ x, z, r }] (r: a random int), heightAt(x, z), snowy(x, z) -> bool. Returns one Mesh. */
 export function natureTrees(spots, extra, heightAt, { snowy = () => false } = {}) {

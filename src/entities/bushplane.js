@@ -1,8 +1,8 @@
-// The plane is built from its parts, each on its hinge: the propeller spins with the throttle, the ailerons, elevator
-// and rudder move with the controls, and the whole thing banks, pitches and bobs.
+// A bush plane on floats (art/src/snowgoose.py), built from its parts, each on its hinge: the propeller spins with the
+// throttle, the ailerons, elevator and rudder move with the controls. Lettering is optional (a name on the tail, a registration).
 import * as THREE from 'three';
 import { SNOWGOOSE_MATS, SNOWGOOSE_NODES } from '../data/snowgooseMesh.js';
-import { buildNode } from '../ocean/meshes.js';
+import { buildNode } from '../render/meshnode.js';
 
 // hinge points (plane space: x starboard, y up, z toward the nose; origin on the float keels, midships)
 export const HINGE = {
@@ -15,29 +15,7 @@ export const PLANE = { span: 13.4, length: 9.5, cabin: { x: 0.0, y: 2.0, z: 0.8 
 
 export const node = (name, opts) => buildNode(SNOWGOOSE_MATS, SNOWGOOSE_NODES, name, opts);
 
-/** A painted sign board (canvas) to hang on a hangar. */
-export function signBoard(text, w = 5.2, h = 0.8, colors = { bg: '#efe2c4', fg: '#7a2420', edge: '#a8322c' }) {
-  const cv = document.createElement('canvas'); cv.width = 512; cv.height = Math.round(512 * h / w);
-  const c = cv.getContext('2d');
-  c.fillStyle = colors.bg; c.fillRect(0, 0, cv.width, cv.height);
-  c.strokeStyle = colors.edge; c.lineWidth = 10; c.strokeRect(8, 8, cv.width - 16, cv.height - 16);
-  c.fillStyle = colors.fg; c.textAlign = 'center'; c.textBaseline = 'middle';
-  c.font = `bold ${Math.round(cv.height * 0.5)}px "Baloo 2", Georgia, serif`;
-  c.fillText(text, cv.width / 2, cv.height / 2 + 3);
-  const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 4;
-  const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshLambertMaterial({ map: tex }));
-  return m;
-}
-
-/** The other face of a sign, back to back with it. (Set the turn outright: a clone of a mesh turned past 90 degrees comes with its
- *  angles rewritten, x and z flipped, so just changing y leaves the copy standing across the original in an X.) */
-export function backOf(sign, gap = 0.03) {
-  const b = sign.clone(), y = sign.rotation.y;
-  b.rotation.set(0, y + Math.PI, 0); b.position.x -= Math.sin(y) * gap; b.position.z -= Math.cos(y) * gap;
-  return b;
-}
-
-/** The plane's name painted on its tail ("SNOW GOOSE") and the registration on the fuselage. */
+/** A name painted on the tail and the registration on the fuselage. */
 function decal(text, w, h, color = '#efe7d2') {
   const cv = document.createElement('canvas'); cv.width = 256; cv.height = Math.round(256 * h / w);
   const c = cv.getContext('2d');
@@ -48,9 +26,9 @@ function decal(text, w, h, color = '#efe7d2') {
   return new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshLambertMaterial({ map: tex, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 }));
 }
 
-export class SnowGoose {
-  constructor() {
-    const g = this.group = new THREE.Group(); g.name = 'snow-goose';
+export class BushPlane {
+  constructor({ name = null, reg = null } = {}) {
+    const g = this.group = new THREE.Group(); g.name = 'bush-plane';
     this.body = node('sg_body');
     g.add(this.body);
     const at = (n, h) => { const o = node(n); const p = new THREE.Group(); p.position.set(...h); p.add(o); g.add(p); return p; };
@@ -63,13 +41,11 @@ export class SnowGoose {
     this.disc = new THREE.Mesh(new THREE.CircleGeometry(1.32, 32), new THREE.MeshBasicMaterial({ color: '#2a2a2a', transparent: true, opacity: 0.18, depthWrite: false, side: THREE.DoubleSide }));
     this.disc.position.set(HINGE.prop[0], HINGE.prop[1], HINGE.prop[2] + 0.2);
     g.add(this.disc);
-    // lettering: the registration on both sides, the name on the fin
+    // lettering: the name and the registration together on each side of the rear fuselage, turned to follow its taper
     for (const s of [-1, 1]) {
-      const reg = decal('C-GOSE', 1.4, 0.32); reg.position.set(s * 0.6, 2.58, -2.6); reg.rotation.y = s * Math.PI / 2 + (s < 0 ? 0 : 0); reg.scale.x = s > 0 ? 1 : 1;
-      if (s < 0) reg.rotation.y = -Math.PI / 2; else reg.rotation.y = Math.PI / 2;
-      g.add(reg);
-      const nm = decal('SNOW GOOSE', 1.25, 0.22, '#f6eedc'); nm.position.set(s * 0.06, 4.15, -5.0); nm.rotation.y = s > 0 ? Math.PI / 2 : -Math.PI / 2;
-      g.add(nm);
+      const a = s * (Math.PI / 2 + 0.135);
+      if (name) { const nm = decal(name, 1.25, 0.24, '#f6eedc'); nm.position.set(s * 0.625, 3.0, -2.6); nm.rotation.y = a; g.add(nm); }
+      if (reg) { const rg = decal(reg, 1.0, 0.24); rg.position.set(s * 0.625, 2.68, -2.6); rg.rotation.y = a; g.add(rg); }
     }
     this.spin = 0; this.throttle = 0; this.rpm = 0;
     this.ctl = { roll: 0, pitch: 0, yaw: 0 };
@@ -89,20 +65,5 @@ export class SnowGoose {
     this.ailR.rotation.x = -this.ctl.roll * 0.35; this.ailL.rotation.x = this.ctl.roll * 0.35;
     this.elev.rotation.x = this.ctl.pitch * 0.4;
     this.rud.rotation.y = -this.ctl.yaw * 0.45;
-  }
-}
-
-/** A windsock that swings to the wind and droops when it's calm. */
-export class Windsock {
-  constructor() {
-    this.group = new THREE.Group(); this.group.name = 'windsock';
-    this.group.add(node('ab_windsock_pole'));
-    this.pivot = new THREE.Group(); this.pivot.position.set(0, 5.9, 0.2);
-    this.sock = node('ab_windsock'); this.pivot.add(this.sock);
-    this.group.add(this.pivot);
-  }
-  update(t, windYaw = 0.6, strength = 0.6) {
-    this.pivot.rotation.y = windYaw - this.group.rotation.y + Math.sin(t * 0.7) * 0.15 * strength;
-    this.pivot.rotation.x = (1 - strength) * 0.9 + Math.sin(t * 2.3) * 0.05;
   }
 }

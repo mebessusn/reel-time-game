@@ -66,6 +66,7 @@ class BaseNet extends Emitter {
   emitEvent(type, data) { this._send({ t: 'ev', id: this.me.id, type, data }); }
   // Chat: m = { n, x: text, to: userId|null, me: bool (action), at, nm: sender name }
   sendChat(m) { this._send({ t: 'chat', id: this.me.id, m }); }
+  // v1.15: a named side room for a group. joinRoom returns another net (same
   // interface, same events) whose peers are only the others who joined that name; the game switches to it while
   // the group is together and back with leaveRoom(). Transports without side rooms give a quiet (solo) one.
   joinRoom(name) { this.leaveRoom(); this.sub = this._subNet(roomName(name)); return this.sub; }

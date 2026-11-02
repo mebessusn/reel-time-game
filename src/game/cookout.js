@@ -49,7 +49,7 @@ export class Cookout {
     if (camp) return camp;
     const s = this.game.chairs?.seat;
     if (!s || s.kind !== 'log') return null;
-    const fires = [CAMPFIRE, CAMP_FIRE, FERNVIEW_FIRE, ...(this.game.ocean?.islands?.fires || []), ...(this.game.north?.village?.fires || [])];
+    const fires = [CAMPFIRE, CAMP_FIRE, FERNVIEW_FIRE, ...this.game.x.all('fires')]; // (and other maps' fires)
     return fires.sort((a, b) => Math.hypot(a.x - s.x, a.z - s.z) - Math.hypot(b.x - s.x, b.z - s.z))[0];
   }
 
@@ -237,8 +237,8 @@ export class Cookout {
 
   fedNow(s) {
     const g = this.game, name = SPECIES_BY_ID[s.sp]?.name || 'fish';
-    // v1.15.10: a meal cooked round an island fire with your crew lasts half as long again
-    const company = g.ocean?.evenings?.company?.() || 0;
+    // a meal cooked round a fire with your crew lasts half as long again
+    const company = g.x.max('company');
     const secs = Math.round(fedSeconds(s.w) * (company ? 1.5 : 1));
     if (company) { g.ext?.bump('fireMeals'); setTimeout(() => g.chat?.system(`Cooked together round the fire with ${company === 1 ? 'a crewmate' : `${company} of your crew`}: Well Fed lasts half as long again.`, 'catch'), 400); }
     this.fed = { sp: s.sp, w: s.w, until: performance.now() + secs * 1000, secs };

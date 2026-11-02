@@ -26,11 +26,13 @@ const GLSL = /* glsl */ `
 `;
 
 export function applyCaustics(material) {
-  material.onBeforeCompile = (shader) => {
+  const prev = material.onBeforeCompile, key = material.customProgramCacheKey?.call(material) || '';
+  material.onBeforeCompile = (shader, r) => {
+    prev?.call(material, shader, r);
     Object.assign(shader.uniforms, CAUSTICS);
     shader.vertexShader = shader.vertexShader
       .replace('#include <common>', '#include <common>\nvarying vec3 vCW;')
-      .replace('#include <project_vertex>', '#include <project_vertex>\nvCW = (modelMatrix * vec4(transformed, 1.0)).xyz;');
+      .replace('#include <project_vertex>', '#include <project_vertex>\n#ifdef USE_INSTANCING\nvCW = (modelMatrix * instanceMatrix * vec4(transformed, 1.0)).xyz;\n#else\nvCW = (modelMatrix * vec4(transformed, 1.0)).xyz;\n#endif');
     shader.fragmentShader = shader.fragmentShader
       .replace('#include <common>', `#include <common>\n${GLSL}`)
       .replace('#include <opaque_fragment>', /* glsl */ `
@@ -47,6 +49,6 @@ export function applyCaustics(material) {
         }
         #include <opaque_fragment>`);
   };
-  material.customProgramCacheKey = () => 'caustics';
+  material.customProgramCacheKey = () => `caustics${key}`;
   return material;
 }

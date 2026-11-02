@@ -399,14 +399,24 @@ function buildHair(atlas, cfg, head, hatted = false) {
   return meshes;
 }
 
+// ---------------------------------------------------------------- another map's clothes
+/** A piece another map adds (addOutfit(id, parts)): its hat(kit), eye(kit), colour, pattern(c), torso(f, kit), hands(f, side,
+ *  sleeveEnd, h), build(kit) (a hood, a scarf), highNeck / quilted, and for hats hatted + cover, for shoes shoe. */
+const OUTFITS = {};
+export function addOutfit(id, parts) {
+  OUTFITS[id] = parts;
+  if (parts.hatted) HATTED.add(id);
+  if (parts.cover) COVER[id] = parts.cover;
+  if (parts.shoe) SHOES[id] = parts.shoe;
+}
+
 // ---------------------------------------------------------------- hats
 // Round hats are lathes painted in bands (u: round the hat, rows: along the profile), so a brim, a ribbon
 // and a crown are one smooth piece in the same pixel style as the rest of the angler.
 const ELL = 0.9; // heads are a little shallower than wide: hats are squashed front to back to match
 export const HATTED = new Set(['beanie', 'bucket', 'hat_bucket_tan', 'cap', 'cap_star', 'hat_straw', 'hat_captain',
   'sunhat', 'pighat', 'boonie', 'cowboy', 'fedora', 'hat_tophat', 'boater', 'sailor', 'beret', 'newsboy', 'hat_frog', 'trapper', 'bandana',
-  'hat_crab', 'hat_coconut', 'hat_pail', 'hat_swimcap', // (v1.15 beach games prizes)
-  'hat_earflap', 'hat_bobble', 'hat_aviator']);
+]);
 
 // What each crown-covering hat hides: hair above the hat's seat is pulled inside this shape, so no hairstyle
 // pokes through a hat. round: [crown base radius, crown height above the seat]; box: [width, depth, top above seat].
@@ -417,8 +427,6 @@ const COVER = {
   cowboy: { round: [0.385, 0.25] }, fedora: { round: [0.385, 0.24] }, hat_tophat: { round: [0.38, 0.48] },
   boater: { round: [0.39, 0.17] }, sailor: { round: [0.385, 0.2] }, beret: { round: [0.39, 0.16] },
   newsboy: { round: [0.395, 0.21] }, hat_frog: { round: [0.39, 0.28] }, trapper: { round: [0.4, 0.26] },
-  hat_crab: { round: [0.39, 0.22] }, hat_coconut: { round: [0.395, 0.22] }, hat_pail: { round: [0.39, 0.34] }, hat_swimcap: { round: [0.4, 0.2] },
-  hat_earflap: { round: [0.4, 0.27] }, hat_bobble: { round: [0.4, 0.42] }, hat_aviator: { round: [0.4, 0.26] },
   beanie: { box: [0.68, 0.62, 0.17 + SEAT_DROP], seat: 0.13 }, cap: { box: [0.66, 0.6, 0.14 + SEAT_DROP], seat: 0.06 }, cap_star: { box: [0.66, 0.6, 0.14 + SEAT_DROP], seat: 0.06 },
   hat_captain: { box: [0.68, 0.62, 0.17 + SEAT_DROP], seat: 0.05 }, bandana: { box: [0.66, 0.6, 0.065 + SEAT_DROP], seat: 0.065 },
 };
@@ -543,40 +551,6 @@ function buildHat(atlas, cfg, head) {
       out.push(place(softBox(atlas, HW * 0.62, 0.16, HD * 0.62, 0.03, { all: gold, top: (f) => f.fill('clear') }, { shade: false }), 0, HH + 0.08, 0));
       break;
     }
-    case 'hat_visor_beach': // Spike Master: a teal sun visor with a white band
-      out.push(place(softBox(atlas, HW + 0.06, 0.08, HD + 0.06, 0.03, { all: band('#f4f4f0', main('#2fa8a0'), 2) }), 0, HH - 0.06, 0));
-      out.push(place(softBox(atlas, HW * 0.85, 0.035, 0.28, 0.015, { all: solid(main('#2fa8a0')) }), 0, HH - 0.08, HD / 2 + 0.13));
-      break;
-    case 'hat_crab': { // Crab Whisperer: a red crab shell with claws and stalk eyes
-      const c = main('#e2483a');
-      lathe([[0.395, -0.01, 'r'], [0.41, 0.06, 'c'], [0.37, 0.15, 'c'], [0.24, 0.21, 'c'], [0, 0.225, 'c']], { r: tone(c, -0.22), c: (x, row) => (hash(x, row, 5) > 0.88 ? tone(c, 0.15) : c) });
-      for (const s of [-1, 1]) {
-        bit(0.05, 0.12, 0.05, 0.02, (f) => f.fill(c), s * 0.1, Y0 + 0.27, 0.16);
-        bit(0.07, 0.07, 0.07, 0.03, { all: (f) => f.fill('#ffffff'), front: (f) => { f.fill('#ffffff'); f.rect(Math.floor(f.w / 2) - 1, Math.floor(f.h / 2) - 1, 2, 2, '#1a1a1a'); } }, s * 0.1, Y0 + 0.35, 0.17);
-        bit(0.1, 0.06, 0.1, 0.03, (f) => f.fill(c), s * 0.43, Y0 + 0.02, 0.12, [0, 0, s * 0.5]);
-        bit(0.11, 0.08, 0.14, 0.04, (f) => f.fill(tone(c, -0.08)), s * 0.5, Y0 + 0.08, 0.22, [0, s * 0.3, s * 0.3]);
-      }
-      break;
-    }
-    case 'hat_coconut': { // Coconut Sniper: half a coconut shell, white rim, a paper umbrella
-      const c = main('#6a4a2a');
-      lathe([[0.4, -0.015, 'w'], [0.415, 0.02, 'w'], [0.41, 0.06, 'c'], [0.36, 0.15, 'c'], [0.22, 0.21, 'c'], [0, 0.225, 'c']], { w: '#f4efe2', c: (x, row) => (hash(x, row, 17) > 0.7 ? tone(c, 0.18) : hash(x, row, 3) > 0.8 ? tone(c, -0.15) : c) });
-      bit(0.015, 0.22, 0.015, 0.005, (f) => f.fill('#e8e0c8'), 0.12, Y0 + 0.32, -0.02, [0, 0, -0.3]);
-      bit(0.24, 0.05, 0.24, 0.04, (f) => f.fill((x, y) => ((x >> 1) % 2 ? '#f07860' : '#f2c84a')), 0.16, Y0 + 0.42, -0.02, [0, 0, -0.3]);
-      break;
-    }
-    case 'hat_pail': { // Sand Architect: an upside-down sand pail with a yellow rim and a handle
-      const c = main('#e04a3a');
-      lathe([[0.415, -0.02, 'y'], [0.42, 0.03, 'y'], [0.41, 0.04, 'c'], [0.33, 0.3, 'c'], [0.32, 0.32, 't'], [0, 0.33, 't']], { y: '#f0c030', c: (x, row) => (hash(x, row, 23) > 0.9 ? tone(c, 0.12) : c), t: tone(c, -0.12) });
-      for (const s of [-1, 1]) bit(0.025, 0.2, 0.025, 0.01, (f) => f.fill('#c8ccd0'), s * 0.36, Y0 - 0.06, 0, [0, 0, s * 0.15]);
-      break;
-    }
-    case 'hat_swimcap': { // Big Splash: a white rubber swim cap with a pink flower
-      const c = main('#f4f4f0');
-      lathe([[0.405, -0.06, 'e'], [0.41, -0.02, 'c'], [0.4, 0.08, 'c'], [0.33, 0.17, 'c'], [0.18, 0.21, 'c'], [0, 0.215, 'c']], { e: tone(c, -0.1), c: (x, row) => (hash(x, row, 41) > 0.82 ? tone(c, -0.05) : c) });
-      bit(0.16, 0.16, 0.03, 0.01, flowerPaint('#f080a8'), 0.2, Y0 + 0.12, 0.3, [0, 0.5, 0]);
-      break;
-    }
     // ---- new hats
     case 'sunhat': case 'pighat': {
       const pig = cfg.hat === 'pighat';
@@ -689,31 +663,6 @@ function buildHat(atlas, cfg, head) {
       for (const s of [-1, 1]) bit(0.07, 0.24, 0.26, 0.03, { all: (f) => f.fill((x, y) => plaid(x, y)), [s > 0 ? 'right' : 'left']: (f) => { f.fill((x, y) => plaid(x, y)); f.rect(0, f.h - 3, f.w, 3, '#ddd0b8'); }, bottom: furF }, s * (HW / 2 + 0.035), Y0 - 0.1, -0.01);
       break;
     }
-    case 'hat_earflap': { // a Fair Isle earflap hat with braided ties and a bobble on top
-      const c = main('#b8302a'), cream = '#f2ead8';
-      const fair = (x, row) => (row % 6 === 2 && x % 4 === 1 ? cream : row % 6 === 3 && x % 4 !== 3 && x % 2 === 0 ? cream : row % 6 === 5 ? tone(c, -0.2) : c);
-      lathe([[0.4, -0.02, 'r'], [0.412, 0.05, 'r'], [0.398, 0.08, 'k'], [0.372, 0.19, 'k'], [0.26, 0.26, 'k'], [0, 0.272, 'k']], { r: (x) => (x % 2 ? cream : tone(cream, -0.1)), k: fair });
-      for (const sd of [-1, 1]) {
-        bit(0.07, 0.22, 0.2, 0.04, (f) => f.fill((x, y) => fair(x, y)), sd * (HW / 2 + 0.03), Y0 - 0.12, 0.0);
-        bit(0.03, 0.2, 0.03, 0.012, (f) => f.fill((x, y) => (y % 2 ? cream : c)), sd * (HW / 2 + 0.035), Y0 - 0.34, 0.0);
-      }
-      bit(0.13, 0.13, 0.13, 0.065, knit(cream), 0, Y0 + 0.3, 0);
-      break;
-    }
-    case 'hat_bobble': { // a tall striped bobble hat with a big pompom
-      const c = main('#2c6aa0');
-      lathe([[0.4, -0.02, 'r'], [0.405, 0.08, 'r'], [0.385, 0.1, 'k'], [0.35, 0.25, 'k'], [0.24, 0.35, 'k'], [0.1, 0.41, 'k'], [0, 0.42, 'k']], { r: (x) => (x % 2 ? tone(c, -0.15) : tone(c, -0.28)), k: (x, row) => (row % 4 < 2 ? c : '#f4f0e8') });
-      bit(0.2, 0.2, 0.2, 0.1, knit('#f4f0e8'), 0, Y0 + 0.49, 0);
-      break;
-    }
-    case 'hat_aviator': {
-      const c = main('#6a4024'), fleece = '#efe4cc';
-      lathe([[0.4, -0.04, 'f'], [0.415, 0.05, 'f'], [0.395, 0.08, 'c'], [0.37, 0.2, 'c'], [0.25, 0.26, 'c'], [0, 0.27, 'c']], { f: (x, row) => (hash(x, row, 21) > 0.5 ? fleece : tone(fleece, -0.08)), c: (x, row) => (x % 10 === 0 ? tone(c, -0.25) : hash(x, row, 5) > 0.85 ? tone(c, 0.1) : c) });
-      for (const sd of [-1, 1]) bit(0.06, 0.24, 0.24, 0.04, { all: (f) => f.fill(c), bottom: (f) => f.fill(fleece) }, sd * (HW / 2 + 0.03), Y0 - 0.1, 0);
-      for (const sd of [-1, 1]) bit(0.14, 0.1, 0.04, 0.03, (f) => f.fill((x, y) => (x === 0 || y === 0 || x === f.w - 1 || y === f.h - 1 ? '#c8a050' : y < f.h / 2 ? '#8ad0e8' : '#5aa0c0')), sd * 0.12, Y0 + 0.13, HD / 2 + 0.035);
-      bit(HW + 0.04, 0.04, 0.04, 0.015, (f) => f.fill('#3a2a1a'), 0, Y0 + 0.13, HD / 2 + 0.01);
-      break;
-    }
     case 'bandana': {
       const c = main('#c0392b');
       const pais = (f) => f.fill((x, y) => ((x * 3 + y * 5) % 11 === 0 ? '#f4f0e8' : (x + y * 2) % 13 === 0 ? tone(c, -0.3) : c));
@@ -741,7 +690,7 @@ function buildHat(atlas, cfg, head) {
       }
       break;
     }
-    default: break;
+    default: OUTFITS[cfg.hat]?.hat?.({ atlas, HW, HH, HD, Y0, out, main, lathe, bit, knit, solid, band, place, softBox, flowerPaint }); break; // another map's hats
   }
   return out;
 }
@@ -784,18 +733,12 @@ function buildEyewear(atlas, cfg, head) {
     }
     case 'roundshades': pair(0.15, 0.15, '#26222a', '#1e2a2e', round, { rim: 0.8, grad: 0.1 }); break;
     case 'cateye': pair(0.19, 0.14, '#e86a9a', '#3a2a3a', (u, v) => rbox(u, v * 1.1) - 0.3 * Math.max(0, u) * Math.max(0, -v), { rim: 0.74, mirror: true }); break;
-    case 'eye_snowgoggles': {
-      const g0 = place(lens(0.5, 0.17, '#f2f2f0', '#e8a030', (u, v) => (Math.abs(u) ** 6 + Math.abs(v * 1.1) ** 3) ** (1 / 3), { rim: 0.8, grad: -0.18 }), 0, E.y + 0.01, E.z + 0.01);
-      out.push(g0);
-      out.push(place(softBox(atlas, head.w + 0.03, 0.06, head.d + 0.02, 0.03, { all: (f) => f.fill((x) => (x % 5 === 0 ? '#2c6aa0' : '#1e2a3a')), top: (f) => f.fill('clear'), bottom: (f) => f.fill('clear') }), 0, E.y + 0.01, -0.005));
-      break;
-    }
     case 'goggles': {
       pair(0.18, 0.15, '#3a3a44', '#5ac0e0', rbox, { rim: 0.72, grad: -0.12, sep: 0.13 });
       out.push(place(softBox(atlas, head.w + 0.03, 0.05, head.d + 0.02, 0.025, { all: (f) => f.fill((x) => (x % 4 === 0 ? '#e85a3a' : '#2a2a32')), top: (f) => f.fill('clear'), bottom: (f) => f.fill('clear') }), 0, E.y + 0.03, -0.005));
       break;
     }
-    default: break;
+    default: OUTFITS[cfg.eyewear]?.eye?.({ atlas, head, E, out, lens, place, softBox }); break; // another map's eyewear
   }
   return out;
 }
@@ -803,8 +746,7 @@ function buildEyewear(atlas, cfg, head) {
 // ---------------------------------------------------------------- clothes
 function shirtColour(cfg) {
   if (cfg.shirt === 'shirt_raincoat_yellow') return '#f0c020';
-  if (cfg.shirt === 'shirt_parka') return '#c8442a';
-  if (cfg.shirt === 'shirt_musher') return '#2c4060';
+  if (OUTFITS[cfg.shirt]?.colour) return OUTFITS[cfg.shirt].colour; // (another map's: always one colour)
   if (cfg.shirt === 'overalls') return '#f0eee8';
   if (cfg.shirt === 'denim') return '#4a6a9a';
   return CLOTH_COLORS[cfg.shirtColor] ?? CLOTH_COLORS[0];
@@ -812,6 +754,7 @@ function shirtColour(cfg) {
 
 function shirtPattern(cfg, c) {
   const dark = tone(c, -0.25), light = tone(c, 0.2), deep = tone(c, -0.42);
+  if (OUTFITS[cfg.shirt]?.pattern) return OUTFITS[cfg.shirt].pattern(c);
   switch (cfg.shirt) {
     case 'flannel': return (x, y) => {
       const vx = (x % 6) < 2, hy = (y % 6) < 2;
@@ -832,21 +775,7 @@ function shirtPattern(cfg, c) {
     case 'stripes': return (x, y) => (y % 4 < 2 ? '#f4f1e8' : c);
     case 'denim': return (x, y) => ((x + y * 2) % 7 === 0 ? tone(c, 0.12) : hash(x, y, 47) > 0.85 ? tone(c, -0.08) : c);
     case 'cardigan': return (x, y) => ((x % 2) ? c : tone(c, -0.08));
-    case 'puffer': case 'shirt_musher': return (x, y) => (y % 5 === 4 ? tone(c, -0.3) : y % 5 === 0 ? tone(c, 0.16) : c);
-    case 'shirt_parka': return (x, y) => (y % 6 === 5 ? tone(c, -0.22) : hash(x, y, 33) > 0.9 ? tone(c, -0.06) : c);
-    case 'shirt_sweater_snow': return (x, y) => { // Fair Isle: a band of snowflakes over plain knit
-      const yb = y % 12; const cream = '#f2ead8';
-      if (yb === 0 || yb === 10) return tone(c, -0.3);
-      if (yb >= 3 && yb <= 7) { const xx = x % 8, yy = yb - 3; const flake = (xx === 3 && yy !== 2) || (yy === 2 && xx !== 3 && xx !== 7) || (Math.abs(xx - 3) === Math.abs(yy - 2) && xx !== 7); return flake ? cream : c; }
-      return (x + y) % 2 ? c : tone(c, -0.06);
-    };
-    case 'shirt_sweater_deer': return (x, y) => { // a band of reindeer and a zigzag
-      const yb = y % 14, cream = '#f2ead8';
-      if (yb === 1 || yb === 12) return cream;
-      if (yb === 2 || yb === 11) return (x % 4 < 2) === (yb === 2) ? cream : c;
-      if (yb >= 4 && yb <= 9) { const xx = x % 12, yy = yb - 4; const deer = (yy >= 2 && yy <= 3 && xx >= 3 && xx <= 8) || (yy >= 4 && (xx === 3 || xx === 8)) || (yy <= 2 && xx === 9) || (yy === 0 && (xx === 8 || xx === 10)); return deer ? cream : c; }
-      return (x + y) % 2 ? c : tone(c, -0.06);
-    };
+    case 'puffer': return (x, y) => (y % 5 === 4 ? tone(c, -0.3) : y % 5 === 0 ? tone(c, 0.16) : c);
     case 'turtleneck': return (x) => (x % 2 ? tone(c, -0.1) : c);
     default: return (x, y) => (hash(x, y, 41) > 0.9 ? tone(c, -0.05) : c);
   }
@@ -868,7 +797,7 @@ function paintTorso(f, side, cfg, skin) {
   if (side === 'top') {
     if (cfg.shirt === 'tee') f.rect(cx - 3, Math.floor(f.h / 2) - 2, 6, 4, skin);
     if (SLEEVELESS.has(cfg.shirt)) { f.fill(skin); for (const x0 of [cx - 6, cx + 4]) f.rect(x0, 0, 2, f.h, cfg.shirt === 'tank' ? c : tone(c, -0.15)); }
-    if (cfg.shirt === 'turtleneck' || cfg.shirt === 'puffer' || cfg.shirt === 'shirt_parka' || cfg.shirt === 'shirt_musher') f.fill(pat);
+    if (cfg.shirt === 'turtleneck' || cfg.shirt === 'puffer' || OUTFITS[cfg.shirt]?.highNeck) f.fill(pat);
     return;
   }
   switch (cfg.shirt) {
@@ -937,15 +866,6 @@ function paintTorso(f, side, cfg, skin) {
       if (front) { f.rect(cx, 0, 1, H, '#d8d8e0'); f.px(cx, 2, '#9a9aa8'); }
       f.rect(0, 0, W, 2, tone(c, -0.15));
       break;
-    case 'shirt_parka': // the expedition parka: a long zip, snap pockets, a reflective band
-      if (front) { f.rect(cx, 0, 1, H, '#2a2a2a'); for (let y = 2; y < H; y += 3) f.px(cx - 1, y, '#d8d8e0'); for (const x0 of [2, W - 7]) { f.rect(x0, H - 7, 5, 4, tone(c, -0.18)); f.rect(x0, H - 7, 5, 1, tone(c, -0.32)); f.px(x0 + 2, H - 7, '#d8d8e0'); } }
-      f.rect(0, Math.round(H * 0.42), W, 1, '#e8eef0');
-      f.rect(0, H - 2, W, 2, tone(c, -0.25));
-      break;
-    case 'shirt_musher': // a race bib over a puffer
-      if (front || back) { f.rect(2, 2, W - 4, H - 5, '#f4f2ee'); f.rect(2, 2, W - 4, 1, '#c8302a'); for (const [x, y] of [[0, 0], [1, 0], [2, 0], [2, 1], [1, 2], [0, 3], [0, 4], [1, 4], [2, 4]]) f.px(cx - 4 + x, 5 + y, '#1e2a3a'); for (const [x, y] of [[0, 0], [1, 0], [2, 0], [2, 1], [2, 2], [1, 2], [2, 3], [2, 4], [1, 4], [0, 4]]) f.px(cx + 1 + x, 5 + y, '#1e2a3a'); }
-      break;
-    case 'shirt_sweater_snow': case 'shirt_sweater_deer': f.rect(0, H - 2, W, 2, tone(c, -0.25)); if (front) f.rect(cx - 3, 0, 6, 2, tone(c, -0.25)); break;
     case 'polo':
       if (front) {
         f.rect(cx - 5, 0, 4, 2, tone(c, 0.2)); f.rect(cx + 1, 0, 4, 2, tone(c, 0.2)); f.px(cx - 2, 2, tone(c, 0.2)); f.px(cx + 1, 2, tone(c, 0.2));
@@ -956,7 +876,7 @@ function paintTorso(f, side, cfg, skin) {
       break;
     case 'turtleneck': f.rect(0, H - 2, W, 2, tone(c, -0.2)); break;
     case 'flannel': if (front) { f.rect(cx, 0, 1, H - 1, deep(c)); for (let y = 2; y < H - 1; y += 3) f.px(cx - 1, y, '#f0ead8'); f.rect(cx - 3, 0, 2, 2, tone(c, 0.15)); f.rect(cx + 1, 0, 2, 2, tone(c, 0.15)); f.rect(2, 4, 4, 3, tone(c, -0.3)); f.rect(2, 4, 4, 1, tone(c, -0.12)); } break;
-    default: break;
+    default: OUTFITS[cfg.shirt]?.torso?.(f, { front, back, W, H, cx, c }); break; // another map's shirts
   }
   // overalls bib & straps
   if (cfg.pants === 'waders') {
@@ -1009,8 +929,8 @@ function paintArm(f, side, cfg, skin) {
   if (side === 'bottom') { f.fill(skin); return; }
   const sleeveEnd = short ? Math.round(H * 0.32) : H - hand;
   f.fill((x, y) => (y < sleeveEnd ? pat(x, y) : skin));
-  if (cfg.shirt === 'puffer' || cfg.shirt === 'shirt_musher') for (let y = 4; y < sleeveEnd; y += 5) f.rect(0, y, f.w, 1, tone(c, -0.3));
-  if (cfg.accessory === 'acc_mittens') { const m = '#c8302a'; f.rect(0, sleeveEnd, f.w, H - sleeveEnd, m); if (side === 'front') f.rect(0, sleeveEnd + 1, f.w, 1, '#f2ead8'); return; }
+  if (cfg.shirt === 'puffer' || OUTFITS[cfg.shirt]?.quilted) for (let y = 4; y < sleeveEnd; y += 5) f.rect(0, y, f.w, 1, tone(c, -0.3));
+  if (OUTFITS[cfg.accessory]?.hands) { OUTFITS[cfg.accessory].hands(f, side, sleeveEnd, H); return; } // (another map's: mittens)
   if (cfg.shirt === 'stripes') f.fill((x, y) => (y < Math.round(H * 0.7) ? pat(x, y) : skin));
   if (!short) f.rect(0, sleeveEnd - 1, f.w, 1, tone(c, -0.28)); // cuff
   else f.rect(0, sleeveEnd - 1, f.w, 1, tone(c, -0.15));
@@ -1040,7 +960,6 @@ function paintLeg(f, side, cfg, skin, legPx) {
 
 const SHOES = {
   boots: { c: '#3e6a3a', sole: '#2a2a2a', h: 0.17 },
-  shoes_furboots: { c: '#7a5434', sole: '#2a2a2a', h: 0.22, fur: '#efe4cc' },
   sneakers: { c: '#f2f2f0', sole: '#c0392b', h: 0.11 },
   hiking: { c: '#6a4a2a', sole: '#2a2a2a', h: 0.14, lace: '#d8c090' },
   sandals: { c: '#8a5a2a', sole: '#6a4020', h: 0.06 },
@@ -1141,17 +1060,12 @@ export function buildAvatar(cfgIn) {
     body.add(sk); all.push(sk);
     skirtMesh = sk;
   }
-  if (cfg.shirt === 'turtleneck' || cfg.shirt === 'puffer' || cfg.shirt === 'shirt_musher') {
+  if (cfg.shirt === 'turtleneck' || cfg.shirt === 'puffer' || OUTFITS[cfg.shirt]?.quilted) {
     const c = shirtColour(cfg);
     const neck = place(softBox(atlas, TW * (cfg.shirt === 'turtleneck' ? 0.62 : 0.82), 0.09, TD * 0.8, 0.04, { all: (f) => f.fill((x) => (x % 2 ? tone(c, -0.1) : c)), top: (f) => { f.fill(tone(c, -0.3)); } }), 0, TH + 0.01, 0);
     body.add(neck); all.push(neck);
   }
-  if (cfg.shirt === 'shirt_parka') { // the parka's fur-ruffed hood, down on the shoulders
-    const fur = (f) => f.fill((x, y) => (hash(x, y, 17) > 0.55 ? '#efe4cc' : '#cbbca0'));
-    const ruff = place(softBox(atlas, TW * 0.95, 0.12, TD + 0.08, 0.06, { all: fur, top: (f) => f.fill('#5a3a24') }), 0, TH + 0.02, -0.02);
-    const hood = place(softBox(atlas, TW * 0.7, 0.18, 0.13, 0.06, { all: (f) => f.fill('#a8361e'), top: fur }), 0, TH - 0.02, -TD / 2 - 0.05);
-    body.add(ruff, hood); all.push(ruff, hood);
-  }
+  for (const id of [cfg.shirt, cfg.accessory]) OUTFITS[id]?.build?.({ atlas, place, softBox, body, all, TW, TH, TD, hash }); // (another map's: a hood, a scarf)
   if (cfg.shirt === 'hoodie') {
     const c = shirtColour(cfg);
     const hood = place(softBox(atlas, TW * 0.75, 0.16, 0.12, 0.05, { all: (f) => f.fill(tone(c, -0.12)) }), 0, TH - 0.02, -TD / 2 - 0.02);
@@ -1161,13 +1075,6 @@ export function buildAvatar(cfgIn) {
     const bp = place(softBox(atlas, TW * 0.78, TH * 0.82, 0.18, 0.07, { all: (f) => { f.fill('#c87a3a'); f.rect(0, 0, f.w, 2, '#8a5a2a'); }, back: (f) => { f.fill('#c87a3a'); f.rect(2, Math.floor(f.h * 0.5), f.w - 4, Math.floor(f.h * 0.35), '#b06a30'); f.rect(0, 0, f.w, 2, '#8a5a2a'); f.px(Math.floor(f.w / 2), Math.floor(f.h * 0.5), '#e0c040'); } }), 0, TH * 0.5, -TD / 2 - 0.09);
     body.add(bp); all.push(bp);
     for (const sx of [-1, 1]) { const st = place(softBox(atlas, 0.05, TH * 0.9, 0.03, 0.012, { all: (f) => f.fill('#8a5a2a') }), sx * TW * 0.25, TH * 0.5, TD / 2 + 0.005); body.add(st); all.push(st); }
-  }
-  if (cfg.accessory === 'acc_aurora_scarf') {
-    const knit = (f) => f.fill((x, y) => ['#3ae08a', '#2ab8a0', '#5a7ae8', '#9a5ae8', '#c85ac8'][((x >> 1) + (y >> 2)) % 5]);
-    const ring = place(softBox(atlas, TW + 0.07, 0.12, TD + 0.07, 0.055, { all: knit }), 0, TH - 0.02, 0);
-    const tail = place(softBox(atlas, 0.11, 0.3, 0.05, 0.025, { all: knit }), TW * 0.2, TH - 0.18, TD / 2 + 0.035);
-    const tail2 = place(softBox(atlas, 0.1, 0.26, 0.05, 0.025, { all: knit }), -TW * 0.05, TH - 0.12, -TD / 2 - 0.035);
-    body.add(ring, tail, tail2); all.push(ring, tail, tail2);
   }
   if (cfg.accessory === 'acc_scarf') {
     const knit = (f) => f.fill((x, y) => ((x >> 1) % 2 ? '#c0392b' : '#e8d8c0'));
@@ -1303,6 +1210,7 @@ export function buildAvatar(cfgIn) {
   body.add(rodBack);
 
   inner.add(legL, legR, body);
+  // Perf (v1.16): each limb's pieces share one material, so bake them into one mesh per moving part: a whole
   // angler draws in about six calls instead of twenty to forty (hair, hats, scarves, shoes...).
   for (const g of [legL, legR, body, headG, armL, armR]) mergeChildren(g, mat, all, new Set([skirtMesh]));
   const totalH = (LH + TH + head.h + 0.05) * SCALE;

@@ -17,7 +17,7 @@ export class Remotes {
   }
 
   attach(net) {
-    // v1.15: only the net you're on right now draws anglers (a charter's crew room, or the lake)
+    // only the net you're on right now draws anglers (a group's side room, or the lake)
     const real = net;
     net = { on: (type, fn) => real.on(type, (e) => { if (this.game.net === real) fn(e); }) };
     net.on('peer:join', (p) => this.add(p));
@@ -102,8 +102,8 @@ export class Remotes {
     const sorted = [...this.list.values()].sort((a, b) => a.pos.distanceToSquared(me) - b.pos.distanceToSquared(me));
     sorted.forEach((r, i) => {
       const s = r.peer.state;
-      const oc = s ? this.game.ocean?.remoteAt(r, s) : null; // v1.15: at sea, only my crew, on my copy of the boat
-      const visible = i < MAX_RENDERED && !!s && !oc?.hide && !s.hid;
+      const oc = s ? this.game.x.first('remoteAt', r, s) : null; // (another map can place or hide anglers)
+      const visible = i < MAX_RENDERED && !!s && !oc?.hide && !s.hid; // (hid: out of sight, aboard a plane)
       r.actor.root.visible = visible;
       if (!s) return;
       if (visible) {
@@ -162,7 +162,7 @@ export class Remotes {
       if (!visible) return;
       r.shown = true;
       r.bob = smoothBobber(r.bob, s.bobber, dt); r.ten = (r.ten || 0) + ((s.tension || 0) - (r.ten || 0)) * Math.min(1, dt * 6); // (between net updates)
-      r.actor.update(dt, t, { x: r.pos.x, y: r.pos.y, z: r.pos.z, yaw: r.yaw, mode: s.mode, pose, moving: s.moving, rg: typeof s.rg === 'string' ? s.rg.slice(0, 2) : '', rl: Math.max(-0.5, Math.min(0.5, +s.rl || 0)), bobber: r.bob, tension: r.ten, rod: s.rod || (s.mode === 'boat' && !s.bobber ? 'back' : 'hand'), seat: s.seat && s.mode === 'shore' ? (s.seat === 1 || s.seat === true ? SEAT_H : Math.min(0.8, +s.seat || SEAT_H)) : 0, seatYaw: s.seat && s.mode === 'shore' && typeof s.seatYaw === 'number' ? s.seatYaw : undefined, running: !!s.run, passenger: rideOk, bike, swim: s.sw || 0, dg: typeof s.dg === 'string' ? s.dg.slice(0, 5) : '', skate: s.sk === 1 || s.sk === 2 ? s.sk : 0, blades: !!s.bl, sled: s.sl ? 1 : 0 });
+      r.actor.update(dt, t, { x: r.pos.x, y: r.pos.y, z: r.pos.z, yaw: r.yaw, mode: s.mode, pose, moving: s.moving, bobber: r.bob, tension: r.ten, rod: s.rod || (s.mode === 'boat' && !s.bobber ? 'back' : 'hand'), seat: s.seat && s.mode === 'shore' ? (s.seat === 1 || s.seat === true ? SEAT_H : Math.min(0.8, +s.seat || SEAT_H)) : 0, seatYaw: s.seat && s.mode === 'shore' && typeof s.seatYaw === 'number' ? s.seatYaw : undefined, running: !!s.run, passenger: rideOk, bike, ...this.game.x.merge('remoteLook', s) }); // (another map's fields: swimming, skates...)
       if (r.bubble && now > r.bubble.until) r.bubble = null;
       if (s.afk) r.bubble = { kind: 'zzz', text: 'z z z', until: now + 1000, key: 'z' };
       else if (r.bubble?.kind === 'zzz') r.bubble = null;

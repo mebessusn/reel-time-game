@@ -134,7 +134,7 @@ export class Bikes {
   canMount() {
     const g = this.game, p = g.player;
     if (p.mode !== 'shore' || p.airborne || g.chairs?.seat || g.fishing.busy || g.home?.active || g.treasure?.dig || g.riding) return false;
-    if (!inValley(p.pos.x)) return false;
+    if (!inValley(p.pos.x)) return false; // v1.15.21: bikes stay in the valley
     if (onDock(p.pos.x, p.pos.z)) return true; // bridges, docks, jetties and boardwalks (v1.9.3)
     return walkY(p.pos.x, p.pos.z, 0) != null && (p.wadeDepth || 0) < 0.05;
   }

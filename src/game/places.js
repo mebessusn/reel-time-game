@@ -50,6 +50,9 @@ export const PLACES = [
 
 const CELL = 8, N = Math.ceil((HALF * 2) / CELL);
 
+/** Another map's places on the valley's map (its pier, its plane). */
+export function addPlaces(list) { PLACES.push(...list); }
+
 export class Places {
   constructor(game) { this.game = game; this.t = 0; this.quiet = true; } // quiet: no toasts for what's around you when you arrive
 

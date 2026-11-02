@@ -16,7 +16,6 @@ const MODELS = {
   "camp-notice-board": "camp-notice-board-c0be42",
   "camp-water-jug": "camp-water-jug-1aba54",
   "campfire-cooking-grate": "campfire-cooking-grate-884d56",
-  "campground-rail-fence-run": "campground-rail-fence-run-524013",
   "camping-lantern": "camping-lantern-21d14b",
   "canoe-rack": "canoe-rack-c8126e",
   "canvas-ridge-tent": "canvas-ridge-tent-f0df0d",

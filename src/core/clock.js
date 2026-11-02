@@ -10,7 +10,8 @@ let forcedWeather = params.get('weather');
 let forcedMoon = params.has('moon') ? parseInt(params.get('moon'), 10) : null;
 
 export function setDebugTime(phase) { fixedPhase = phase; }
-// crew share the shift in the charter's state, so everyone aboard sees the same sky. 0 everywhere else.
+// A group can keep its own clock (another map's: a night trip, or sleeping till dawn), shifted from everyone else's.
+// The group shares the shift, so everyone in it sees the same sky. 0 everywhere else.
 let shiftMs = 0;
 export function setTimeShift(ms) { shiftMs = Number.isFinite(ms) ? ms : 0; }
 export function timeShift() { return shiftMs; }

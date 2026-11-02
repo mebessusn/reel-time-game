@@ -2,10 +2,10 @@
 // rain rings, a sun/moon sheen and sparkles.
 import * as THREE from 'three';
 import { HALF, surfaceY, WATER_Y, FAR_X } from './terrain.js';
-let westWave = null;
-/** this: its open water's own gentle waves (the floe edge, the springs, the holes). */
+// Far-away worlds' own water, (x, z) => height: one far east (setFarWave) and one far west (setWestWave).
+let FAR_WAVE = null, westWave = null;
+export function setFarWave(fn) { FAR_WAVE = fn; }
 export function setWestWave(fn) { westWave = fn; }
-import { oceanWave } from '../ocean/waves.js';
 import { CAUSTICS } from './caustics.js';
 import { RIPPLES_GLSL, bakePresetTextures, SWASH } from './waterfx.js';
 
@@ -16,7 +16,7 @@ export const WAVES = { uniforms: null };
 const smooth = (a, b, x) => { const t = Math.max(0, Math.min(1, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
 /** Height of the wind swell at a point (world units above WATER_Y), matching the water shader. */
 export function waveAt(x, z) {
-  if (x > FAR_X) return oceanWave(x, z);
+  if (x > FAR_X && FAR_WAVE) return FAR_WAVE(x, z); // (a far world's own waves: setFarWave)
   if (x < -FAR_X) return westWave ? westWave(x, z) : 0;
   const u = WAVES.uniforms;
   if (!u) return 0;

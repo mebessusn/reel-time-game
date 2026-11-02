@@ -1,72 +1,10 @@
-// Sky dressing for the bigger valley: fluffy soft-block clouds, a dense twinkling star dome,
+// Sky dressing for the bigger valley: a dense twinkling star dome,
 // a large glowing pixel moon, and low ground fog that pools in the valley at dawn, dusk and night.
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import { mulberry32 } from '../core/rng.js';
 import { HALF, WATER_Y } from './terrain.js';
-
-// ---------------------------------------------------------------- clouds
-// Each cloud is a cluster of rounded puffs (bigger in the middle, flat-ish base), merged into one
-// geometry with vertex shading: bright crowns, soft grey undersides.
-export function buildClouds(count = 34, seed = 77) {
-  const r = mulberry32(seed);
-  const group = new THREE.Group();
-  group.name = 'clouds';
-  const mat = new THREE.MeshLambertMaterial({ vertexColors: true, transparent: true, opacity: 0.94, fog: false, emissive: new THREE.Color('#ffffff'), emissiveIntensity: 0.35 });
-  const top = new THREE.Color('#ffffff'), under = new THREE.Color('#c8d0dc');
-  for (let i = 0; i < count; i++) {
-    const puffs = [];
-    const n = 5 + Math.floor(r() * 6);
-    const len = 14 + r() * 22, wid = 8 + r() * 10;
-    for (let k = 0; k < n; k++) {
-      const t = k / (n - 1) - 0.5;
-      const mid = 1 - Math.abs(t) * 1.3;
-      const s = (5 + r() * 5) * (0.6 + mid * 0.7);
-      const g = new RoundedBoxGeometry(s * (1.1 + r() * 0.5), s * (0.65 + r() * 0.25), s * (1 + r() * 0.4), 2, s * 0.32); // 2 segments (v1.13.19: was 3; same from the ground, half the triangles)
-      g.translate(t * len + (r() - 0.5) * 3, s * 0.3 * mid + r() * 1.5, (r() - 0.5) * wid * 0.6);
-      puffs.push(g);
-    }
-    // a wide flat base slab keeps the bottom tidy
-    const base = new RoundedBoxGeometry(len * 1.05, 2.4, wid * 0.8, 2, 1.1);
-    base.translate(0, -0.6, 0);
-    puffs.push(base);
-    const geo = mergeGeometries(puffs);
-    puffs.forEach((g) => g.dispose());
-    geo.computeBoundingBox();
-    const { min, max } = geo.boundingBox;
-    const pos = geo.attributes.position, col = new Float32Array(pos.count * 3);
-    const c = new THREE.Color();
-    for (let v = 0; v < pos.count; v++) {
-      const k = Math.min(1, Math.max(0, (pos.getY(v) - min.y) / (max.y - min.y)));
-      c.copy(under).lerp(top, Math.pow(k, 0.6));
-      col.set([c.r, c.g, c.b], v * 3);
-    }
-    geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
-    const m = new THREE.Mesh(geo, mat);
-    const spread = HALF * 2.6;
-    m.position.set((r() - 0.5) * spread * 2, 58 + r() * 22, (r() - 0.5) * spread * 2);
-    m.rotation.y = r() * Math.PI;
-    m.userData.speed = 0.8 + r() * 0.8;
-    group.add(m);
-  }
-  group.userData.mat = mat;
-  group.userData.wrap = HALF * 2.6;
-  return group;
-}
-
-export function updateClouds(group, dt, { tint, sun, gloom, night }) {
-  const W = group.userData.wrap;
-  for (const m of group.children) {
-    m.position.x += dt * m.userData.speed * (1 + gloom);
-    if (m.position.x > W) m.position.x -= W * 2;
-  }
-  const mat = group.userData.mat;
-  mat.color.copy(tint);
-  mat.emissive.copy(tint);
-  mat.emissiveIntensity = 0.12 + sun * 0.3;
-  mat.opacity = Math.min(0.97, 0.88 + gloom * 0.1) * (1 - night * 0.35);
-}
 
 // ---------------------------------------------------------------- stars
 export function buildStars(count = 3200, seed = 9) {
@@ -196,7 +134,7 @@ export class Moon {
     this.glowMat = new THREE.SpriteMaterial({ map: glowTexture(), fog: false, depthWrite: false, transparent: true, blending: THREE.AdditiveBlending, opacity: 0.8 });
     this.glow = new THREE.Sprite(this.glowMat);
     this.glow.scale.set(120, 120, 1);
-    this.disc.renderOrder = -1; this.glow.renderOrder = -1;
+    this.disc.renderOrder = -20; this.glow.renderOrder = -20;
     scene.add(this.glow, this.disc);
     this.phase = -1;
   }

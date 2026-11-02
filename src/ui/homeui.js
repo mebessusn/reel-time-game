@@ -271,7 +271,7 @@ export class HomeUI {
         // pan along the floor, in the direction you drag
         const k = sc.dist * 0.0016;
         const cx = Math.cos(sc.yaw), sx = Math.sin(sc.yaw);
-        sc.panX = Math.max(-4, Math.min(sc.tier >= 1 ? 9 : 4, drag.pan.x - (dx * cx + dy * sx) * k)); // (v1.17.1: over to the den, in a Cottage)
+        sc.panX = Math.max(-4, Math.min(sc.tier >= 2 ? 17 : sc.tier >= 1 ? 9 : 4, drag.pan.x - (dx * cx + dy * sx) * k)); // (v1.17.1: over to the den, in a Cottage)
         sc.panZ = Math.max(-3.5, Math.min(3.5, drag.pan.z - (-dx * sx + dy * cx) * k));
         return;
       }

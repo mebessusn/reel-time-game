@@ -68,6 +68,10 @@ function buildTugHud() {
     h('div.tug-stamina', h('i')));
 }
 
+/** What a fight calls out (another map adds its own with addTugCues); a function gets who called it. */
+const TUG_CUES = { leap: 'It leaps! Let go!' };
+export function addTugCues(map) { Object.assign(TUG_CUES, map); }
+
 export class UI {
   constructor(root, game) {
     this.root = root;
@@ -122,7 +126,7 @@ export class UI {
     const group = (label, ...btns) => h('div.hb-group', { role: 'group', 'aria-label': label }, btns);
     this.iconRow = h('div.icon-row.hotbar.plank', { role: 'toolbar', 'aria-label': 'Game menu' },
       group('Inventory', creelBtn, ib('package', 'Tackle box', 'tackle', () => this.sheets.open('tackle')), ib('book', 'Fishpedia', 'pedia', () => this.sheets.open('fishpedia')), journalBtn),
-      group('World', ib('map', 'Map', 'map', () => this.sheets.open('map')), ib('scroll', 'Notice board', 'board', () => this.sheets.open('board')), this.shopOff = ib('shop', 'Shop', 'shop-off', () => {}), ib('home', 'Your cabin', 'home', () => this.game.home.open()), (this.rideBtn = ib('bike', 'Bike (hop on / off)', 'bike', () => this.game.toggleRide()))),
+      group('World', ib('map', 'Map', 'map', () => this.sheets.open('map')), ib('scroll', 'Notice board', 'board', () => this.sheets.open('board')), this.shopOff = ib('shop', 'Shop', 'shop-off', () => {}), ib('home', 'Your cabin', 'home', () => this.game.home.open()), (this.rideBtn = ib('bike', 'Bike (hop on / off)', 'bike', () => this.game.toggleRide())), (this.swapBtn = ib('rotL', 'Swap rides', 'ride-swap', () => this.game.swapRide()))),
       group('Social', chatBtn, ib('users', 'Friends & party (O)', 'social', () => this.sheets.open('social')), ib('smile', 'Emotes', 'emotes', () => this.toggleWheel()), ib('camera', 'Camera (selfies and group shots)', 'selfie', () => this.game.selfie.start())),
       group('System', this.rodBtn, (this.adminBtn = ib('shield', 'Admin', 'admin', () => this.sheets.open('admin'))), ib('menu', 'Menu', 'pause', () => this.openPause())));
     this.adminBtn.hidden = true; // v1.10: shown to the lake's admins only (see showAdmin)
@@ -296,9 +300,10 @@ export class UI {
   setVisible(v) { this.hud.classList.toggle('hidden', !v); }
 
   // ---------- per-frame ----------
-  /** v1.17.2: the ride button shows what you'd ride here: the bike in the valley, your this or one-dog sled up north. */
+  /** v1.17.2: the ride button shows what you'd ride here: the bike in the valley, or another map's ride (game.rideInfo). */
   updateRide() {
     const g = this.game, B = this.rideBtn, want = g.rideInfo?.();
+    if (this.swapBtn) this.swapBtn.hidden = !g.canSwapRide?.();
     if (!B || !want || this.rideKey === want.key) return;
     this.rideKey = want.key;
     B.hidden = !want.icon;
@@ -309,11 +314,11 @@ export class UI {
     this.updateRide();
     const g = this.game, p = g.profile, wt = g.engine.sky.state;
     if (!p) return;
-    const north = !!g.north?.here;
-    const season = north ? null : g.living?.season;
-    const key = `${wt.phase}|${wt.weather}|${wt.fullMoon}|${wt.bloodMoon}|${season}|${north}|${!!g.north?.sky?.auroraOn}`;
+    const own = g.x?.first('timeText', wt) || ''; // another map's own season
+    const season = own ? null : g.living?.season;
+    const key = `${wt.phase}|${wt.weather}|${wt.fullMoon}|${wt.bloodMoon}|${season}|${own}`;
     if (key !== this.last.time) {
-      clear(this.timeChip).append(...[icon(PHASE_ICON[wt.phase]), wt.weather !== 'clear' ? icon(WEATHER_ICON[wt.weather]) : null].filter(Boolean), h('span', [PHASE_LABEL[wt.phase], wt.bloodMoon ? 'Blood Moon' : wt.fullMoon && wt.phase === 'night' ? 'Full moon' : '', season ? SEASONS[season].name : '', north ? (g.north.sky?.auroraOn ? 'Northern lights' : { rain: 'Snowing', storm: 'Blizzard', overcast: 'Flurries' }[wt.weather] || 'Winter') : ''].filter(Boolean).join(', ')));
+      clear(this.timeChip).append(...[icon(PHASE_ICON[wt.phase]), wt.weather !== 'clear' ? icon(WEATHER_ICON[wt.weather]) : null].filter(Boolean), h('span', [PHASE_LABEL[wt.phase], wt.bloodMoon ? 'Blood Moon' : wt.fullMoon && wt.phase === 'night' ? 'Full moon' : '', season ? SEASONS[season].name : '', own].filter(Boolean).join(', ')));
       this.timeChip.classList.toggle('blood', !!wt.bloodMoon);
       const wf = WEATHER_FISHING[wt.bloodMoon ? 'bloodmoon' : wt.weather]?.note;
       this.timeChip.title = `${PHASE_LABEL[wt.phase]}, ${wt.bloodMoon ? 'Blood Moon' : WEATHER_LABEL[wt.weather]}.${wf ? ` ${wf}` : ''} One in-game day is 24 minutes.${season ? ` ${SEASONS[season].blurb}` : ''}`;
@@ -590,9 +595,9 @@ export class UI {
     el.classList.toggle('shake', r.strain > 0.05);
   }
   tugCue(kind, who = '') {
-    const words = { leap: 'It leaps! Let go!', run: 'It\'s running! Let it go!', gaff: 'Alongside! Gaff it!', call: who ? `${who}: it's going to jump!` : 'Jump coming! Ease off!' };
-    if (!words[kind]) return;
-    const c = h(`div.tug-cue.cue-${kind}`, words[kind]);
+    const w = TUG_CUES[kind], text = typeof w === 'function' ? w(who) : w;
+    if (!text) return;
+    const c = h(`div.tug-cue.cue-${kind}`, text);
     this.reelEl.append(c);
     setTimeout(() => c.remove(), 1100);
   }
@@ -935,7 +940,7 @@ export class UI {
 
   closeAll() {
     if (this.game.dialogue?.active) { this.game.dialogue.close(null); return; }
-    if (document.querySelector('.ow-modal')) { this.game.ocean?.ui.closeModal(); return; } // v1.15
+    if (this.game.x?.first('closeModal')) return; // another map's own window
     if (this.game.selfie?.active) { this.game.selfie.stop(); return; }
     if (viewerOpen()) { closeViewer(); return; }
     if (this.wheel) this.toggleWheel();

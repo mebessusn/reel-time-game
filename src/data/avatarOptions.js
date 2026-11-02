@@ -72,11 +72,6 @@ export const HATS = [
   { id: 'hat_straw', name: 'Straw Hat', item: 'hat_straw' }, { id: 'hat_bucket_tan', name: 'Tan Bucket Hat', item: 'hat_bucket_tan' },
   { id: 'hat_captain', name: 'Captain Hat', item: 'hat_captain' }, { id: 'hat_crown', name: 'Tiny Crown', item: 'hat_crown' },
   { id: 'hat_tophat', name: 'Top Hat', item: 'hat_tophat' }, { id: 'hat_frog', name: 'Frog Hat', item: 'hat_frog' },
-  
-  
-  
-  
-  
 ];
 // 'default' keeps each hat's own colour
 export const HAT_COLORS = ['default', '#c0392b', '#e8607a', '#f4a6b8', '#f0d9a0', '#e8a030', '#5f8050', '#3a7a6a', '#2e5a9a', '#7a5ab0', '#8a5a34', '#24222a', '#f4f4f0'];
@@ -84,7 +79,6 @@ export const EYEWEAR = [
   { id: 'none', name: 'None' }, { id: 'bigsunnies', name: 'Big Sunglasses' }, { id: 'aviators', name: 'Aviators' },
   { id: 'roundshades', name: 'Round Shades' }, { id: 'cateye', name: 'Cat-eye Shades' }, { id: 'heart', name: 'Heart Shades' },
   { id: 'goggles', name: 'Swim Goggles' },
-  
 ];
 export const SHIRTS = [
   { id: 'flannel', name: 'Flannel' }, { id: 'tee', name: 'Tee' }, { id: 'hoodie', name: 'Hoodie' },
@@ -93,8 +87,6 @@ export const SHIRTS = [
   { id: 'denim', name: 'Denim Jacket' }, { id: 'cardigan', name: 'Cardigan' }, { id: 'puffer', name: 'Puffer Jacket' },
   { id: 'tank', name: 'Tank Top' }, { id: 'polo', name: 'Polo' }, { id: 'turtleneck', name: 'Turtleneck' },
   { id: 'shirt_raincoat_yellow', name: 'Yellow Rain Jacket', item: 'shirt_raincoat_yellow' },
-  
-  
 ];
 export const CLOTH_COLORS = ['#c0392b', '#3a7a3a', '#2e5a9a', '#e0d8c8', '#2a2a2a', '#e8a030', '#8a4aa0', '#4aa0a0',
   '#f2a0b8', '#f4d870', '#9ac8ec', '#b8a0e0', '#a8dcb8', '#f6f2ea', '#e87050', '#3a3a6a'];
@@ -107,7 +99,6 @@ export const PANT_COLORS = ['#3a5a8a', '#5a4a32', '#2a2a2a', '#8a8a7a', '#6a3a2a
 export const SHOES = [
   { id: 'boots', name: 'Rubber Boots' }, { id: 'sneakers', name: 'Sneakers' }, { id: 'hiking', name: 'Hiking Boots' },
   { id: 'sandals', name: 'Sandals' }, { id: 'slipons', name: 'Slip-ons' },
-  
 ];
 export const ACCESSORIES = [
   { id: 'none', name: 'None' },
@@ -116,7 +107,6 @@ export const ACCESSORIES = [
   { id: 'acc_vest', name: 'Fishing Vest', item: 'acc_vest' }, { id: 'acc_scarf', name: 'Cozy Scarf', item: 'acc_scarf' },
   { id: 'acc_backpack', name: 'Backpack', item: 'acc_backpack' }, { id: 'acc_camera', name: 'Camera', item: 'acc_camera' },
   { id: 'acc_cat', name: 'Pet Cat', item: 'acc_cat' },
-  
 ];
 
 export const DEFAULT_AVATARS = {
@@ -152,3 +142,7 @@ export function randomAvatar(r = Math.random, owned = new Set()) {
     accessory: r() < 0.7 ? 'none' : pick(free(ACCESSORIES), r).id,
   };
 }
+
+/** Another map's wardrobe options: addAvatarOptions('HATS', [{ id, name, item }]). */
+const GROUPS = { HATS, EYEWEAR, SHIRTS, PANTS, SHOES, ACCESSORIES };
+export function addAvatarOptions(group, list) { GROUPS[group].push(...list); }

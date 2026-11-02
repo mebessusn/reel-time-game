@@ -1,4 +1,4 @@
-// v1.17.1 water effects, shared by the lake shader (water.js), the sea (ocean/oceanMesh.js) and the valley ground
+// v1.17.1 water effects, shared by the lake shader (water.js), a far world's water and the valley ground
 // (terrain.js): ripple rings that light up, each lake's own water colour, and the wash running up the beaches.
 import * as THREE from 'three';
 import { HALF, LAKES } from './terrain.js'; // (terrain.js imports applySwash from here: only used inside functions)

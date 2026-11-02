@@ -85,7 +85,7 @@ export function tuftGeometry(r) {
 
 /** The grass tufts' material: swaying in the wind, and v1.8.2: both sides of a blade lit the same bright green (no
  *  dark backs): the up-facing normal is kept on back faces instead of flipped, so the light doesn't change with which
- *  side you see. (Also used for the this islands' grass.) */
+ *  side you see. (Also used for far worlds' grass.) */
 export function tuftMaterial(wind, key = 'grass-tufts') {
   const mat = new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide });
   addWind(mat, wind, 0.09, key);
@@ -293,7 +293,7 @@ export function branchGeometry(r) {
 // v1.12: the bike shop's stall and display rack (src/game/bikes.js STALL/RACK) are built after the scatter, so
 // a boulder that lands on them is slid out to the edge of this circle instead (keeping the seeded layout).
 const BIKE_YARD = { x: -9.2, z: -181.2, r: 4.6 };
-const dockYard = (x, z) => Math.hypot(x + 74, z + 138) < 15;
+const dockYard = (x, z) => Math.hypot(x + 74, z + 138) < 15; // (v1.17.4: the foot of the east-shore dock stays clear; a boulder rolled here is left out, the seeded layout unchanged)
 
 export function buildGroundCover(scene, wind, cabin = null) {
   const r = rng(90210);

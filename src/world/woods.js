@@ -14,7 +14,7 @@
 //   Ridgeback Loop    the bike trail's start gate, checkpoint arches and jumps (the trail itself is in terrain.js)
 // Positions live here (WOODS) so the game (wildwoods.js), the map and the tests share them.
 import * as THREE from 'three';
-import { SnowGoose } from '../north/plane.js';
+import { BushPlane } from '../entities/bushplane.js';
 import { SNOWGOOSE_MATS } from '../data/snowgooseMesh.js';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { surfaceY, CLEARINGS, CREEKS, POOLS, TRAILS, WATER_Y, addWalkway, groundY } from './terrain.js';
@@ -225,6 +225,7 @@ function trapperCabin() {
 }
 
 function bushPlane() {
+  // v1.17.1: the crashed plane is a real bush plane now (src/entities/bushplane.js), in a
   // faded old yellow, nose down in the ferns with a bent prop, moss on the wings, a crate and a wheel thrown clear
   const T = WOODS.plane, s = new Site('plane', T.x, T.z, 0.9);
   const moss = wmat('#5f7d3c'), dark = wmat('#3a3a3e');
@@ -234,7 +235,7 @@ function bushPlane() {
   for (let i = 0; i < 5; i++) s.add(box(0.5 + jit(i) * 0.6, 0.04, 0.3 + jit(i, 2) * 0.3), moss, -3 + jit(i, 3) * 6, 0.05, 2.5 + jit(i, 4) * 2, 0, jit(i, 5) * 3, 0); // (torn panels in the ferns)
   s.solid(-1.8, -3.2, 0.5); s.solid(-2.6, -2.4, 0.4);
   T.y = s.y;
-  const goose = new SnowGoose(), g = goose.group;
+  const goose = new BushPlane(), g = goose.group;
   const recolor = { sg_red: '#b8892e', sg_cream: '#cfc4a4', sg_alu: '#7a7c7a', sg_glass: '#3a4a4a', sg_lamp: '#6a6458', sg_nav_red: '#5a2a24', sg_nav_green: '#2a4a2a' };
   g.traverse((o) => {
     if (!o.isMesh) return;

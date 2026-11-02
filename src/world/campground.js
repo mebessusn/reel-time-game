@@ -4,7 +4,7 @@
 //   Frostpine A-Frame: an A-frame cabin up the bank from Frostpine Lake's north shore, with a well, a fire pit and
 //   chairs looking out over the water, and a canoe and a rowboat pulled up on the beach.
 // (The campground's tents, tables and camp kit are in campers.js, props.js and wildwoods.js.)
-import { CLEARINGS } from './terrain.js';
+import { CLEARINGS, surfaceY } from './terrain.js';
 import { placeModels, polyforkFoot } from './polyfork.js';
 
 const W = Math.PI / 2;
@@ -18,8 +18,8 @@ const RANGER = [
 const AFRAME = [
   ['a-frame-cabin', 0, 0, Math.PI], // (its deck toward the lake, north)
   ['stone-well', 4.6, 2.5, 0.5], ['cordwood-pile', -2.9, 1.6, W], ['forest-outhouse', -4.6, 6, Math.PI], ['birdhouse-post', 4.8, -3.2, 0],
-  ['stone-fire-pit', 0, -6.2, 0], ['folding-camp-chair', -1.5, -5.1, 2.2], ['folding-camp-chair', 1.5, -5.1, -2.2], ['folding-camp-chair', -0.1, -7.6, 0.07],
-  ['camp-canoe', 4.5, -11, 2.8], ['wooden-rowboat', -4, -11.2, -2.9],
+  ['stone-fire-pit', 0, -9.1, 0, { flat: 1 }], ['folding-camp-chair', -2, -9.5, 1.37, { flat: 1 }], ['folding-camp-chair', -0.7, -7.6, 2.7, { flat: 1 }], ['folding-camp-chair', 1.5, -7.9, -2.2, { flat: 1 }], // (down on the flat of the beach, between the boats)
+  ['camp-canoe', 3.3, -11, 2.8, { flat: 1 }], ['wooden-rowboat', -6, -11.2, -2.9, { flat: 1 }],
 ];
 
 /** Inside one of these pieces (or `pad` from it): trees, ferns and grass keep off (campers.js camperAt asks this). */
@@ -37,7 +37,7 @@ export function buildCampground(scene) {
   const out = {};
   for (const [name, list] of [['ranger', RANGER], ['aframe', AFRAME]]) {
     const C = CLEARINGS[name];
-    out[name] = placeModels(`polyfork-${name}`, list.map(([m, dx, dz, ry, o]) => ({ m, x: C.x + dx, z: C.z + dz, ry, ...o })));
+    out[name] = placeModels(`polyfork-${name}`, list.map(([m, dx, dz, ry, o]) => ({ m, x: C.x + dx, z: C.z + dz, ry, ...o, y: o?.flat ? surfaceY(C.x + dx, C.z + dz) - 0.02 : undefined })));
     scene.add(out[name]);
   }
   return out;

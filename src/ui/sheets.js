@@ -1,5 +1,5 @@
 // Bottom sheets: Creel, Fishpedia, Shop, Leaderboard, Journal (achievements), Settings.
-import { renderNorthPedia, renderNorthJournal } from '../north/ui.js';
+import { CLIPS, CLIP_GROUPS } from '../data/clips.js';
 import { openFishViewer } from './viewer.js';
 import { SHOVEL_PRICE } from '../game/treasure.js';
 import { h, clear, fmt, lb, ago } from './dom.js';
@@ -9,7 +9,7 @@ import { baitThumb, upgradeThumb, gearThumb, decorThumb, petThumb, wearThumb, em
 // v1.12: every shop item gets a picture
 const anyThumb = (it, av) => itemThumb(it) || (it.kind === 'emote' ? emoteThumb(it, av) : wearThumb(it, av));
 import { SPECIES, SPECIES_BY_ID, TIER_INFO, ZONES, TIERS, BOTTLE_MESSAGES, PEDIA_SLOTS, tierOf, zoneName } from '../data/species.js';
-import { ITEMS, ITEMS_BY_ID, PERK_TEXT, featuredItems } from '../data/items.js';
+import { ITEMS, ITEMS_BY_ID, PERK_TEXT, SOURCE_LABEL, featuredItems } from '../data/items.js';
 import { ACHIEVEMENTS, ACH_TIER_COLOR } from '../data/achievements.js';
 import { catchValue, canTrade, tradePearls, creelMax, STORAGE_MAX, achievementProgress, countSlots, BOAT_LEVEL } from '../game/rules.js';
 import { BAITS, UPGRADES, MAX_UPGRADE, ROD_LB, lineRating } from '../data/bait.js';
@@ -36,8 +36,6 @@ import { SEASONS } from '../data/seasons.js';
 import { FISH_LORE, VARIANT_LORE } from '../data/fishlore.js';
 import { FUN_FACTS, EXTRA_LORE } from '../data/funfacts.js';
 import { renderMapView } from './mapview.js';
-import { renderNorthMap } from '../north/northmap.js';
-import { renderSeaChart } from '../ocean/seachart.js';
 import { album, photoButtons } from './selfie.js';
 
 const priceEl = (price) => price ? h('span.price', h('img', { src: iconURL(price.coins ? 'coin' : 'pearl') }), fmt(price.coins || price.pearls)) : null;
@@ -72,7 +70,7 @@ export class Sheets {
   }
 
   open(name) {
-    if (name === 'map' && this.game.ocean?.atSea && this.game.ocean.charter) this.game.ocean.voyage?.mark('chart');
+    this.game.x?.each('sheetOpened', name);
     if (this.current?.name === name) { this.close(); return; }
     const had = !!this.current;
     this.close(true);
@@ -135,6 +133,7 @@ export class Sheets {
 
   // ---------------- World map ----------------
   render_map(c) {
+    { const m = this.game.x.first('mapSheet'); if (m) { c.title.textContent = m.title; m.render(c.body, this.game, this); return; } } // another map draws its own
     c.title.textContent = 'Five Lakes Valley';
     this.tab(c, 'map', 'Map', 'mapTab');
     // v1.9.9: no fast travel from the map itself: the stones only work while you stand at one
@@ -327,10 +326,9 @@ export class Sheets {
     c.title.textContent = 'Fishpedia';
     this.tab(c, 'fish', 'Fish', 'pediaTab');
     this.tab(c, 'sets', `Collections${this.game.collections.claimable().length ? ' !' : ''}`, 'pediaTab');
-    const owp = this.game.ocean?.progress; // v1.15: the sea's fish have their own tab
+    for (const [id, label] of this.game.x.all('pediaTabs', p)) this.tab(c, id, label, 'pediaTab'); // another map's fish have their own tab
     if (this.state.pediaTab === 'sets') { this.renderSets(c); return; }
-    if (this.state.pediaTab === 'ocean' && owp) { owp.renderPedia(c, this); return; }
-    if (this.state.pediaTab === 'north') { renderNorthPedia(this.game, c); return; }
+    if (this.game.x.first('pediaTab', this.state.pediaTab, c, this)) return;
     const slots = countSlots(p);
     const sel = this.state.pediaSel && SPECIES_BY_ID[this.state.pediaSel];
     const have = Object.keys(p.fishpedia).length, pct = Math.round((slots / PEDIA_SLOTS) * 100);
@@ -518,7 +516,7 @@ export class Sheets {
       return h(`button.item-card${x.id === selId ? '.sel' : ''}${owns(x) ? '.owned' : ''}`, { style: { '--c': TIER_INFO[r].color }, 'aria-pressed': String(x.id === selId), title: x.name, on: { click: () => { this.state[selKey] = x.id; this.game.audio.sfx('page'); this.render(); } } },
         h('span.ic-frame', th ? h('img', { src: th, alt: '' }) : icon(x.kind === 'emote' ? 'smile' : 'shirt')),
         h('span.ic-name', x.name),
-        eq ? h('span.ic-tag.eq', 'Equipped') : owns(x) ? h('span.ic-tag', 'Owned') : x.source !== 'shop' ? h('span.ic-tag', x.source === 'beach' ? 'Beach games' : x.source === 'charter' ? 'Earned' : x.source === 'north' ? 'Earned' : 'Achievement') : x.level && p.level < x.level ? h('span.ic-tag', icon('lock'), `Lv ${x.level}`) : priceEl(x.price),
+        eq ? h('span.ic-tag.eq', 'Equipped') : owns(x) ? h('span.ic-tag', 'Owned') : x.source !== 'shop' ? h('span.ic-tag', SOURCE_LABEL[x.source]?.tag || 'Achievement') : x.level && p.level < x.level ? h('span.ic-tag', icon('lock'), `Lv ${x.level}`) : priceEl(x.price),
         featured.includes(x.id) ? h('span.ic-flag', 'Featured') : null);
     })));
   }
@@ -532,7 +530,7 @@ export class Sheets {
       if (['rod', 'lure', 'boat'].includes(it.kind)) btn = equipped ? h('button.btn.small', { disabled: true }, 'Equipped') : h('button.btn.green', { on: { click: () => this.act(() => g.equip(it.kind, it.id)) } }, 'Equip');
       else if (it.kind === 'emote') btn = h('button.btn.small', { disabled: true }, 'Owned');
       else btn = h('button.btn.green', { on: { click: () => { this.close(); g.openCreator(); } } }, 'Wear');
-    } else if (it.source !== 'shop') { const how = it.source === 'beach' ? 'Earned' : it.source === 'charter' ? 'Earned' : it.source === 'north' ? (it.northPrice ? 'Sold at Pell\'Earned' : 'Earned') : 'Earned from an achievement'; btn = h('button.btn.small', { disabled: true, title: how }, how); }
+    } else if (it.source !== 'shop') { const how = it.source === 'quest' ? 'Earned from a quest' : SOURCE_LABEL[it.source] ? SOURCE_LABEL[it.source].how(it) : 'Earned from an achievement'; btn = h('button.btn.small', { disabled: true, title: how }, how); }
     else {
       const need = Math.max(it.kind === 'boat' ? BOAT_LEVEL : 1, it.level || 1);
       const lvlLock = p.level < need;
@@ -774,7 +772,7 @@ export class Sheets {
     c.body.append(h(`div.list-row${g.quests.dailyBonusReady() ? '.me' : ''}`, { style: { marginTop: '6px' } }, icon('gift'),
       h('div.grow', h('div.ttl', 'Daily bonus'), h('div.meta', q.bonus ? 'Claimed today. New requests at midnight UTC.' : `Claim all three requests for ${DAILY_BONUS.coins} coins and ${DAILY_BONUS.xp} XP.`)),
       q.bonus ? h('span.pill', { style: { '--c': '#5eae3e' } }, 'Done') : g.quests.dailyBonusReady() ? h('button.btn.gold.small', { on: { click: () => this.act(() => g.quests.claimDailyBonus()) } }, 'Claim') : null));
-    g.ocean?.quests?.render(c, this); // v1.15: the sea's bonus requests
+    g.x.each('questsExtra', c, this); // (another map's own requests)
     const n = q.npc;
     if (n) {
       c.body.append(h('div.section-title', 'A local is asking'));
@@ -889,8 +887,9 @@ export class Sheets {
       ['collect', 'Collect', 'book', miles.some((m) => m.have >= m.n && !m.claimed)],
       ['ach', 'Awards', 'trophy', claimable.length > 0],
       ['bottles', 'Bottles', 'chat', false],
+      ['howto', 'How to', 'play', false], // the tutorial clips, to watch again (src/ui/clips.js)
       ['woods', 'Woods', 'leaf', false], // v1.14.9 The Wild Woods (woodsui.js)
-      ...(g.north?.d.flights || g.north?.here ? [['north', 'North', 'star', Object.values(g.north.d.quests || {}).some((q) => q.done && !q.claimed)]] : []),
+      ...g.x.all('journalTabs'), // another map's own pages
     ];
     const cur = this.state.journalTab || 'climb';
     for (const [id, label, ic, dot] of TABS) {
@@ -900,8 +899,15 @@ export class Sheets {
     const B = c.body;
     B.classList.add('j-page');
 
+    if (cur === 'howto') {
+      B.append(h('p.muted', 'Short demos of how things work. New ones play the first time you meet them.'));
+      for (const [name, ids] of CLIP_GROUPS) {
+        B.append(h('div.howto-group', name), h('div.howto-list', ids.map((id) => h('button.btn.ghost.small', { on: { click: () => { this.close(); this.game.clips.play(id, { force: true }); } } }, icon('play'), CLIPS[id].title))));
+      }
+      return;
+    }
     if (cur === 'woods') { this.render_woodsTab?.(c); return; }
-    if (cur === 'north') { renderNorthJournal(this, c); return; }
+    if (g.x.first('journalTab', cur, c, this)) return;
     if (cur === 'climb') {
       // your climb: the next thing a level opens, and level rewards you're owed
       const nu = nextUnlock(p.level);

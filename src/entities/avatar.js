@@ -296,6 +296,10 @@ function twoHands(p, pitch, lower) {
 }
 
 // Pose/animate an avatar. state: idle|walk|cast|wait|reel|sit|row|emote, t seconds
+/** Poses another map adds: { name(parts, t, extra) }. */
+const POSES = {};
+export function addPoses(map) { Object.assign(POSES, map); }
+
 export function animateAvatar(av, state, t, extra = {}) {
   const p = av.parts;
   const sw = Math.sin(t * 9);
@@ -317,19 +321,6 @@ export function animateAvatar(av, state, t, extra = {}) {
       p.head.rotation.x = -0.7;
       break;
     }
-    case 'swimgun': { // v1.15.7: swimming with a speargun, the gun held out ahead in the right hand, a one-armed stroke
-      const k = Math.sin(t * 7), a = t * 2.4;
-      p.legL.rotation.x = k * 0.35; p.legR.rotation.x = -k * 0.35;
-      p.armL.rotation.set(-Math.PI + Math.sin(a) * 1.1, 0, 0.25); p.armR.rotation.set(-Math.PI + 0.12, 0, -0.08);
-      p.head.rotation.x = -0.7;
-      break;
-    }
-    case 'treadgun': { // treading water with a speargun: the gun held out in front, the free hand sculling
-      const k = Math.sin(t * 3);
-      p.legL.rotation.x = k * 0.3; p.legR.rotation.x = -k * 0.3;
-      p.armL.rotation.set(-0.5, 0, 0.9 + k * 0.25); p.armR.rotation.set(-Math.PI / 2 + 0.15, 0, -0.1);
-      break;
-    }
     case 'tread': { // treading water: slow kicks, hands sculling
       const k = Math.sin(t * 3);
       p.legL.rotation.x = k * 0.3; p.legR.rotation.x = -k * 0.3;
@@ -340,29 +331,6 @@ export function animateAvatar(av, state, t, extra = {}) {
       p.legL.rotation.x = sw * 0.6; p.legR.rotation.x = -sw * 0.6;
       p.armL.rotation.x = -sw * 0.5; p.armR.rotation.x = sw * 0.5;
       break;
-    case 'skate': {
-      const k = Math.sin(t * 4.2), a = Math.max(0, k), b = Math.max(0, -k);
-      p.legL.rotation.set(-a * 0.25, 0, -0.08 - a * 0.42); p.legR.rotation.set(-b * 0.25, 0, 0.08 + b * 0.42);
-      p.armL.rotation.set(-0.3 + k * 0.5, 0, -0.25); p.armR.rotation.set(-0.3 - k * 0.5, 0, 0.25);
-      p.body.rotation.set(0.32, -k * 0.12, 0);
-      p.head.rotation.x = -0.25;
-      break;
-    }
-    case 'glide': {
-      p.legL.rotation.set(-0.15, 0, -0.06); p.legR.rotation.set(0.1, 0, 0.06);
-      p.armL.rotation.set(-0.2, 0, -0.55 + Math.sin(t * 1.3) * 0.05); p.armR.rotation.set(-0.2, 0, 0.55 - Math.sin(t * 1.3) * 0.05);
-      p.body.rotation.set(0.2, 0, 0);
-      p.head.rotation.x = -0.15;
-      break;
-    }
-    case 'sled': {
-      const k = Math.sin(t * 6) * 0.04;
-      p.legL.rotation.set(-0.12, 0, -0.04); p.legR.rotation.set(-0.12, 0, 0.04);
-      p.armL.rotation.set(-1.15 + k, 0, 0.12); p.armR.rotation.set(-1.15 - k, 0, -0.12);
-      p.body.rotation.set(0.22, 0, 0);
-      p.head.rotation.x = -0.18;
-      break;
-    }
     case 'run': {
       // a light jog: longer, quicker strides, arms pumping a little bent forward, a small forward lean
       const sr = Math.sin(t * 13);
@@ -416,23 +384,7 @@ export function animateAvatar(av, state, t, extra = {}) {
       p.head.rotation.x = -lean * 0.4;
       break;
     }
-    case 'rski': { // v1.17.4: skis: a low tuck, knees bent, poles tucked under the arms
-      p.legL.rotation.set(-0.5, 0, -0.03); p.legR.rotation.set(-0.5, 0, 0.03); p.armL.rotation.set(-0.95, 0, 0.18); p.armR.rotation.set(-0.95, 0, -0.18);
-      p.body.rotation.set(0.62, 0, 0); p.head.rotation.set(-0.5, 0, 0);
-      break;
-    }
-    case 'rboard': { // v1.17.4: a snowboard: side on, feet apart, knees soft, arms out for balance
-      const k = Math.sin(t * 2.4) * 0.05;
-      p.legL.rotation.set(-0.2, 0, -0.3); p.legR.rotation.set(-0.2, 0, 0.3); p.armL.rotation.set(-0.15, 0, -0.85 + k); p.armR.rotation.set(-0.15, 0, 0.85 - k);
-      p.body.rotation.set(0.28, 0, 0); p.head.rotation.set(-0.1, -1.2, 0);
-      break;
-    }
-    case 'rsled': { // v1.17.4: sitting on a sled, legs out in front, hands on the sides
-      p.legL.rotation.set(-1.45, 0, -0.08); p.legR.rotation.set(-1.45, 0, 0.08); p.armL.rotation.set(-0.5, 0, -0.32); p.armR.rotation.set(-0.5, 0, 0.32);
-      p.body.rotation.set(-0.16, 0, 0); p.head.rotation.set(0.1, 0, 0);
-      break;
-    }
-    case 'ride': {
+    case 'ride': { // astride a ride: leaning in, both hands on the bars
       p.body.rotation.set(0.42, 0, 0); p.armL.rotation.set(-1.32, 0, 0.1); p.armR.rotation.set(-1.32, 0, -0.1); p.head.rotation.set(-0.3, 0, 0);
       break;
     }
@@ -506,14 +458,6 @@ export function animateAvatar(av, state, t, extra = {}) {
       p.armL.rotation.set(0.15, 0, -0.75);
       break;
     }
-    case 'drum': {
-      // swaying with the rhythm
-      const L = Math.max(0, Math.sin(t * 7.2)), R = Math.max(0, Math.sin(t * 7.2 + Math.PI)), sway = Math.sin(t * 1.8);
-      p.armL.rotation.set(-0.95 + L * 0.45, 0, 0.35); p.armR.rotation.set(-0.95 + R * 0.45, 0, -0.35);
-      p.body.rotation.set(0.12, sway * 0.08, sway * 0.05);
-      p.head.rotation.set(0.1 + Math.max(L, R) * 0.06, sway * 0.15, 0);
-      break;
-    }
     case 'roast': {
       // v1.9.5/6: both hands together out in front, holding a roasting stick toward the fire, turning it
       const tw = Math.sin(t * 2.6) * 0.05;
@@ -539,7 +483,8 @@ export function animateAvatar(av, state, t, extra = {}) {
       p.armR.rotation.set(-1.95 - sob * 0.05, 0, -0.55);
       break;
     }
-    default: // idle
+    default: if (POSES[state]) { POSES[state](p, t, extra); break; } // another map's poses (addPoses)
+      // idle
       p.armL.rotation.x = Math.sin(t * 1.6) * 0.04; p.armR.rotation.x = -Math.sin(t * 1.6) * 0.04;
   }
   if (p.body.userData.baseY == null) p.body.userData.baseY = p.body.position.y;

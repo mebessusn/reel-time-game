@@ -4,14 +4,9 @@ import { h } from './dom.js';
 import { icon } from './icons.js';
 
 export const TIPS = [
-  'Hold the left mouse button to cast. Let go when the power bar is near the top for a long cast.',
-  'When the bobber dips and "!" pops up, click fast to hook the fish.',
-  'Fighting a fish? Hold to reel and move the mouse the opposite way the fish pulls.',
-  'If the line turns red or the fish leaps out of the water, let go before it snaps!',
   'Press Enter to chat. /say talks out loud to anglers near you, with a bubble over your head.',
   'Whisper a friend with /w and their name. Tab finishes names for you.',
   'Press M for the valley map. Feeding schools show up there too.',
-  'Feeding schools churn up the water far out on the lakes. Cast into one from a boat for better odds on rare fish.',
   'Each lake has its own fish. Frostpine Lake is cold and deep, Lilymarsh is warm and shallow.',
   'Willow River links Cozy Cove and Lilymarsh. Row under the footbridge to get there.',
   'Every lake has a jetty where you can launch your boat (level 3 and up).',

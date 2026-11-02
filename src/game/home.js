@@ -6,6 +6,7 @@ import { buildFish } from '../entities/fish.js';
 import { SPECIES_BY_ID } from '../data/species.js';
 import { buildDecor, buildPlaque } from '../entities/decorModels.js';
 
+
 export const DECOR = {
   rug: { name: 'Braided Rug', price: { coins: 450 }, slot: 'floor' },
   armchair: { name: 'Armchair', price: { coins: 900 }, slot: 'seat' },
@@ -26,6 +27,10 @@ export const DECOR = {
   plaque_river: { name: 'Willow River Plaque', earned: 'river', color: '#7ab0d8' },
   plaque_quarry: { name: 'Quarry Plaque', earned: 'quarry', color: '#b8b0a0' },
   plaque_deep: { name: 'Legends Plaque', earned: 'deep', color: '#c890ff' },
+  // trophies (earned, never sold)
+  rug3: { name: 'Great Room Rug', model: 'rug', price: { coins: 900 }, slot: 'floor', tier: 2, desc: 'A big braided rug. Needs the Lodge.' },
+  armchair3: { name: 'Fireside Armchair', model: 'armchair', price: { coins: 1800 }, slot: 'seat', tier: 2, desc: 'An armchair for the Lodge\'s fire. Needs the Lodge.' },
+  plant3: { name: 'Great Room Fern', model: 'plant', price: { coins: 700 }, slot: 'plant', tier: 2, desc: 'One more fern. Needs the Lodge.' },
   // v1.17.1: seconds for the Cottage's den (the same pieces, a second of each; `tier` = the home they need)
   rug2: { name: 'Den Rug', model: 'rug', price: { coins: 450 }, slot: 'floor', tier: 1, desc: 'A second braided rug. Needs the Cottage.' },
   armchair2: { name: 'Den Armchair', model: 'armchair', price: { coins: 900 }, slot: 'seat', tier: 1, desc: 'A second armchair. Needs the Cottage.' },
@@ -37,10 +42,19 @@ export const DECOR = {
 // v1.17.1: bigger homes. Your place grows in tiers; each needs a level and some lake collections, and costs coins (or
 // pearls instead of the coins: never instead of the level or the collections). The Cottage adds a den through a
 // doorway in the east wall. (Lodge and Lakehouse come later: see the project's next-ideas doc.)
+/** Another map's home pieces: their DECOR entries, where they stand (MOVABLE) or hang (WALL_ITEMS), and a builder. */
+const DECOR_BUILDERS = {};
+export function addDecor({ decor = {}, movable = {}, wall = {}, build }) {
+  Object.assign(DECOR, decor); Object.assign(MOVABLE, movable); Object.assign(WALL_ITEMS, wall);
+  for (const id of Object.keys(decor)) DECOR_BUILDERS[id] = build;
+}
+
 export const HOME_TIERS = [
   { id: 'cabin', name: 'Cabin' },
   { id: 'cottage', name: 'Cottage', level: 10, collections: 2, price: { coins: 25000 }, alt: { pearls: 150 },
     desc: 'Knock through the east wall into a den: a quilted bed, two more windows, and room for a second rug, armchair, lamp, fern and bookshelf.' },
+  { id: 'lodge', name: 'Lodge', level: 20, collections: 4, price: { coins: 90000 }, alt: { pearls: 450 },
+    desc: 'Build on a great room past the den: a stone fireplace, a long table, tall windows on the lake, and room for one more rug, armchair and fern.' },
 ];
 /** What's still missing before you can buy a tier: [] when it's yours to buy. */
 export function tierNeeds(tier, profile, ext) {
@@ -49,6 +63,8 @@ export function tierNeeds(tier, profile, ext) {
   if ((profile.level || 1) < T.level) out.push(`Reach level ${T.level} (you're ${profile.level || 1})`);
   const done = Object.keys(ext.collections || {}).length;
   if (done < T.collections) out.push(`Complete ${T.collections} lake collections (${done} so far)`);
+  if (tier === 1 && !ext.saga?.unlocks?.cottage) out.push('Help out on The Lost Survey, from Gus');
+  if (tier === 2 && !ext.saga?.unlocks?.lodge) out.push('Finish The Lost Survey, from Gus');
   return out;
 }
 // Furniture you can move around in the editor view: default spot [x, z, rotation] and footprint [w, d].
@@ -65,14 +81,19 @@ export const MOVABLE = {
   lamp2: { at: [10.5, 1.6, 0], size: [0.5, 0.5] },
   plant2: { at: [5.6, -3.4, 0], size: [0.9, 0.9] },
   shelf2: { at: [10.75, -0.6, Math.PI], size: [0.5, 1.8] },
+  rug3: { at: [15, 0.5, 0], size: [4, 3], walk: true },
+  armchair3: { at: [15.4, 1.6, 2.6], size: [1.4, 1.3], seat: { h: 0.62, face: 0 } },
+  plant3: { at: [11.8, 3.3, 0], size: [0.9, 0.9] },
 };
 export const ROOM = { x0: -5, x1: 5, z0: -4, z1: 4 };
 // the Cottage's den, east of the main room, and the doorway between them (in the main room's east wall)
 export const DEN = { x0: 5, x1: 11, z0: -4, z1: 2 };
 export const DOORWAY = { z0: -1, z1: 1 };
+// the Lodge's great room, east of the den, through a doorway of the same size in the den's east wall
+export const GREAT = { x0: 11, x1: 19, z0: -4, z1: 4 };
 /** Keep a floor piece (half sizes hw, hd) inside the room it's in: the main room, or (a Cottage) the den. */
 export function clampFloor(x, z, hw, hd, tier = 0) {
-  const R = tier >= 1 && x > ROOM.x1 ? DEN : ROOM;
+  const R = tier >= 2 && x > DEN.x1 ? GREAT : tier >= 1 && x > ROOM.x1 ? DEN : ROOM;
   return [Math.max(R.x0 + hw, Math.min(R.x1 - hw, x)), Math.max(R.z0 + hd, Math.min(R.z1 - hd, z))];
 }
 // v1.13.7: pieces that hang on a wall, movable in the editor along the back wall (0, z = -4) or the left wall (1, x = -5).
@@ -126,7 +147,7 @@ export function homeLayout(ext, profile) {
   const best = all.reduce((a, c) => (!a || c.weight > a.weight ? c : a), null);
   const pos = {};
   for (const [id, v] of Object.entries(h.pos || {})) if ((MOVABLE[id] || WALL_ITEMS[id]) && Array.isArray(v)) pos[id] = v.map((n) => Math.round(n * 100) / 100);
-  const tier = h.tier >= 1 ? 1 : 0;
+  const tier = Math.max(0, Math.min(2, h.tier || 0));
   return { h: tier, d: (h.decor || []).filter((id) => DECOR[id] && (DECOR[id].tier || 0) <= tier).slice(0, 40), t: tank, w: h.wall in WALLS ? h.wall : 'pine', f: h.floor in FLOORS ? h.floor : 'oak', m: best ? [best.speciesId, best.variant === 'normal' ? 'n' : best.variant[0], best.weight] : null, p: pos };
 }
 
@@ -134,7 +155,7 @@ export function homeLayout(ext, profile) {
 export function sanitizeLayout(l) {
   if (!l || typeof l !== 'object') return null;
   const v = (x) => (x === 'g' ? 'gold' : x === 'd' ? 'diamond' : 'normal');
-  const tier = l.h === 1 ? 1 : 0;
+  const tier = l.h === 2 ? 2 : l.h === 1 ? 1 : 0;
   return {
     h: tier,
     d: Array.isArray(l.d) ? l.d.filter((id) => typeof id === 'string' && DECOR[id] && (DECOR[id].tier || 0) <= tier).slice(0, 40) : [],
@@ -175,7 +196,7 @@ export class HomeScene {
     const L = layout;
     const R = this.root;
     const wall = WALLS[L.w], floor = FLOORS[L.f];
-    const tier = this.tier = L.h >= 1 ? 1 : 0;
+    const tier = this.tier = L.h >= 2 ? 2 : L.h >= 1 ? 1 : 0;
     const shade = (k) => new THREE.Color(wall).offsetHSL(0, 0, k).getStyle();
     // floor planks
     for (let i = 0; i < 10; i++) R.add(box(1, 0.2, 8, i % 2 ? floor : new THREE.Color(floor).offsetHSL(0, 0, 0.04).getStyle(), -4.5 + i, -0.1, 0));
@@ -224,10 +245,12 @@ export class HomeScene {
     this.cut.add(this.walls.e, this.walls.s, this.walls.ceil);
     R.add(this.cut);
     if (tier) this.buildDen(L, wall, floor, shade);
+    if (tier >= 2) this.buildGreatRoom(L, wall, floor, shade);
     // a built-in bench under the window, with a cushion: somewhere to sit and look at the lake
     const bench = buildDecor('bench'); bench.position.set(-1.8, 0, -3.6); R.add(bench);
     this.colliders = [{ x: -1.8, z: -3.6, w: 2.6, d: 0.8 }, { x: 2.2, z: -3.2, w: tw + 0.3, d: 1.3 }];
     this.seats = [{ id: 'bench', x: -1.8, z: -3.2, y: 0.52, yaw: 0, label: 'Sit by the window' }];
+    if (tier >= 2) { this.colliders.push({ x: 13.2, z: -1.6, w: 2.5, d: 3.7 }, { x: GREAT.x1 - 0.4, z: 0, w: 1, d: 3.3 }); this.seats.push({ id: 'greatbench', x: 14.2, z: -1.6, y: 0.5, yaw: -Math.PI / 2, label: 'Sit at the long table' }); }
     if (tier) { this.colliders.push({ x: DEN_BED.x, z: DEN_BED.z, w: DEN_BED.w + 0.1, d: DEN_BED.d + 0.1 }); this.seats.push({ id: 'bed', x: DEN_BED.x, z: DEN_BED.z + DEN_BED.d / 2 - 0.35, y: 0.56, yaw: 0, label: 'Sit on the bed' }); }
     // decor: wall pieces stay put; furniture can be moved in the editor view
     const has = (id) => L.d.includes(id);
@@ -272,6 +295,8 @@ export class HomeScene {
     };
     if (has('painting')) placeWall('painting', buildDecor('painting'));
     if (has('banner')) placeWall('banner', buildDecor('banner'));
+    for (const [id, build] of Object.entries(DECOR_BUILDERS)) if (has(id)) (WALL_ITEMS[id] ? placeWall : placeItem)(id, build(id)); // another map's pieces (addDecor)
+    if (tier >= 2) for (const id of ['rug3', 'armchair3', 'plant3']) if (has(id)) placeItem(id, model(id));
     // collection plaques: a row of golden fish on boards along the right of the back wall
     L.d.filter((id) => id.startsWith('plaque_')).forEach((id, i) => {
       const x = 4.4 - (i % 4) * 0.75, y = 2.9 - Math.floor(i / 4) * 0.7;
@@ -296,7 +321,8 @@ export class HomeScene {
     W.de = new THREE.Group(); W.ds = new THREE.Group();
     for (let y = 0; y < 4; y++) {
       W.n.add(box(lx + 0.3, 0.8, 0.3, y % 2 ? wall : shade(-0.05), cx + 0.15, 0.4 + y * 0.8, D.z0 - 0.15));
-      W.de.add(box(0.3, 0.8, lz + 0.6, y % 2 ? shade(-0.04) : wall, D.x1 + 0.15, 0.4 + y * 0.8, cz));
+      if (this.tier >= 2 && y < 3) for (const [z0, z1] of [[D.z0 - 0.3, DOORWAY.z0], [DOORWAY.z1, D.z1 + 0.3]]) W.de.add(box(0.3, 0.8, z1 - z0, y % 2 ? shade(-0.04) : wall, D.x1 + 0.15, 0.4 + y * 0.8, (z0 + z1) / 2));
+      else W.de.add(box(0.3, 0.8, lz + 0.6, y % 2 ? shade(-0.04) : wall, D.x1 + 0.15, 0.4 + y * 0.8, cz));
       W.ds.add(box(lx + 0.3, 0.8, 0.3, y % 2 ? shade(-0.05) : wall, cx + 0.15, 0.4 + y * 0.8, D.z1 + 0.15));
     }
     // a window in the north wall (the hill behind) and one in the east wall (morning sun)
@@ -324,11 +350,42 @@ export class HomeScene {
     R.add(g);
   }
 
+  /** The Lodge: a great room past the den, with a stone fireplace on the east wall, a long table and tall windows on the lake. */
+  buildGreatRoom(L, wall, floor, shade) {
+    const R = this.root, D = GREAT, W = this.walls, cx = (D.x0 + D.x1) / 2, lx = D.x1 - D.x0, lz = D.z1 - D.z0, frame = '#5a3a22', stone = '#8a8478', stoneD = '#6a655c';
+    for (let i = 0; i < lx; i++) R.add(box(1, 0.2, lz, i % 2 ? floor : new THREE.Color(floor).offsetHSL(0, 0, 0.04).getStyle(), D.x0 + 0.5 + i, -0.1, 0));
+    if (L.f === 'checker') for (let x = 0; x < lx; x++) for (let z = 0; z < lz; z++) if ((x + z) % 2) R.add(box(1, 0.21, 1, '#e8d8b8', D.x0 + 0.5 + x, -0.1, D.z0 + 0.5 + z));
+    W.gn = new THREE.Group(); W.ge = new THREE.Group(); W.gs = new THREE.Group(); W.gw = new THREE.Group();
+    for (let y = 0; y < 4; y++) {
+      const a = y % 2 ? wall : shade(-0.05), b = y % 2 ? shade(-0.05) : wall;
+      W.gn.add(box(lx + 0.6, 0.8, 0.3, a, cx, 0.4 + y * 0.8, D.z0 - 0.15));
+      W.gs.add(box(lx + 0.6, 0.8, 0.3, b, cx, 0.4 + y * 0.8, D.z1 + 0.15));
+      W.ge.add(box(0.3, 0.8, lz + 0.6, a, D.x1 + 0.15, 0.4 + y * 0.8, 0));
+      W.gw.add(box(0.3, 0.8, D.z1 - DEN.z1, b, D.x0 - 0.15, 0.4 + y * 0.8, (D.z1 + DEN.z1) / 2));
+    }
+    for (const x of [13, 15, 17]) W.gs.add(box(1.5, 2.1, 0.1, '#8fc9f0', x, 1.75, D.z1 - 0.02), box(1.7, 0.12, 0.2, frame, x, 2.85, D.z1 - 0.05), box(1.7, 0.12, 0.2, frame, x, 0.68, D.z1 - 0.05), box(0.1, 2.1, 0.15, frame, x, 1.75, D.z1 - 0.05));
+    for (const sx of [10.98, 11.32]) W.de.add(box(0.12, 2.45, 0.16, frame, sx, 1.22, DOORWAY.z0 - 0.05), box(0.12, 2.45, 0.16, frame, sx, 1.22, DOORWAY.z1 + 0.05), box(0.12, 0.16, 2.3, frame, sx, 2.42, 0));
+    W.ceil.add(box(lx + 0.6, 0.2, lz + 0.6, shade(-0.12), cx, 3.3, 0));
+    for (let i = 0; i < 4; i++) W.ceil.add(box(0.3, 0.3, lz + 0.4, frame, D.x0 + 1 + i * 2, 3.1, 0));
+    this.cut.add(W.gn, W.ge, W.gs, W.gw);
+    // the fireplace, on the east wall: a stone chimney breast, a hearth, a mantel and a fire that stays lit
+    const f = new THREE.Group(); f.add(box(0.7, 3.2, 3, stone, D.x1 - 0.35, 1.6, 0), box(0.9, 0.16, 3.4, stoneD, D.x1 - 0.5, 0.08, 0), box(0.82, 1.1, 1.5, '#1c1612', D.x1 - 0.33, 0.7, 0), box(0.5, 0.14, 3.2, frame, D.x1 - 0.72, 1.7, 0));
+    for (const z of [-0.45, 0, 0.45]) f.add(box(0.3, 0.16, 0.5, '#4a2e1a', D.x1 - 0.72, 0.28, z));
+    const flame = new THREE.Mesh(new THREE.ConeGeometry(0.34, 0.8, 7), new THREE.MeshBasicMaterial({ color: '#ffb040' })); flame.position.set(D.x1 - 0.72, 0.72, 0); f.add(flame); R.add(f);
+    this.greatFlame = flame; this.greatLight = new THREE.PointLight('#ffb070', 3.2, 12, 1.4); this.greatLight.position.set(D.x1 - 1.4, 1.6, 0); R.add(this.greatLight);
+    // the long table, with a bench down each side
+    const t = new THREE.Group(), wood = '#6a4428', woodD = '#4a2e1a'; t.add(box(1, 0.1, 3.6, wood, 13.2, 0.76, -1.6));
+    for (const [x, z] of [[12.85, -3.2], [13.55, -3.2], [12.85, 0], [13.55, 0]]) t.add(box(0.12, 0.72, 0.12, woodD, x, 0.36, z));
+    for (const x of [12.2, 14.2]) t.add(box(0.34, 0.08, 3.4, wood, x, 0.46, -1.6), box(0.1, 0.42, 0.1, woodD, x, 0.21, -3), box(0.1, 0.42, 0.1, woodD, x, 0.21, -0.2));
+    R.add(t);
+  }
+
   /** Is this spot free to stand on? (inside the walls, not in furniture) */
   canStand(x, z, r = 0.3) {
     const inside = (A) => x >= A.x0 + r && x <= A.x1 - r && z >= A.z0 + r && z <= A.z1 - r;
     const ok = inside(ROOM) || (this.tier >= 1 && (inside(DEN) || (x > ROOM.x1 - 1 && x < DEN.x0 + 1 && z >= DOORWAY.z0 + r && z <= DOORWAY.z1 - r)));
-    if (!ok) return false;
+    const lodge = this.tier >= 2 && (inside(GREAT) || (x > DEN.x1 - 1 && x < GREAT.x0 + 1 && z >= DOORWAY.z0 + r && z <= DOORWAY.z1 - r));
+    if (!ok && !lodge) return false;
     for (const c of this.colliders || []) if (Math.abs(x - c.x) < c.w / 2 + r && Math.abs(z - c.z) < c.d / 2 + r) return false;
     return true;
   }
@@ -357,7 +414,7 @@ export class HomeScene {
       this.camera.lookAt(av.x, 1.05, av.z);
       const c = this.camera.position, W = this.walls;
       if (this.cut) this.cut.visible = true;
-      if (W) { W.n.visible = c.z > -4.0; W.s.visible = c.z < 4.0; W.w.visible = c.x > -5.0; W.e.visible = this.tier >= 1 ? (c.x < ROOM.x1) === (av.x < ROOM.x1) : c.x < 5.0; W.ceil.visible = c.y < 3.15; if (W.de) { W.de.visible = c.x < DEN.x1; W.ds.visible = c.z < DEN.z1; } }
+      if (W) { W.n.visible = c.z > -4.0; W.s.visible = c.z < 4.0; W.w.visible = c.x > -5.0; W.e.visible = this.tier >= 1 ? (c.x < ROOM.x1) === (av.x < ROOM.x1) : c.x < 5.0; W.ceil.visible = c.y < 3.15; if (W.de) { W.de.visible = this.tier >= 2 ? (c.x < DEN.x1) === (av.x < DEN.x1) : c.x < DEN.x1; W.ds.visible = c.z < DEN.z1; } if (W.gn) { W.gn.visible = c.z > GREAT.z0; W.gs.visible = c.z < GREAT.z1; W.ge.visible = c.x < GREAT.x1; W.gw.visible = c.x > GREAT.x0; } }
       return;
     }
     this.camInit = false;

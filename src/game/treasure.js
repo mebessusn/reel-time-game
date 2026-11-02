@@ -43,7 +43,7 @@ export class Treasure {
     return this.grant();
   }
 
-  /** v1.15.5 this: a smugglers' map to a fixed spot at sea (Smuggler's Rock's grotto), with richer loot. */
+  /** A map to a fixed place (another map's: a grotto), with richer loot. */
   grantAt(at, place) {
     if (this.map) return false;
     const id = Date.now().toString(36);
@@ -93,7 +93,7 @@ export class Treasure {
     const cx = m.x + m.ox, cz = m.z + m.oz;
     const cv = document.createElement('canvas'); cv.width = cv.height = 360;
     const c = cv.getContext('2d');
-    if (m.sea && this.seaSketch) this.seaSketch(c, cx, cz, span);
+    if (m.sea && this.seaSketch) this.seaSketch(c, cx, cz, span); // another map draws its own (seaSketch)
     else { const src = baseMap(), S = src.width / (HALF * 2); c.drawImage(src, (cx - span / 2 + HALF) * S, (cz - span / 2 + HALF) * S, span * S, span * S, 0, 0, 360, 360); }
     // age it: sepia, faded, stained edges
     const img = c.getImageData(0, 0, 360, 360);

@@ -153,7 +153,7 @@ export class Npcs {
   }
 
   /**
-   * v1.15.6: add a local from elsewhere (the this islanders). def: { id, name, title, look, kind: 'roamer' |
+   * v1.15.6: add a local from elsewhere (another map's people). def: { id, name, title, look, kind: 'roamer' |
    * 'fisher' | 'stand', x, z, yaw, roam (metres), hello: [lines], bobber: { x, z } (fishers), catch: [species ids],
    * rod, talk }. Returns the local, or null with ?nonpc.
    */
@@ -200,6 +200,7 @@ export class Npcs {
     const now = performance.now();
     const you = g.profile?.name || 'friend';
     const pick = (arr, npc) => arr[Math.floor(npc.r() * arr.length)].replace('{you}', you);
+    // v1.16 perf: only the nearest MAX_SHOWN people within 70 m are drawn (a busy village green can hold two dozen)
     const dist = new Map(); for (const npc of this.list) dist.set(npc, Math.hypot(npc.pos.x - me.x, npc.pos.z - me.z));
     const inRange = this.list.filter((n) => dist.get(n) < 70);
     const shown = inRange.length > MAX_SHOWN ? new Set(inRange.sort((a, b) => dist.get(a) - dist.get(b)).slice(0, MAX_SHOWN)) : null;

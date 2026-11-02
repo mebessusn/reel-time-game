@@ -31,10 +31,13 @@ export const ACTIONS = [
   { id: 'camLeft', label: 'Turn camera left', key: 'q' },
   { id: 'camRight', label: 'Turn camera right', key: 'x' },
   { id: 'bait', label: 'Switch bait', key: 'v' },
-  { id: 'bike', label: 'Get on / off your bike', key: 'n' },
+  { id: 'bike', label: 'Get on / off your ride', key: 'n' },
+  { id: 'rideSwap', label: 'Swap between your rides', key: 'u' },
   { id: 'social', label: 'Friends & party', key: 'o' },
 ];
 export const ACTION_BY_ID = Object.fromEntries(ACTIONS.map((a) => [a.id, a]));
+/** Another map's own key actions ({ id, label, key }), handled by its keyDown hook. */
+export function addActions(list) { for (const a of list) { ACTIONS.push(a); ACTION_BY_ID[a.id] = a; } }
 
 export const keyName = (k) => (k === ' ' ? 'Space' : k === 'shift' ? 'Shift' : k.startsWith('arrow') ? `${k[5].toUpperCase()}${k.slice(6)} arrow` : k.length === 1 ? k.toUpperCase() : k[0].toUpperCase() + k.slice(1));
 

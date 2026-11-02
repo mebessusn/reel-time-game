@@ -44,11 +44,9 @@ const PF_TENT = { tentA: 'canvas-ridge-tent', tentB: 'canvas-ridge-tent', dome: 
 // model, offset, yaw (0 = front toward +z), keep-out radius for ferns and grass
 const EXTRAS = [
   ['camp-kitchen-table', -9, 1.2, Math.PI / 2, 1.2], ['bear-proof-food-locker', -4.5, -9.5, 0.3, 1],
-  ['camp-notice-board', 9.6, -2.6, Math.PI / 2, 1.3], ['hammock-on-posts', -0.5, 9.5, 0.15, 2.2],
+  ['camp-notice-board', 9.6, -2.6, Math.PI / 2, 1.3], ['hammock-on-posts', 1.2, 7.4, 0.15, 2.2],
   ['cordwood-pile', 2.5, -8, 0.15, 1.2], ['canoe-rack', 6, 10.5, 0.35, 2.8], ['wooden-rowboat', 15, 12.6, 1.9, 2], ['camp-canoe', 10.5, 12.9, 1.75, 2.6],
   ['folding-camp-chair', 1, -0.6, 0, 0.6], ['folding-camp-chair', 1.2, 4.6, Math.PI, 0.6], ['folding-camp-chair', 3.1, 4.1, -2.36, 0.6],
-  ['campground-rail-fence-run', 9.6, 4.6, Math.PI / 2, 0.7], ['campground-rail-fence-run', 9.6, 6.6, Math.PI / 2, 0.7],
-  ['campground-rail-fence-run', 9.6, -4.6, Math.PI / 2, 0.7], ['campground-rail-fence-run', 9.6, -6.6, Math.PI / 2, 0.7],
 ];
 const PARTS = { airstream: ['airstream_body'], ham: ['ham_body', 'ham_trim'], tear: ['tear_body', 'tear_trim'], tentA: ['tentA_body'], tentB: ['tentB_body'], dome: ['dome_body'], bell: ['bell_body'] };
 // footprint along the model's x (for colliders): [from, to, radius]
@@ -171,6 +169,49 @@ export function signBoard(text, w = 4.2, h = 0.8) {
   return new THREE.Mesh(new THREE.BoxGeometry(w, h, 0.12), [M.wood, M.wood, M.wood, M.wood, front, front]);
 }
 
+/** What's pinned up on the campground's notice board: a trail map, the fire rules, a fish chart, notes from campers. */
+function noticeSheets(w = 1.66, h = 1.1) {
+  const cv = document.createElement('canvas'); cv.width = 1024; cv.height = Math.round(1024 * h / w);
+  const c = cv.getContext('2d'), W = cv.width, H = cv.height;
+  c.fillStyle = '#b98f5e'; c.fillRect(0, 0, W, H);
+  for (let i = 0; i < 2600; i++) { c.fillStyle = i % 2 ? 'rgba(90,58,28,0.16)' : 'rgba(236,206,160,0.14)'; c.fillRect((i * 7919) % W, (i * 104729) % H, 3, 2); } // (cork)
+  const sheet = (x, y, sw, sh, tilt, col, draw, pin = '#c8342a') => {
+    c.save(); c.translate(x + sw / 2, y + sh / 2); c.rotate(tilt);
+    c.fillStyle = 'rgba(40,24,10,0.3)'; c.fillRect(-sw / 2 + 5, -sh / 2 + 6, sw, sh);
+    c.fillStyle = col; c.fillRect(-sw / 2, -sh / 2, sw, sh);
+    c.translate(-sw / 2, -sh / 2); draw(sw, sh);
+    c.fillStyle = pin; c.beginPath(); c.arc(sw / 2, 11, 8, 0, 6.3); c.fill(); c.fillStyle = 'rgba(255,255,255,0.55)'; c.beginPath(); c.arc(sw / 2 - 2, 9, 2.5, 0, 6.3); c.fill();
+    c.restore();
+  };
+  const ink = '#33302a', head = (t, y, size = 26, x = null, sw = 0) => { c.fillStyle = ink; c.font = `bold ${size}px Georgia, serif`; c.textAlign = 'center'; c.fillText(t, x ?? sw / 2, y); };
+  const rows = (x, y, list, size = 17, gap = 26) => { c.fillStyle = ink; c.font = `${size}px Georgia, serif`; c.textAlign = 'left'; list.forEach((t, i) => c.fillText(t, x, y + i * gap)); };
+  // the big trail map, in the middle
+  sheet(322, 34, 382, 500, -0.012, '#efe6cc', (sw, sh) => {
+    head('FERN POND TRAILS', 52, 30, null, sw);
+    c.fillStyle = '#b9d29a'; c.fillRect(22, 72, sw - 44, sh - 148);
+    c.fillStyle = '#7fb6d2'; c.beginPath(); c.ellipse(204, 268, 104, 66, 0.3, 0, 6.3); c.fill();
+    c.fillStyle = '#6f9c63'; for (const [x, y] of [[66, 110], [110, 142], [62, 182], [296, 112], [330, 158], [70, 360], [122, 378], [320, 356], [282, 382]]) { c.beginPath(); c.moveTo(x, y - 18); c.lineTo(x + 13, y + 8); c.lineTo(x - 13, y + 8); c.fill(); }
+    c.strokeStyle = '#a2402c'; c.lineWidth = 5; c.setLineDash([12, 9]); c.beginPath(); c.moveTo(40, 100); c.bezierCurveTo(120, 180, 60, 300, 150, 356); c.bezierCurveTo(240, 400, 330, 340, 340, 240); c.bezierCurveTo(344, 170, 280, 120, 200, 112); c.stroke(); c.setLineDash([]);
+    c.fillStyle = '#c8342a'; c.beginPath(); c.arc(92, 170, 11, 0, 6.3); c.fill(); c.fillStyle = ink; c.font = 'bold 18px Georgia, serif'; c.textAlign = 'left'; c.fillText('You are here', 108, 176);
+    rows(30, 452, ['Fernview to Sundae’s: 1 mile', 'Mind the bog after rain'], 19, 25);
+  });
+  // campfire rules
+  sheet(40, 30, 252, 262, 0.03, '#f6f0df', (sw) => { head('CAMPFIRE RULES', 54, 23, null, sw); rows(24, 92, ['1. Never leave it burning', '2. Keep water close by', '3. Marshmallows are shared', '4. Ghost stories after dark', '5. No feeding the bears'], 17, 33); });
+  // a fish chart
+  sheet(38, 316, 256, 214, -0.035, '#dcebf0', (sw) => { head('WHAT’S BITING', 48, 23, null, sw); rows(26, 84, ['Bluegill: at dawn', 'Perch: by the lilies', 'Bass: any cloudy day', 'Pike: ask Gus, not us'], 17, 30); }, '#2a68b8');
+  // the campers' notes
+  sheet(734, 28, 254, 148, 0.05, '#f7e58e', (sw) => { head('LOST!', 46, 28, null, sw); rows(22, 82, ['One blue mitten, left hand.', 'Sentimental. Ask at tent 3.'], 17, 28); }, '#2f9a4a');
+  sheet(728, 196, 262, 168, -0.03, '#f8d9c4', (sw) => { head('FISH FRY', 48, 28, null, sw); rows(24, 84, ['Saturday at sundown', 'Bring a fork and a story', 'Fernview fire pit'], 17, 27); });
+  sheet(738, 386, 246, 146, 0.025, '#ffffff', (sw) => { head('Canoes for hire', 44, 22, null, sw); rows(22, 80, ['Sign out at the rack.', 'Paddles under the rowboat.'], 17, 27); for (let i = 0; i < 6; i++) { c.strokeStyle = '#a8a39a'; c.lineWidth = 2; c.beginPath(); c.moveTo(24 + i * 34, 118); c.lineTo(24 + i * 34, 142); c.stroke(); } }, '#e0a020');
+  sheet(46, 552, 296, 104, -0.015, '#e4efd4', (sw) => { head('Ranger talk', 40, 22, null, sw); rows(50, 74, ['Friday at the lookout: owls'], 17, 24); }, '#2f9a4a');
+  sheet(372, 556, 282, 100, 0.02, '#f6f0df', (sw) => { head('Quiet after ten', 40, 22, null, sw); rows(40, 72, ['The loons are sleeping too'], 17, 24); });
+  sheet(690, 550, 296, 106, -0.02, '#f7e58e', (sw) => { head('Spare tent pegs', 40, 22, null, sw); rows(52, 74, ['Help yourself. Tent 1.'], 17, 24); }, '#2a68b8');
+  const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 4;
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshLambertMaterial({ map: tex }));
+  m.receiveShadow = true; m.name = 'notice-sheets';
+  return m;
+}
+
 /** Builds both places. Returns { group, bulbs } (bulbs: a material whose glow sky.js turns up at night). */
 export function buildCampers(scene) {
   const group = new THREE.Group();
@@ -234,10 +275,11 @@ export function buildCampers(scene) {
     const x = CAMPGROUND.x - 1, z = CAMPGROUND.z - 6.5;
     picnicTable(pf, x, z, 0.2);
     pf.push({ m: 'camping-lantern', x: x + 0.3, z: z - 0.1, ry: 0.4, on: pf[pf.length - 1], dy: 0.76, solid: false });
-    const sx = CAMPGROUND.x + 9.5, sz = CAMPGROUND.z + 1, sy = surfaceY(sx, sz);
-    block(group, M.post, 0.18, 2.2, 0.18, sx, sy + 1.1, sz); addCircle(sx, sz, 0.12);
-    const board = signBoard('FERNVIEW CAMPGROUND', 3.2, 0.6);
-    board.position.set(sx + 0.1, sy + 1.9, sz); board.rotation.y = Math.PI / 2;
+    // the sign over the way in, like Sundae's: two posts either side of the path and a board you walk under
+    const sx = CAMPGROUND.x + 9.6, sz = CAMPGROUND.z + 1.7, sy = surfaceY(sx, sz), top = sy + 3.32;
+    for (const s of [-1, 1]) { const foot = surfaceY(sx, sz + s * 2.4) - 0.3; block(group, M.post, 0.22, top - foot, 0.22, sx, (top + foot) / 2, sz + s * 2.4); addCircle(sx, sz + s * 2.4, 0.15); }
+    const board = signBoard('FERNVIEW CAMPGROUND', 4.6, 0.75);
+    board.position.set(sx, sy + 2.85, sz); board.rotation.y = Math.PI / 2;
     group.add(board);
   }
   // v1.17.1: the rest of the campground (EXTRAS), a cooking grate and a dutch oven over the fire, a jug on the kitchen table
@@ -248,6 +290,9 @@ export function buildCampers(scene) {
   const grate = { m: 'campfire-cooking-grate', x: FERNVIEW_FIRE.x, z: FERNVIEW_FIRE.z - 0.1, ry: Math.PI / 2, solid: false };
   pf.push(grate);
   group.add(placeModels('fern-campers-polyfork', pf));
+  const nb = pf.find((p) => p.m === 'camp-notice-board'), notes = noticeSheets();
+  notes.position.set(nb.x + 0.06, nb.y + 1.47, nb.z); notes.rotation.y = nb.ry;
+  group.add(notes);
   scene.add(group);
   return { group, bulbMat };
 }

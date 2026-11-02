@@ -1,14 +1,12 @@
 // Pure game rules: bite rolls, rewards, progression, economy.
 // Used directly by the save (src/save/local.js).
-import { SPECIES, SPECIES_BY_ID, TIERS, TIER_INFO, VARIANTS, BASE_TIER_ODDS, DIAMOND_PEARLS, JUNK, BOTTLE_MESSAGES } from '../data/species.js';
+import { SPECIES, SPECIES_BY_ID, SPECIES_PACKS, ZONE_POOLS, valleyFish, TIERS, TIER_INFO, VARIANTS, BASE_TIER_ODDS, DIAMOND_PEARLS, JUNK, BOTTLE_MESSAGES } from '../data/species.js';
 import { ITEMS_BY_ID, STARTER_ITEMS } from '../data/items.js';
 import { ACHIEVEMENTS, ACH_BY_ID } from '../data/achievements.js';
 import { defaultAvatar } from '../data/avatarOptions.js';
 import { weekId } from '../core/clock.js';
 import { BAITS } from '../data/bait.js';
 import { seasonBoost } from '../data/seasons.js';
-import { OCEAN_SPECIES, OCEAN_ZONES } from '../data/oceanSpecies.js';
-import { NORTH_SPECIES, NORTH_ZONES } from '../data/northSpecies.js';
 
 export const CREEL_MAX = 20;
 export const STORAGE_MAX = 200;
@@ -141,27 +139,32 @@ export function tierOdds(ctx) {
   if (ctx.spotKind) { odds.rare *= 1.6; odds.epic *= 1.8; }
   if (ctx.spotKind === 'legend') odds.legendary *= 4;
   if (ctx.spotKind === 'mythic') { odds.mythic *= 2; odds.legendary *= 2; }
-  if (ctx.zone === 'abyss') { odds.common *= 0.3; odds.uncommon *= 0.5; odds.epic *= 2; odds.legendary *= 3; } // v1.15.12: the Abyss: few small fish, many monsters
-  if (ctx.zone === 'ridge' && (ctx.weather === 'storm' || ctx.weather === 'rain')) odds.legendary *= 3;
-  if (ctx.zone === 'springs' && ctx.aurora) odds.mythic *= 6;
-  else if (ctx.zone !== 'ruins' && ctx.spotKind !== 'mythic') odds.mythic = 0;
+  // another map's zone can change the odds (addZoneOdds); it returns true where a mythic may bite
+  const mythicHere = ZONE_ODDS[ctx.zone]?.(odds, ctx);
+  if (!mythicHere && ctx.zone !== 'ruins' && ctx.spotKind !== 'mythic') odds.mythic = 0;
   return odds;
 }
 
+/** Another map's zones: (odds, ctx) => true where a mythic may bite. */
+const ZONE_ODDS = {};
+/** Zones where a deep fish bites at any hour (always night down there). */
+export const ANY_TIME_ZONES = new Set();
+export function addZoneOdds(map) { Object.assign(ZONE_ODDS, map); }
+/** Another map's own rules for which of its fish may bite: (s, ctx) => false keeps one away. */
+const BITE_RULES = [];
+export function addBiteRule(fn) { BITE_RULES.push(fn); }
+
 export function eligibleSpecies(tier, ctx) {
-  return (OCEAN_ZONES[ctx.zone] ? OCEAN_SPECIES : NORTH_ZONES[ctx.zone] ? NORTH_SPECIES : SPECIES).filter((s) => {
+  return (ZONE_POOLS[ctx.zone] || SPECIES).filter((s) => { // another map's zones have their own fish
     if (tier && s.tier !== tier) return false;
     if (s.shell) return false; // v1.12: shellfish only come up in traps
-    if (s.spear && !ctx.spear) return false; // v1.15: some reef fish only come to a speargun
     if (s.spots) return !!ctx.spot && s.spots.includes(ctx.spot) && (s.times.includes('any') || s.times.includes(ctx.phase)) && (!s.weather || s.weather.includes(ctx.weather)); // lake exclusives live in their lake's deep end or landmark
     const zoneOk = s.zones.includes(ctx.zone) || (ctx.zone === 'ruins' && s.zones.includes('deep'));
     if (!zoneOk) return false;
-    if (!s.times.includes('any') && !s.times.includes(ctx.phase) && !(s.deep && ctx.zone === 'abyss')) return false; // (v1.15.12: in the Abyss it's always night)
+    if (!s.times.includes('any') && !s.times.includes(ctx.phase) && !(s.deep && ANY_TIME_ZONES.has(ctx.zone))) return false;
     if (s.weather && !s.weather.includes(ctx.weather)) return false;
     if (s.bloodMoon && !ctx.bloodMoon) return false;
-    if (s.great && !ctx.great) return false; // (v1.17.2: the Spirit Whitefish rises only on a Great Aurora)
-    if (s.aurora && !ctx.aurora) return false;
-    return true;
+    return BITE_RULES.every((f) => f(s, ctx) !== false);
   });
 }
 
@@ -245,7 +248,7 @@ export function rollBite(ctx, r = Math.random) {
     if (s.bloodMoon) w *= 4; // and under a blood moon, the hunters crowd everything else out
     if (ctx.bait && BAITS[ctx.bait]) w *= BAITS[ctx.bait].likes(s);
     if (ctx.season) w *= seasonBoost(ctx.season, s.id);
-    if (ctx.boost?.[s.id]) w *= ctx.boost[s.id];
+    if (ctx.boost?.[s.id]) w *= ctx.boost[s.id]; // (another map's events can boost a fish)
     return w;
   }, r);
   const vo = variantOdds(ctx);
@@ -257,7 +260,7 @@ export function rollBite(ctx, r = Math.random) {
 export function catchValue(speciesId, variant, weight) {
   const s = SPECIES_BY_ID[speciesId];
   if (!s) return 0;
-  // v1.15: big-game fish have their own price, scaled by weight (a big one pays for the charter)
+  // a fish with its own price (s.value), scaled by weight
   if (s.value) return Math.max(1, Math.round(s.value.coins * VARIANTS[variant].coinMult * ((weight / s.weight[1]) * 0.6 + 0.4)));
   const t = TIER_INFO[s.tier];
   return Math.max(1, Math.round(t.coins * VARIANTS[variant].coinMult * ((weight / s.weight[1]) * 0.5 + 0.75)));
@@ -320,12 +323,10 @@ export function applyCatch(p, c, now = Date.now()) {
   if (personalBest) entry.best = c.weight;
   p.fishpedia[s.id] = entry;
 
-  // v1.15: the valley's Fishpedia goals count the valley's fish; the sea's are counted on their own
+  // the valley's Fishpedia goals count the valley's fish; another map's are counted on their own (<tag>Species)
   const everything = Object.keys(p.fishpedia);
-  const all = everything.filter((id) => !SPECIES_BY_ID[id]?.ocean && !SPECIES_BY_ID[id]?.north);
-  st.oceanSpecies = everything.filter((id) => SPECIES_BY_ID[id]?.ocean).length;
-  st.northSpecies = everything.filter((id) => SPECIES_BY_ID[id]?.north).length;
-  st.northLegends = ['glacierking', 'oldsleeper', 'aurorachar'].filter((id) => p.fishpedia[id]).length;
+  const all = everything.filter(valleyFish);
+  for (const tag of Object.keys(SPECIES_PACKS)) st[`${tag}Species`] = everything.filter((id) => SPECIES_BY_ID[id]?.[tag]).length;
   st.speciesCaught = all.length;
   for (const t of ['common', 'uncommon', 'rare', 'epic']) st[`species_${t}`] = all.filter((id) => SPECIES_BY_ID[id]?.tier === t).length;
   st.diamondSpecies = all.filter((id) => p.fishpedia[id].diamond > 0).length;
@@ -337,9 +338,10 @@ export function applyCatch(p, c, now = Date.now()) {
   st.weekScore = (st.weekScore || 0) + pts;
   st.allScore = (st.allScore || 0) + pts;
   if (c.variant === 'diamond') st.weekDiamonds = (st.weekDiamonds || 0) + 1;
-  if (s.ocean) st.oceanHeaviest = Math.max(st.oceanHeaviest || 0, c.weight); // a 300 lb tuna would bury every lake record
-  if (s.ocean && s.big) inc(st, 'owTrophy');
-  else {
+  // another map's own counters (addCatchStats); one that returns true keeps this fish off the lake records
+  let ownRecords = false;
+  for (const f of CATCH_STATS) if (f(st, c, s, p, inc)) ownRecords = true;
+  if (!ownRecords) {
     st.weekHeaviest = Math.max(st.weekHeaviest || 0, c.weight);
     st.heaviest = Math.max(st.heaviest || 0, c.weight);
   }
@@ -492,14 +494,16 @@ export function bumpStat(p, key, n = 1) {
   inc(p.stats, key, Math.min(n, allowed[key]));
 }
 
-// won, whale breaches). They only ever go up, and only these keys can be set.
-export const OCEAN_STATS = { owGrandSlam: 5, owBillRelease: 1000, owReefSpeared: 8, owPartyWins: 5, owBreach: 1000,
-  fmHoles: 100000, fmFlags: 100000, fmTriple: 1000, fmThrough: 1000, fmSaunas: 100000, fmPlunge: 1000, fmGlide: 1000, fmDerby: 1000, fmTopDog: 1000, fmBearCubs: 1, fmAuroras: 10000, fmFlight3: 1000, fmGuide: 13, fmPages: 5,
-  arRaces: 100000, arWins: 100000, arGolds: 36, arGoldCircuits: 12, arPlat: 1000, arCuts: 12, arTricks: 1000000, arClean: 100000, arHurricane: 100000, arParty: 100000, arPerfect: 100000 };
-export function setOceanStats(p, map = {}) {
+// Another map's counters (addMapStats): each key's cap. They only ever go up, and only these keys can be set.
+export const MAP_STATS = {};
+export function addMapStats(caps) { Object.assign(MAP_STATS, caps); }
+/** Another map's per-catch counters: (stats, catch, species, profile, inc) => true keeps the fish off the lake records. */
+const CATCH_STATS = [];
+export function addCatchStats(fn) { CATCH_STATS.push(fn); }
+export function setMapStats(p, map = {}) {
   for (const [k, v] of Object.entries(map)) {
-    if (!(k in OCEAN_STATS) || !Number.isFinite(+v)) continue;
-    p.stats[k] = Math.max(p.stats[k] || 0, Math.min(OCEAN_STATS[k], Math.floor(+v)));
+    if (!(k in MAP_STATS) || !Number.isFinite(+v)) continue;
+    p.stats[k] = Math.max(p.stats[k] || 0, Math.min(MAP_STATS[k], Math.floor(+v)));
   }
 }
 
