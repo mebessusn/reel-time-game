@@ -500,7 +500,7 @@ export const JETTIES = [
   makeJetty('frost', -136, -86, [0, -1], 8), // west of the Frostrun Creek mouth
   makeJetty('pond', ...sc(-55, 73), [-1, 0], 6),
   makeJetty('marsh', ...sc(27, 76), [1, 0], 7),
-  makeJetty('quarry', ...sc(75, -61), [0, -1], 7, -Math.PI / 6, 5), // turned 30 degrees toward the stream so boats can pull in; v1.9.3: only its foot on the beach, more of it over the water
+  makeJetty('quarry', ...sc(75, -61), [0, -1], 7, -Math.PI / 6, 14), // turned 30 degrees toward the stream so boats can pull in; v1.9.3: only its foot on the beach, more of it over the water
 ];
 // The cove's own dock launches at the rack point.
 export const COVE_LAUNCH = { x: 4.5, z: 27 };
