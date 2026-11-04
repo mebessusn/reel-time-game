@@ -364,7 +364,7 @@ export class Music {
   /** Mood from the game: the region you're in, the time of day, and the weather. */
   want() {
     const e = this.e;
-    const group = REGION_GROUP[e.region] || 'cove';
+    const group = REGION_GROUP[e.region] || REGION_GROUP[(e.region || '').split(' · ')[0]] || 'cove';
     const mood = group === 'cave' ? 'cave' : e.weather === 'rain' || e.weather === 'storm' ? 'rain' : e.phase || 'day';
     return { group, mood, key: `${group}|${mood}` };
   }

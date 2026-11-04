@@ -422,13 +422,14 @@ export class Fishing {
   clearFightFish() { if (this.fightFish) { this.game.engine.scene.remove(this.fightFish); this.fightFish.material.dispose(); this.fightFish = null; } }
 
   escape(snapped = false, why = '') {
+    if (snapped) this.snaps = (this.snaps || 0) + 1; // (the Reel it in clip waits for the first one)
     const g = this.game;
     if (why === 'heavy') {
       const r = this.reel;
       g.audio.reelLoop(false); g.ui.hideReel(); this.clearFightFish();
       g.juice?.pop('Too heavy!', { color: '#ff9a7a', size: 36, ms: 1500 }); g.juice?.broke();
       g.ext?.bump('tooHeavy');
-      g.ui.toast(`That ${r.species.name} was about ${Math.round(this.bite.weight)} lb, more than your line's ${r.rating} lb rating. A stronger rod or Braided line upgrade will hold it.`, { icon: 'rod', ms: 6500, title: 'The line snapped' });
+      g.ui.toast(`That ${r.species.name} was about ${Math.round(this.bite.weight)} lb, over your line's ${r.rating} lb rating. A stronger rod or Braided line will hold it.`, { icon: 'rod', ms: 6500, title: 'The line snapped' });
       g.audio.sfx('miss');
       g.fx.splash(new THREE.Vector3(this.bobber.x, WATER_Y, this.bobber.z), 1.4);
       this.state = 'idle'; this.bobber = null; this.reel = null;

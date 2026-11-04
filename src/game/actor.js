@@ -33,7 +33,7 @@ export class Actor {
   static SHOVEL = { scale: 0.62, y: 0.0, rx: 0.75 };
   constructor(scene) {
     this.scene = scene;
-    this.root = new THREE.Group();
+    this.root = new THREE.Group(); this.root.name = 'actor'; // (v1.17.12: people, so the collision sweep knows them)
     this.root.rotation.order = 'YXZ'; // yaw, then pitch with the swell
     this.body = new THREE.Group(); // avatar holder (sits inside boat when rowing)
     this.root.add(this.body);

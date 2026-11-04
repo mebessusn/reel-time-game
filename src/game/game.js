@@ -77,6 +77,7 @@ import { Expansions } from './expansions.js';
 import { ITEMS_BY_ID as PUBLIC_ITEMS } from '../data/items.js';
 import { EXPANSIONS } from '../expansions.js';
 import { onDock, heightAt } from '../world/terrain.js';
+import { aan } from '../core/text.js';
 
 export class Game {
   constructor({ stage, uiRoot, save = null, net = null }) {
@@ -108,7 +109,7 @@ export class Game {
       this.fx.splash(new THREE.Vector3(p.x, WATER_Y, p.z), on ? 1.1 : 0.6);
       this.audio.sfx('plop');
       if (on && this.fishing.busy) this.fishing.cancel?.();
-      if (on && !this.swimTipped) { this.swimTipped = true; this.ui.toast('Swimming! Walk into the shallows to climb out. No casting until you\'re back on your feet.', { icon: 'waves', ms: 5000 }); }
+      if (on && !this.swimTipped) { this.swimTipped = true; this.ui.toast('Swimming! Walk into the shallows to climb out. No casting until you\'re on your feet.', { icon: 'waves', ms: 5000 }); }
     };
     this.actor = new Actor(this.engine.scene);
     Actor.camera = this.engine.camera;
@@ -215,6 +216,7 @@ export class Game {
     this.ui.setVisible(true);
     this.engine.cam.dist = 11.5; this.engine.cam.pitch = 0.52; this.engine.cam.yaw = 0;
     this.applySettings();
+    import('./reports.js').then((m) => m.initCrashReports(this)); // (crash reports, Settings > Gameplay)
     this.actor.setLook(p.avatar, p.equipped);
     this.bindInput();
     // v1.10 moderation: the ban list is read before you join the lake, and banned anglers never appear on it
@@ -308,7 +310,7 @@ export class Game {
     this.playModeNow = mode;
     if (!this.started) return;
     const wantSolo = mode === 'solo', isSolo = this.net?.kind === 'none';
-    if (wantSolo === isSolo) return;
+    if (wantSolo === isSolo && this.net?.kind !== 'coop') return; // (leaving a friend's world always swaps)
     if (!wantSolo && !this.makeNet) return;
     if (this.party?.inParty) this.party.leave(true);
     this.net?.leave?.();
@@ -417,9 +419,10 @@ export class Game {
       const dx = e.clientX - (prev?.x ?? e.clientX), dy = e.clientY - (prev?.y ?? e.clientY);
       if (down.orbit || Math.hypot(e.clientX - down.x, e.clientY - down.y) > 10) {
         down.moved = true; clearTimeout(down.timer);
-        this.engine.cam.yaw -= dx * 0.008;
+        const cs = this.camFeel; // Settings > Controls > Camera
+        this.engine.cam.yaw -= dx * 0.008 * cs.speed * cs.x;
         this.camDragAt = performance.now();
-        this.engine.cam.pitch = Math.min(1.25, Math.max(-1.25, this.engine.cam.pitch + dy * 0.004));
+        this.engine.cam.pitch = Math.min(1.25, Math.max(-1.25, this.engine.cam.pitch + dy * 0.004 * cs.speed * cs.y));
       }
     });
     const up = (e) => {
@@ -658,7 +661,7 @@ export class Game {
       if (!this.inSwirl) {
         this.inSwirl = true;
         let seen = false; try { seen = localStorage.getItem('rt_swirl_tip') === '1'; localStorage.setItem('rt_swirl_tip', '1'); } catch { /* private mode */ }
-        if (!seen || !this.swirlTipShown) this.ui.toast('A feeding school! Rare fish are in among them. Cast into it from your boat.', { icon: 'star', ms: 5000 });
+        if (!seen || !this.swirlTipShown) this.ui.toast('A feeding school! Rare fish are in among them. Cast in from your boat.', { icon: 'star', ms: 5000 });
         this.swirlTipShown = true;
       }
     } else this.inSwirl = false;
@@ -820,7 +823,7 @@ export class Game {
     // a friend's boat right beside you, with the front seat free
     // v1.11: only your party members' boats (strangers can't hop in)
     const hostBoat = this.remotes.boatsNear(this.player.pos, 3.4).find((r) => !this.remotes.hasPassenger(r.peer.meta?.id) && this.party.has(r.peer.meta?.id));
-    if (hostBoat && !this.fishing.busy) acts.unshift({ id: `hopin-${hostBoat.id}`, label: `Hop in ${hostBoat.peer.meta?.name || 'their'}'s boat`, color: 'blue', fn: () => this.hopIn(hostBoat) });
+    if (hostBoat && !this.fishing.busy) acts.unshift({ id: `hopin-${hostBoat.id}`, label: `Hop in ${hostBoat.peer.meta?.name ? `${hostBoat.peer.meta.name}'s` : 'their'} boat`, color: 'blue', fn: () => this.hopIn(hostBoat) });
     if (this.player.mode === 'boat' && this.player.nearShore()) acts.push({ id: 'ashore', label: 'Go ashore', color: 'green', fn: () => this.disembark() });
     acts.push(...gearActs.filter((a) => a.id.startsWith('set-')));
     if (this.nearRack() || this.nearBoard()) acts.push({ id: 'gearbox', label: 'Gear box', fn: () => { this.ui.sheets.state.shopTab = 'box'; this.ui.sheets.open('shop'); } });
@@ -877,7 +880,7 @@ export class Game {
     this.player.mode = 'boat'; this.player.target = null;
     this.actor.setMode('boat');
     this.audio.sfx('flop');
-    this.ui.toast(`You hopped into ${r.peer.meta.name || 'their'}'s boat. They row; you can fish. Press E to hop out.`, { icon: 'boat', ms: 4500 });
+    this.ui.toast(`You hopped into ${r.peer.meta.name ? `${r.peer.meta.name}'s` : 'their'} boat. They row, you fish. E to hop out.`, { icon: 'boat', ms: 4500 });
     this.chat.system(`You're riding with ${r.peer.meta.name || 'a friend'}.`, 'join');
   }
   hopOut(why = '') {
@@ -1016,7 +1019,7 @@ export class Game {
     else if (action === 'selfie') this.selfie.start(c);
     else if (action === 'trade') { const r = await this.save.trade(c.id); if (r.ok) { this.audio.sfx('coin'); this.ui.toast(`Traded for ${r.pearls} pearls`, { icon: 'pearl' }); } }
     if (summary.levelUp) this.onLevelUp(summary.levelUp);
-    if ((this.profile.catchCount || 0) === 3) this.ui.toast('Tip: sell fish and buy gear at the cabin. Diamond fish trade for Pearls!', { ms: 5000 });
+    if ((this.profile.catchCount || 0) === 3) this.ui.toast('Tip: sell fish and buy gear at the cabin. Diamond fish fetch pearls!', { ms: 5000 });
     await this.autoClaim();
     this.pushMeta();
     this.treasure.onCatch(); // sometimes a map comes up with the fish
@@ -1115,6 +1118,11 @@ export class Game {
     this.uiRoot.style.setProperty('--ui-scale', String(Math.max(0.8, Math.min(1.4, s.uiScale || 1))));
     document.documentElement.style.setProperty('--text-scale', String(Math.max(0.9, Math.min(1.5, s.textScale || 1))));
     if (this.ui?.captions) this.ui.captions.on = !!s.captions;
+    document.body.classList.toggle('cap-big', s.captionSize === 'big');
+    document.body.classList.toggle('cap-huge', s.captionSize === 'huge');
+    this.camFeel = { speed: s.camSpeed ?? 1, x: s.invertX ? -1 : 1, y: s.invertY ? -1 : 1 };
+    const fov = Math.max(-8, Math.min(22, s.fov || 0));
+    if (this.engine.fovAdd !== fov) { this.engine.fovAdd = fov; this.engine.resize(); }
   }
 
   emote(id) {
@@ -1300,7 +1308,7 @@ export class Game {
     if (this.lastLogged === key) return; // feed + net can both report one catch
     this.lastLogged = key;
     const v = d.variant === 'diamond' ? 'Diamond ' : d.variant === 'gold' ? 'Gold ' : '';
-    this.chat.system(`${name} landed a ${v}${sp.name} (${Number(d.weight).toFixed(2)} lb)!`, 'catch');
+    this.chat.system(`${name} landed ${aan((v) + (sp.name))} ${v}${sp.name} (${Number(d.weight).toFixed(2)} lb)!`, 'catch');
   }
 
   async openCreator(firstRun = false) {

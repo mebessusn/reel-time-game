@@ -30,6 +30,7 @@ export class Player {
   // Is a movement action held? Keys are stored lowercase; the keymap maps them to actions.
   held(action) {
     if (action === 'up' && this.mouseWalk) return true; // both mouse buttons held: walk forward
+    if (this.padDir?.has(action)) return true; // a controller's left stick, for everything that steers with these (rides, the sled, flying, diving)
     for (const k of this.keys) if ((this.keymap ? this.keymap.action(k) : null) === action) return true;
     const fallback = { up: ['w', 'arrowup'], down: ['s', 'arrowdown'], left: ['a', 'arrowleft'], right: ['d', 'arrowright'] }[action];
     return !this.keymap && fallback.some((k) => this.keys.has(k));

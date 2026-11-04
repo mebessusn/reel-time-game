@@ -14,11 +14,12 @@ import { buildLakePOIs } from './lakepois.js';
 import { splitByTiles } from '../render/cull.js';
 import { dryAt, heightAt, surfaceY, isWater, groundY, DOCK, FALLS_C, DEEP_C, LIGHTHOUSE_ISLE, HALF, LAKE_R, scatterSpots, WATER_Y, JETTIES, BRIDGES, bridgeYAlong, sc, scAround, LAKES, CLEARINGS, TRAILS, trailDist, valleyWater, riverSd, zoneAt, gentleAt, onBridge } from './terrain.js';
 import { buildGus as buildGusModel } from '../entities/gus.js';
-import { softCabin, softDock, softTrees, softPlants, softLilyPads, softLanterns, softCampfire, softBoard, softRack, softLighthouse, softRuins, softTrophyBoard, TROPHY_SLOTS, softJetties, softBridge, softHut, softSignposts } from './softprops.js';
+import { softCabin, softDock, softTrees, softPlants, softLilyPads, softLanterns, softCampfire, softBoard, softRack, softLighthouse, softRuins, softTrophyBoard, TROPHY_SLOTS, softJetties, jettyPosts, jettyRail, softBridge, softHut, softSignposts } from './softprops.js';
 import { buildFish, shellModel } from '../entities/fish.js';
 import { SPECIES_BY_ID } from '../data/species.js';
 import { softFishModel } from '../entities/softfish.js';
 import { addBox, addCircle, addSolidFn, clearColliders, blocked } from './colliders.js';
+import { solidPoles } from './solidify.js';
 import { natureTrees } from './nature.js';
 import { buildLogCabin, placeModels } from './polyfork.js';
 import { buildCampground } from './campground.js';
@@ -64,8 +65,10 @@ const blockSurf = (x, z) => surfaceY(Math.floor(x) + 0.5, Math.floor(z) + 0.5) -
 
 function buildDock() {
   // the end rail stops walkers stepping past it (the deck runs a little beyond it, to z0)
-  addBox(DOCK.x0 - 0.2, DOCK.z0 - 0.3, DOCK.x1 + 1.2, DOCK.z0 + 0.32, { top: DOCK.deckY + 1.1 }); // (v1.17.1: a rail's height, so a cast goes over it)
-  return softDock(DOCK, heightAt);
+  addBox(DOCK.x0 - 0.2, DOCK.z0 - 0.3, DOCK.x1 + 1.2, DOCK.z0 + 0.32, { top: DOCK.deckY + 1.35 }); // (v1.17.1: a rail's height, so a cast goes over it; v1.17.12: and too high to hop, past the deck's end)
+  const m = softDock(DOCK, heightAt);
+  solidPoles(m, { above: DOCK.deckY + 0.2, below: DOCK.deckY + 1.7, opts: { top: DOCK.deckY + 0.3 } }); // (v1.17.12: its bollards: stepped over on the deck, solid from the beach)
+  return m;
 }
 
 function cabinColliders() {
@@ -425,6 +428,16 @@ for (const p of SIGNPOSTS) {
 
 function buildValley(scene) {
   scene.add(softJetties(JETTIES, heightAt));
+  // v1.17.12: the posts stand a hand above the deck: you step over them on the planks, not up off the beach
+  for (const j of JETTIES) {
+    const place = (px, pz, r, top) => {
+      let x = px, z = pz;
+      if (j.rot) { const dx = px - j.pivot.x, dz = pz - j.pivot.z, c = Math.cos(j.rot), sn = Math.sin(j.rot); x = j.pivot.x + dx * c + dz * sn; z = j.pivot.z - dx * sn + dz * c; }
+      addCircle(x, z, r, { top });
+    };
+    for (const [px, pz] of jettyPosts(j)) place(px, pz, 0.15, j.deckY + 0.25);
+    for (const [px, pz] of jettyRail(j)) place(px, pz, 0.2, j.deckY + 0.42); // (and the end rail: hop it if you must)
+  }
   for (const B of BRIDGES) {
     // built along local +z, then turned to follow the trail
     const toWorld = (lx, lz) => [B.cx + B.ux * lz + B.uz * lx, B.cz + B.uz * lz - B.ux * lx];
@@ -433,14 +446,15 @@ function buildValley(scene) {
     mesh.rotation.y = Math.atan2(B.ux, B.uz);
     scene.add(mesh);
     // rails stop walkers stepping off the sides (posts along both edges)
-    for (let s = -B.half + 1.5; s <= B.half - 1.5; s += 0.5) for (const side of [-1, 1]) addCircle(...toWorld(side * (B.w / 2 + 0.05), s), 0.12);
+    for (let s = -B.half + 0.6; s <= B.half - 0.6; s += 0.5) for (const side of [-1, 1]) addCircle(...toWorld(side * (B.w / 2 + 0.05), s), 0.12); // (v1.17.12: right out to the end posts)
   }
   for (const hut of HUTS) {
     const y = heightAt(hut.x, hut.z);
     scene.add(softHut(hut, y));
     const c = Math.abs(Math.cos(hut.ry)), s = Math.abs(Math.sin(hut.ry));
     const ex = (hut.w * c + hut.d * s) / 2, ez = (hut.w * s + hut.d * c) / 2;
-    addBox(hut.x - ex + 0.2, hut.z - ez + 0.2, hut.x + ex - 0.2, hut.z + ez - 0.2);
+    addBox(hut.x - ex + 0.05, hut.z - ez + 0.05, hut.x + ex - 0.05, hut.z + ez - 0.05); // (v1.17.12: out to the walls, so the corners don't let you clip in)
+    { const lx = hut.w / 2 + 0.4, lz = hut.d / 2 - 0.3, cr = Math.cos(hut.ry || 0), sr = Math.sin(hut.ry || 0); addCircle(hut.x + lx * cr + lz * sr, hut.z - lx * sr + lz * cr, 0.3); } // its rain barrel
   }
   // v1.17.1: Fern Camp's tents are Polyfork models (src/world/polyfork.js), doors to the fire, with chairs, a cooler
   // and a stack of firewood

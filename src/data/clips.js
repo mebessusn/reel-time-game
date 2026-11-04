@@ -1,6 +1,7 @@
 // The tutorial clips (played by src/ui/clips.js; the style guide and the list are in docs/tutorial-clips.md). Each is a small scene
 // on a fixed stage: `when` says when it first plays (asked twice a second, by src/ui/clips.js), `captions` are [second, text], and
-// `build` sets the stage and returns update(t, dt). `fresh` means only a brand-new angler needs it.
+// `build` sets the stage and returns update(t, dt). `fresh` means only a brand-new angler needs it. Only `auto` clips play by themselves
+// (the few things that are hard or easy to miss); the rest wait in the Journal's How to tab.
 import * as THREE from 'three';
 import { WATER_Y, JETTIES } from '../world/terrain.js';
 import { buildFish } from '../entities/fish.js';
@@ -82,8 +83,8 @@ export const CLIPS = {
     },
   },
   reel: {
-    title: 'Reel it in', secs: 9, fresh: true, meter: { icon: '🐟', coldAt: 0, hotAt: 80 }, captions: [[0, 'Hold to reel'], [2.2, 'Pull against the fish'], [4.6, 'Red? Let go!'], [6.4, 'Reel again till it lands']],
-    when: (g) => g.fishing.state === 'reeling',
+    title: 'Reel it in', secs: 9, auto: true, meter: { icon: '🐟', coldAt: 0, hotAt: 80 }, captions: [[0, 'Hold to reel'], [2.2, 'Pull against the fish'], [4.6, 'Red? Let go!'], [6.4, 'Reel again till it lands']],
+    when: (g) => (g.fishing.snaps || 0) > 0 && g.fishing.state !== 'reeling', // (once a line has snapped: how not to)
     build(S) {
       env(S, 'summer', { shore: 1, y: LAND }); const a = S.person(), go = track(S, a, [[0, -1, 0, { yaw: Q, rod: 'hand', pose: 'reel' }], [4.6, -1, 0, { yaw: Q, rod: 'hand', pose: 'wait' }], [6.2, -1, 0, { yaw: Q, rod: 'hand', pose: 'reel' }]]), f = fish(S, 'bluegill', 2.2), r = ring(S);
       return (t, dt) => { go(t, dt); const x = t < 4.6 ? lerp(3.6, 2.8, t / 4.6) : t < 6.2 ? 2.8 + (t - 4.6) * 0.4 : lerp(3.4, 1.4, span(t, 6.2, 9)); const z = Math.sin(t * 2.2) * (t < 7 ? 1.1 : 0.3); f.position.set(x, WATER_Y - 0.04 + Math.abs(Math.sin(t * 5)) * 0.08, z); f.rotation.y = Math.cos(t * 2.2) * 0.7 + Math.PI; r.position.set(x, WATER_Y + 0.02, z); ripple(r, (t * 1.5) % 1); return { meter: t < 4.6 ? lerp(30, 92, t / 4.6) : t < 6.2 ? lerp(92, 26, span(t, 4.6, 6.2)) : lerp(26, 60, span(t, 6.2, 9)) }; };
@@ -138,7 +139,7 @@ export const CLIPS = {
     },
   },
   timed: {
-    title: 'Helping out', secs: 8, meter: { icon: '⏱' }, captions: [[0, 'Pick it up and go'], [2.6, 'The clock is running'], [5.4, 'Reach the beam in time']],
+    title: 'Helping out', secs: 8, auto: true, meter: { icon: '⏱' }, captions: [[0, 'Pick it up and go'], [2.6, 'The clock is running'], [5.4, 'Reach the beam in time']],
     when: (g) => !!g.saga.carry,
     build(S) {
       env(S, 'summer', { cam: [0, 2.8, 7.4, 0, 0.8, 0] }); const can = S.model('camp-canoe', 0, 0, Q), beam = mesh(S, new THREE.CylinderGeometry(0.5, 0.7, 12, 14, 1, true), '#ffd46a', 4, 6, 0); beam.material.transparent = true; beam.material.opacity = 0.3; beam.material.side = THREE.DoubleSide; const a = S.person(), go = track(S, a, [[0, -3.6, 0.2], [1.2, -3.6, 0.2], [7, 3.6, 0.2], [8, 3.6, 0.2]]);

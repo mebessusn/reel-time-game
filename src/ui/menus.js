@@ -2,9 +2,11 @@
 // small confirm dialog. All of them are keyboard and controller friendly: arrows / d-pad move, Enter / A
 // picks, Esc / B backs out.
 import { h, clear } from './dom.js';
+import { STANDALONE } from '../standalone.js';
 import { icon } from './icons.js';
 import { randomFact } from '../data/facts.js';
 import { CHANGELOG, CHANGE_KINDS, GAME_VERSION } from '../data/changelog.js';
+import { CREDITS } from '../data/credits.js';
 
 const VERSION = GAME_VERSION;
 
@@ -80,6 +82,7 @@ export class Menus {
         item('Customize angler', 'shirt', async () => { g.prepareMenus?.(); el.classList.add('away'); await g.openCreator(); el.classList.remove('away'); menu.querySelector('.title-item.main')?.focus(); }),
         item('Settings', 'gear', () => { g.prepareMenus?.(); g.ui.sheets.open('settings'); }),
         item('Changelog', 'history', () => this.changelog({ fromTitle: true })),
+        item('Credits', 'star', () => this.credits()),
         item('Feedback', 'chat', () => { g.prepareMenus?.(); import('../game/reports.js').then((m) => m.openFeedback(g)); }),
         item('Report a bug', 'bug', () => { g.prepareMenus?.(); import('../game/reports.js').then((m) => m.openBugReport(g)); }),
         item('Privacy', 'eye', () => { g.prepareMenus?.(); import('./privacy.js').then((m) => m.showPrivacy(g)); }));
@@ -118,6 +121,7 @@ export class Menus {
       item('Replay the tutorial', 'bell', () => { this.close(); g.tutorial.replay(); }), // v1.14.10
       item('Photo album', 'camera', () => { this.close(); g.ui.sheets.open('album'); }),
       item('Changelog', 'history', () => { this.close(); this.changelog(); }),
+      item('Credits', 'star', () => { this.close(); this.credits(); }),
       item('Send feedback', 'chat', () => { this.close(); import('../game/reports.js').then((m) => m.openFeedback(g)); }),
       item('Report a bug', 'bug', () => { this.close(); import('../game/reports.js').then((m) => m.openBugReport(g)); }),
       item('Report a player', 'shield', () => { this.close(); import('../game/reports.js').then((m) => m.openPlayerPicker(g)); }),
@@ -155,10 +159,11 @@ export class Menus {
     const g = this.game;
     if (this.open) this.close();
     const kind = g.net?.kind || (window.claude?.use ? 'room' : 'local');
-    const peers = [...(g.net?.peers?.values?.() || [])].filter((p) => p.meta?.name);
     const room = new URLSearchParams(location.search).get('room') || 'main';
     const body = h('div.friends-body');
-    if (g.playMode === 'solo') {
+    // the standalone game's own part of this card, never inside a Claude artifact
+    if (STANDALONE.friends && !window.claude?.use) STANDALONE.friends().then((m) => body.prepend(m.friendsPanel(g, { refresh: () => { const el = this.layer; this.layer = null; this.unnav?.(); this.unnav = null; el?.remove(); this.friends({ fromTitle }); } })));
+    if (g.net?.kind === 'coop') { /* (its own panel says where you are) */ } else if (g.playMode === 'solo') {
       // v1.13.7: single player: one tap back to the shared lake
       body.append(h('p', 'You\'re playing single player, so nobody else is on your lake.'),
         h('button.btn.blue', { on: { click: async () => { await g.setPlayMode('multi'); this.close(); this.friends({ fromTitle }); } } }, icon('users'), 'Switch to multiplayer'));
@@ -182,11 +187,20 @@ export class Menus {
           room !== 'main' ? h('button.btn.ghost', { on: { click: () => { const u = new URL(location.href); u.searchParams.delete('room'); location.href = u.toString(); } } }, icon('waves'), 'Back to the main lake') : null));
     }
     if (!fromTitle) {
-      body.append(h('h4', peers.length ? `On the lake now (${peers.length})` : 'On the lake now'),
-        peers.length ? h('div.row-list', peers.slice(0, 12).map((p) => h('div.list-row', icon('user'), h('div.grow', h('div.ttl', p.meta.name), h('div.meta', [p.meta.lvl ? `Level ${p.meta.lvl}` : '', p.meta.title || ''].filter(Boolean).join(', '))),
-          h('button.btn.small.ghost', { on: { click: () => { this.close(); g.chat?.focus(`/w ${p.meta.name} `); } } }, icon('chat'), 'Whisper'),
-          h('button.btn.small.ghost', { 'aria-label': `Report ${p.meta.name}`, title: 'Report', on: { click: () => { this.close(); g.mod?.openReport({ id: g.mod.idOf(p), peer: p.id, name: p.meta.name }); } } }, icon('shield')))))
-          : h('div.empty', 'Nobody else is here right now. The lake is all yours.'));
+      // (redrawn as anglers come and go while the card is open)
+      const here = g.net?.kind === 'coop' ? 'In this world' : 'On the lake now', list = h('div.friends-here');
+      const draw = () => {
+        const ps = [...(g.net?.peers?.values?.() || [])].filter((p) => p.meta?.name);
+        clear(list);
+        list.append(h('h4', ps.length ? `${here} (${ps.length})` : here),
+          ps.length ? h('div.row-list', ps.slice(0, 12).map((p) => h('div.list-row', icon('user'), h('div.grow', h('div.ttl', p.meta.name), h('div.meta', [p.meta.lvl ? `Level ${p.meta.lvl}` : '', p.meta.title || ''].filter(Boolean).join(', '))),
+            h('button.btn.small.ghost', { on: { click: () => { this.close(); g.chat?.focus(`/w ${p.meta.name} `); } } }, icon('chat'), 'Whisper'),
+            h('button.btn.small.ghost', { 'aria-label': `Report ${p.meta.name}`, title: 'Report', on: { click: () => { this.close(); g.mod?.openReport({ id: g.mod.idOf(p), peer: p.id, name: p.meta.name }); } } }, icon('shield')))))
+            : h('div.empty', 'Nobody else is here right now. The lake is all yours.'));
+      };
+      draw();
+      body.append(list);
+      const offs = ['peer:join', 'peer:leave', 'peer:meta'].map((t) => g.net?.on?.(t, () => { if (list.isConnected) draw(); else for (const off of offs) off?.(); }));
     }
     const card = h('div.menu-card.friends-card', { role: 'dialog', 'aria-label': 'Play with friends' },
       h('div.menu-card-head', h('h2', 'Play with friends'), h('button.btn.close-x.ghost', { 'aria-label': 'Close', on: { click: () => this.close() } }, icon('close'))),
@@ -200,6 +214,22 @@ export class Menus {
 
   // ---------------- changelog ----------------
   /** Every release, newest first, as collapsible sections with itemized changes grouped by kind. */
+  // ---------------- credits ----------------
+  credits() {
+    const g = this.game;
+    if (this.open) this.close();
+    const card = h('div.menu-card.credits-card', { role: 'dialog', 'aria-label': 'Credits' },
+      h('div.menu-card-head', h('h2', icon('star'), 'Credits'), h('button.btn.close-x.ghost', { 'aria-label': 'Close', on: { click: () => this.close() } }, icon('close'))),
+      logo('brand.credits-logo'),
+      h('div.credits-list', CREDITS.map((c) => h('section.credits-group', h('h4', c.head), c.lines.map((l) => h('p', l))))),
+      h('p.credits-ver.muted', `Reel Time ${VERSION}`));
+    this.layer = h('div.menu-screen.credits-screen', { on: { click: (e) => { if (e.target === this.layer) this.close(); } } }, card);
+    this.root.append(this.layer);
+    g.audio?.sfx('open');
+    this.unnav = menuNav(card, { onBack: () => this.close() });
+    requestAnimationFrame(() => card.querySelector('button')?.focus({ preventScroll: true }));
+  }
+
   changelog({ fromTitle = false } = {}) {
     const g = this.game;
     if (this.open) this.close();

@@ -27,7 +27,7 @@ export const PLACES = [
   { id: 'quarrycut', kind: 'lake', name: 'Quarry Cut', x: 78, z: -98, r: 18, desc: 'The old barge canal from the cove to the quarry. A spur turns off into the hill.' },
   { id: 'cave', kind: 'lake', name: 'Echo Cavern', x: LAKES.cave.cx, z: LAKES.cave.cz, r: 26, desc: 'A flooded cave under Cavern Hill. Row in up the spur off the Quarry Cut. Glowing fish live in the dark.' },
   { id: 'gus', kind: 'vendor', name: "Gus's Tackle & Tide", x: CABIN.door.x, z: CABIN.door.z, r: 14, desc: 'Bait, rods, lures, boats, clothes and cabin decor. Sell your catch here.' },
-  { id: 'home', kind: 'home', name: 'Your cottage', x: HOME_DOOR.x, z: HOME_DOOR.z + 2, r: 16, enter: true, desc: 'Your own place up the hill. Walk in, sit by the window, set out your trophies.' },
+  { id: 'home', kind: 'home', name: 'Your cabin', x: HOME_DOOR.x, z: HOME_DOOR.z + 2, r: 16, enter: true, desc: 'Your own place up the hill. Walk in, sit by the window, set out your trophies.' },
   { id: 'dock', kind: 'poi', name: 'The Dock', x: 0.5, z: 30, r: 12, desc: 'Where every angler starts. Boats launch here.' },
   { id: 'board', kind: 'poi', name: 'Notice board', x: BOARD.x, z: BOARD.z, r: 10, desc: 'Daily requests, the Lake Gazette, mail and derbies.' },
   { id: 'legends', kind: 'poi', name: 'Lake Legends', x: TROPHY.x, z: TROPHY.z, r: 10, desc: 'The three best fish ever pulled from the cove.' },

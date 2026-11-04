@@ -19,9 +19,34 @@ const clip = (v, n) => String(v ?? '').replace(/[\u0000-\u0008\u000b-\u001f\u007
 // the last few errors on this page, attached to bug reports (only if the player leaves "Include details" ticked)
 const ERRORS = [];
 if (typeof window !== 'undefined') {
-  const keep = (m) => { ERRORS.push({ m: clip(m, 200), at: Date.now() }); if (ERRORS.length > 8) ERRORS.shift(); };
-  window.addEventListener('error', (e) => keep(`${e.message} @ ${String(e.filename || '').split('/').pop()}:${e.lineno}`));
-  window.addEventListener('unhandledrejection', (e) => keep(`promise: ${e.reason?.message || e.reason}`));
+  const keep = (m, stack) => { ERRORS.push({ m: clip(m, 200), at: Date.now() }); if (ERRORS.length > 8) ERRORS.shift(); crashed(clip(m, 200), stack); };
+  window.addEventListener('error', (e) => keep(`${e.message} @ ${String(e.filename || '').split('/').pop()}:${e.lineno}`, e.error?.stack));
+  window.addEventListener('unhandledrejection', (e) => keep(`promise: ${e.reason?.message || e.reason}`, e.reason?.stack));
+}
+
+// Crash reports: an error the game didn't catch is sent on its own (a few seconds later, so the ones it sets off
+// come along too), with the same game details as a bug report and nothing personal. At most 3 a session, each
+// message once. Settings > Gameplay > Send crash reports turns it off.
+const NOISE = /ResizeObserver|fonts|Failed to load|NetworkError|Load failed|AbortError|play\(\) request|NotAllowedError/;
+let crashGame = null, crashSent = 0, crashTimer = 0;
+const crashSeen = new Set(), crashBatch = [];
+export function initCrashReports(g) { crashGame = g; }
+function crashed(m, stack) {
+  const g = crashGame;
+  if (!g || NOISE.test(m) || crashSeen.has(m) || crashSent >= 3 || g.profile?.settings?.crashReports === false) return;
+  const q = new URLSearchParams(location.search);
+  if (q.has('autoplay') && !q.has('crashtest')) return; // (the browser tests, bar the one for this)
+  crashSeen.add(m);
+  crashBatch.push({ m, stack: clip(String(stack || '').split('\n').slice(0, 6).join('\n'), 600) });
+  clearTimeout(crashTimer);
+  crashTimer = setTimeout(() => {
+    const list = crashBatch.splice(0);
+    if (!list.length) return;
+    crashSent++;
+    const r = { type: 'crash', cat: 'crash', kindLabel: 'Automatic crash report', from: g.profile?.name || 'an angler', title: list[0].m, at: Date.now(),
+      text: list.map((e) => (e.stack ? `${e.m}\n${e.stack}` : e.m)).join('\n\n'), diag: diagnostics(g) };
+    sendBug(g, r).catch(() => {});
+  }, 4000);
 }
 
 /** What the game was doing: version, browser, screen, place, mode, players. No personal data. */

@@ -137,8 +137,9 @@ function lilymarsh(k, r, extraPads) {
   for (let i = 0; i < 16; i++) {
     const s = shore(L, r() * Math.PI * 2, 1.5 + r() * 4);
     if (!s || !dryOk(s.x, s.z, 1.6)) continue;
-    k.stamp(willow, s.x, y0(s.x, s.z), s.z, r() * 3, 0.85 + r() * 0.35);
-    addCircle(s.x, s.z, 0.5);
+    const rot = r() * 3, sc = 0.85 + r() * 0.35; // (same draws, same order: the same willows as before)
+    k.stamp(willow, s.x, y0(s.x, s.z), s.z, rot, sc);
+    addCircle(s.x, s.z, 1.15 * sc); // (v1.17.12: out to the hanging curtain, which you brush, not walk through)
   }
   willow.dispose();
   // a stilted boardwalk out over the shallows (decor: you look along it from the shore)

@@ -24,7 +24,7 @@ import { SETS } from '../game/collections.js';
 import { COMMUNITY_GOAL } from '../game/community.js';
 import { nextDerby } from '../game/derby.js';
 import { WAYSTONES } from '../game/waystones.js';
-import { ACTIONS, keyName } from '../game/controls.js';
+import { ACTIONS, keyName, PAD_HELP } from '../game/controls.js';
 import { BOTTLE_MAX } from '../game/bottles.js';
 import { regionName } from '../world/terrain.js';
 import { PETS } from '../game/pet.js';
@@ -37,6 +37,7 @@ import { FISH_LORE, VARIANT_LORE } from '../data/fishlore.js';
 import { FUN_FACTS, EXTRA_LORE } from '../data/funfacts.js';
 import { renderMapView } from './mapview.js';
 import { album, photoButtons } from './selfie.js';
+import { aan } from '../core/text.js';
 
 const priceEl = (price) => price ? h('span.price', h('img', { src: iconURL(price.coins ? 'coin' : 'pearl') }), fmt(price.coins || price.pearls)) : null;
 // Shop rarity frame, from how the item is earned and what it costs.
@@ -153,7 +154,7 @@ export class Sheets {
 
   // v1.8.2: picking a place travels straight there (no confirmation): the map closes and you arrive
   confirmTravel(w) {
-    if (!this.game.waystones.near(3.5)) { this.game.ui.toast('Waystones only carry you from one stone to another. Walk, row or ride to a waystone first.'); return; }
+    if (!this.game.waystones.near(3.5)) { this.game.ui.toast('Waystones only link stone to stone. Walk, row or ride to one first.'); return; }
     this.close();
     this.game.waystones.travel(w.id);
   }
@@ -474,7 +475,7 @@ export class Sheets {
     c.tabs.classList.add('tabs-wrap'); // 11 tabs: two rows, so none hide past the panel's edge (v1.13.15)
     for (const [id, label] of [['bait', 'Bait'], ['upgrade', 'Upgrades'], ['gear', 'Away gear'], ['rod', 'Rods'], ['lure', 'Lures'], ['boat', 'Boats'], ['decor', 'Cabin'], ['pets', 'Pets'], ['wear', 'Clothes'], ['emote', 'Emotes'], ['box', 'Gear box']]) this.tab(c, id, label, 'shopTab');
     if (!near) c.body.append(h('div.list-row', { style: { marginBottom: '8px', background: '#fff1c8' } }, icon('shop'), h('div.grow', h('div.ttl', 'Gus is at the cabin'), h('div.meta', 'You can equip gear here, but buying happens at the shop counter.')), h('button.btn.green.small', { on: { click: () => { this.close(); g.walkToCabin(); } } }, 'Walk there')));
-    else c.body.append(h('div.muted', { style: { marginBottom: '8px' } }, '“Welcome in! Prized fish make for prized gear.” — Gus the heron'));
+    else c.body.append(h('div.muted', { style: { marginBottom: '8px' } }, '“Welcome in! Prized fish make for prized gear,” says Gus the heron.'));
     const featured = featuredItems(dayIndex());
     const kind = this.state.shopTab;
     c.foot.append(h('div.foot-wallet', h('span', h('img', { src: iconURL('coin'), alt: '' }), h('span.num', fmt(p.coins)), ' coins'), h('span', h('img', { src: iconURL('pearl'), alt: '' }), h('span.num', fmt(p.pearls)), ' pearls')));
@@ -776,7 +777,7 @@ export class Sheets {
     const n = q.npc;
     if (n) {
       c.body.append(h('div.section-title', 'A local is asking'));
-      c.body.append(h('div.list-row', icon('user'), h('div.grow', h('div.ttl', `${n.name}: “${n.ask}”`), h('div.meta', n.done ? 'Delivered. Thank you!' : n.accepted ? `Accepted: bring a ${SPECIES_BY_ID[n.speciesId].name} to ${n.name} and press E to talk. Reward: ${n.reward.coins} coins.` : `${n.name} has a request: walk up (look for the ✉ over their head) and press E to talk. Reward: ${n.reward.coins} coins.`)),
+      c.body.append(h('div.list-row', icon('user'), h('div.grow', h('div.ttl', `${n.name}: “${n.ask}”`), h('div.meta', n.done ? 'Delivered. Thank you!' : n.accepted ? `Accepted: bring ${aan(SPECIES_BY_ID[n.speciesId].name)} ${SPECIES_BY_ID[n.speciesId].name} to ${n.name} and press E to talk. Reward: ${n.reward.coins} coins.` : `${n.name} has a request: walk up (look for the ✉ over their head) and press E to talk. Reward: ${n.reward.coins} coins.`)),
         n.done ? h('span.pill', { style: { '--c': '#5eae3e' } }, 'Done') : null));
     }
   }
@@ -796,7 +797,7 @@ export class Sheets {
     c.body.append(h('div.section-title', 'Your mailbox'));
     if (!inbox.length) c.body.append(h('div.empty', 'No mail right now.'));
     c.body.append(h('div.row-list', inbox.map((m) => h('div.list-row', icon(m.kind === 'fish' ? 'fish' : 'worm'),
-      h('div.grow', h('div.ttl', `From ${m.fromName || 'a friend'}: ${m.kind === 'fish' ? `a ${SPECIES_BY_ID[m.speciesId]?.name || 'fish'}` : `${m.n} ${BAITS[m.bait]?.name || 'bait'}`}`), m.note ? h('div.meta', `“${m.note}”`) : null),
+      h('div.grow', h('div.ttl', `From ${m.fromName || 'a friend'}: ${m.kind === 'fish' ? `${aan(SPECIES_BY_ID[m.speciesId]?.name || 'fish')} ${SPECIES_BY_ID[m.speciesId]?.name || 'fish'}` : `${m.n} ${BAITS[m.bait]?.name || 'bait'}`}`), m.note ? h('div.meta', `“${m.note}”`) : null),
       h('button.btn.green.small', { on: { click: () => this.act(() => s.open(m)) } }, 'Open')))));
     // send a gift to someone on the lake
     c.body.append(h('div.section-title', 'Send a gift'));
@@ -1056,24 +1057,39 @@ export class Sheets {
       return row(label, desc, h('span.set-range', inp, val));
     };
     const toggle = (key, label, desc, def = false, after) => row(label, desc, h('input', { type: 'checkbox', checked: s[key] == null ? def : !!s[key], 'aria-label': label, on: { change: async (e) => { if (after) await after(e); else save({ [key]: e.target.checked }); } } }));
-    const choice = (key, label, desc, opts) => row(label, desc, h('span.seg', { role: 'radiogroup', 'aria-label': label }, opts.map(([v, t]) => h(`button${s[key] === v ? '.on' : ''}`, { type: 'button', role: 'radio', 'aria-checked': String(s[key] === v), on: { click: (e) => { e.preventDefault(); save({ [key]: v }); this.render(); } } }, t))));
+    const choice = (key, label, desc, opts, def) => row(label, desc, h('span.seg', { role: 'radiogroup', 'aria-label': label }, opts.map(([v, t]) => h(`button${(s[key] ?? def) === v ? '.on' : ''}`, { type: 'button', role: 'radio', 'aria-checked': String((s[key] ?? def) === v), on: { click: (e) => { e.preventDefault(); save({ [key]: v }); this.render(); } } }, t))));
+    const fovRow = () => {
+      const v = Math.round(s.fov || 0), min = -8, max = 22, deg = (n) => `${n > 0 ? '+' : ''}${n}°`, fill = (n) => `${((n - min) / (max - min)) * 100}%`;
+      const val = h('span.val', deg(v));
+      return row('Field of view', 'How much you see around you. Wider shows more of the lake.', h('span.set-range', h('input', { type: 'range', min, max, step: 1, value: v, style: { '--fill': fill(v) }, 'aria-label': 'Field of view',
+        on: { input: (e) => { const n = +e.target.value; e.target.style.setProperty('--fill', fill(n)); val.textContent = deg(n); save({ fov: n }); } } }), val));
+    };
     const B = c.body;
     if (cur === 'graphics') {
       B.append(h('div.set-group', h('h3', 'Graphics'),
         choice('graphics', 'Quality', 'Low runs smoothly in a side panel. High adds shadows, reflections and more trees.', [['low', 'Low'], ['medium', 'Medium'], ['high', 'High']]),
+        fovRow(),
         toggle('autoRes', 'Smooth frame rate', 'If the game starts to stutter, it draws at a slightly lower resolution until it runs smoothly again.', true),
-        toggle('reducedMotion', 'Reduced motion', 'Calms camera shake, pop-ups and animated menus.')));
+        toggle('reducedMotion', 'Reduced motion', 'Calms camera shake, pop-ups and animated menus.'),
+        document.fullscreenEnabled ? row('Full screen', 'Fills the whole screen. Esc or F11 leaves it.', h('input', { type: 'checkbox', checked: !!document.fullscreenElement, 'aria-label': 'Full screen', on: { change: (e) => { (e.target.checked ? document.documentElement.requestFullscreen() : document.exitFullscreen()).catch(() => { e.target.checked = !!document.fullscreenElement; }); } } })) : null));
     } else if (cur === 'audio') {
       B.append(h('div.set-group', h('h3', 'Volume'), slider('master', 'Master'), slider('music', 'Music'), slider('sfx', 'Effects'), slider('ambience', 'Ambience', 'Water, birds, wind and weather.'), slider('others', 'Other players', 'Splashes and cheers from anglers nearby.')),
         h('div.set-group', h('h3', 'Focus'), toggle('muteUnfocused', 'Mute in the background', 'Goes quiet while you are working in another tab or window.')));
     } else if (cur === 'controls') {
-      B.append(h('div.set-group', h('h3', 'Keys'), h('div.muted', { style: { marginBottom: '8px' } }, 'Click a key, then press the new one.'), this.renderControls()),
+      const camSp = Math.round((s.camSpeed ?? 1) * 100);
+      const camVal = h('span.val', `${camSp}%`), camFill = (n) => `${((n - 30) / 170) * 100}%`;
+      B.append(h('div.set-group', h('h3', 'Camera'),
+        row('Camera speed', 'How fast the mouse and the right stick turn the camera.', h('span.set-range', h('input', { type: 'range', min: 30, max: 200, step: 10, value: camSp, style: { '--fill': camFill(camSp) }, 'aria-label': 'Camera speed', on: { input: (e) => { e.target.style.setProperty('--fill', camFill(e.target.value)); camVal.textContent = `${e.target.value}%`; save({ camSpeed: e.target.value / 100 }); } } }), camVal)),
+        toggle('invertY', 'Invert up and down'),
+        toggle('invertX', 'Invert left and right')),
+        h('div.set-group', h('h3', 'Keys'), h('div.muted', { style: { marginBottom: '8px' } }, 'Click a key, then press the new one.'), this.renderControls()),
         h('div.set-group', h('h3', 'How to play'), h('div.howto',
           h('p', h('b', 'Cast: '), 'hold the left mouse button, release near the top of the bar for a long cast.'),
           h('p', h('b', 'Hook: '), 'when the bobber dips and "!" appears, click fast.'),
           h('p', h('b', 'Reel (Tug & Turn): '), 'hold to reel and move the mouse against the fish’s pull. Let go when the line turns red or the fish leaps.'),
           h('p', h('b', 'Move: '), 'click the ground, use WASD, or hold both mouse buttons to walk forward and steer with the mouse. Shift sprints, Space hops, E uses whatever is nearby. Right-drag or Q/X turns the camera; scroll zooms.'),
-          h('p', h('b', 'Controller: '), 'A casts and reels, X uses, B backs out, Y opens your inventory. The d-pad moves through menus.'))));
+          h('p', h('b', 'Controller: '), 'every button is listed below.')),
+        h('div.set-group', h('h3', 'Controller'), h('dl.pad-help', PAD_HELP.flatMap(([b, what]) => [h('dt', b), h('dd', typeof what === 'function' ? what() : what)])))));
     } else if (cur === 'access') {
       const ui = Math.round((s.uiScale || 1) * 100), tx = Math.round((s.textScale || 1) * 100);
       const scaleRow = (key, label, desc, v, min, max) => { const val = h('span.val', `${v}%`); return row(label, desc, h('span.set-range', h('input', { type: 'range', min, max, step: 5, value: v, style: { '--fill': `${((v - min) / (max - min)) * 100}%` }, 'aria-label': label, on: { input: (e) => { e.target.style.setProperty('--fill', `${((e.target.value - min) / (max - min)) * 100}%`); val.textContent = `${e.target.value}%`; save({ [key]: e.target.value / 100 }); } } }), val)); };
@@ -1083,11 +1099,13 @@ export class Sheets {
         h('div.set-group', h('h3', 'Seeing and hearing'),
           toggle('colorBlind', 'Colour-blind markers', 'Adds a shape next to every rarity colour (● ▲ ◆ ★ ♛ ✦).'),
           toggle('captions', 'Sound captions', 'Shows a short line for important sounds: bites, the bell, thunder.', false, (e) => { save({ captions: e.target.checked }); g.ui.captions.on = e.target.checked; }),
+          choice('captionSize', 'Caption size', '', [['normal', 'Normal'], ['big', 'Big'], ['huge', 'Huge']], 'normal'),
           toggle('reducedMotion', 'Reduced motion', 'Calms camera shake, pop-ups and animated menus.')));
     } else if (cur === 'play') {
       B.append(h('div.set-group', h('h3', 'Fishing'),
         toggle('relaxedReel', 'Relaxed reel', 'Skips the Tug & Turn mini-game: hold to reel and the fish comes in.'),
         toggle('tips', 'Tips from Gus', 'Short hints while you learn the ropes.', true),
+        toggle('crashReports', 'Send crash reports', 'If something breaks, the game sends the error and its version, browser and screen so it can be fixed. Nothing personal.', true),
         toggle('realWeather', 'Use my real weather', 'Matches the lake’s weather to yours. Asks for your location, rounds it to about 10 km and doesn’t save it.', false, async (e) => { if (e.target.checked) { const ok = await g.realWeather.enable(); save({ realWeather: ok }); if (!ok) e.target.checked = false; } else { g.realWeather.disable(); save({ realWeather: false }); } })),
         h('div.set-group', h('h3', 'Other anglers'),
           toggle('showNames', "Show other players' names"),

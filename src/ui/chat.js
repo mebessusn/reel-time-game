@@ -421,7 +421,7 @@ export class Chat {
         break;
       }
       case 'help': case '?':
-        this.system('Chat: /s msg (Say, anglers within about 40 yards; the default) · /g msg (General, the whole lake) · /p msg (Party) · /w name msg (whisper) · /r msg (reply). /s, /g and /p alone switch where you type.');
+        this.system('Chat: /s msg (Say, anglers within about 40 metres; the default) · /g msg (General, the whole lake) · /p msg (Party) · /w name msg (whisper) · /r msg (reply). /s, /g and /p alone switch where you type.');
         this.system('Party & friends: /invite name · /leave · /kick name · /friend name · /friends. Other: /rules · /report name · /bug · /me action · /who · /roll [max] · /mute name · /unmute name · /muted · /clear · /shrug. Tab completes names, ↑ recalls.');
         if (this.game.net?.kind === 'room') this.system('Whispers only show for you and the other angler, but they travel through the shared lake, so keep secrets out of them.');
         break;
@@ -442,7 +442,7 @@ export class Chat {
       }
       case 'say': case 's': case 'local':
         this.setChannel('say', true);
-        if (rest) this.say(rest, { channel: 'say' }); else this.system('Now talking in Say: anglers within about 40 yards hear you.', 'info');
+        if (rest) this.say(rest, { channel: 'say' }); else this.system('Now talking in Say: anglers within about 40 metres hear you.', 'info');
         break;
       case 'g': case 'general': case 'lake': case 'yell':
         this.setChannel('general', true);

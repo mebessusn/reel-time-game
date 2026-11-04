@@ -7,6 +7,7 @@ import { SPECIES, SPECIES_BY_ID } from '../data/species.js';
 import { worldTime } from '../core/clock.js';
 import { mulberry32, hashString } from '../core/rng.js';
 import { eligibleSpecies, rollBite, rollWeight, effectiveZone } from './rules.js';
+import { aan } from '../core/text.js';
 
 export const GEAR = {
   // v1.9.7: gear fills faster but only soaks for a while (life), then you pull it in. A pot fills in 5 min and
@@ -123,7 +124,7 @@ export class AwayGear {
     if (!n || key === this.lastReport) return;
     this.lastReport = key;
     const where = [...new Set(full.map((x) => regionName(x.g.x, x.g.z)))].join(', ');
-    this.game.ui.toast(`Your gear caught ${n} thing${n > 1 ? 's' : ''} while you were away (${where}). Row or walk over and press E to empty it.`, { icon: 'creel', title: first ? 'Welcome back' : 'Away gear', ms: 6500 });
+    this.game.ui.toast(`Your gear caught ${n} thing${n > 1 ? 's' : ''} while you were away (${where}). Go over and press E to empty it.`, { icon: 'creel', title: first ? 'Welcome back' : 'Away gear', ms: 6500 });
   }
 
   owned(kind) { return this.ext.d.gearOwned[kind] || 0; }
@@ -138,7 +139,7 @@ export class AwayGear {
     if (!r.ok) { this.game.ui.toast(r.reason || 'Not enough coins.'); return false; }
     this.ext.change((d) => { d.gearOwned[kind] = (d.gearOwned[kind] || 0) + 1; });
     this.game.audio.sfx('purchase');
-    this.game.ui.toast(`Bought a ${it.name}. Open your backpack (B) and place it while facing open water.`, { icon: 'shop', ms: 5000 });
+    this.game.ui.toast(`Bought ${aan(it.name)} ${it.name}. Open your backpack (C) and place it facing open water.`, { icon: 'shop', ms: 5000 });
     return true;
   }
 
@@ -165,7 +166,7 @@ export class AwayGear {
     const s = this.spotAhead();
     if (!s) { this.game.ui.toast('Face open water to set your gear.'); return; }
     const lake = gearLake(s.zone), here = this.placed.filter((g) => g.kind === kind && gearLake(g.zone) === lake).length;
-    if (here >= PER_LAKE) { this.game.ui.toast(`You already have ${PER_LAKE} ${GEAR[kind].name}s out in ${regionName(s.x, s.z)}. Try another lake, or haul one in.`); return; }
+    if (here >= PER_LAKE) { this.game.ui.toast(`You already have ${PER_LAKE} ${GEAR[kind].name}s out in ${regionName(s.x, s.z)}. Haul one in or try another lake.`); return; }
     if (this.placed.length >= MAX_PLACED) { this.game.ui.toast(`You can have ${MAX_PLACED} pieces of gear out at once.`); return; }
     const now = Date.now();
     const g = { id: `${kind}-${now.toString(36)}${Math.floor(Math.random() * 1e4)}`, kind, x: +s.x.toFixed(2), z: +s.z.toFixed(2), zone: s.zone, placedAt: now, setAt: now };

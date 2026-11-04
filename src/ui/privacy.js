@@ -12,7 +12,7 @@ export const POINTS = [
   ['users', 'What other anglers see', 'Your angler name, look, level and where you are on the lake, plus your chat messages, mail, friend requests and record catches.'],
   ['sparkles', 'Claude never shares your prompts', 'The Claude Code plugin only tells the game when Claude starts and finishes. It never sends what you asked or what Claude said.'],
   ['pin', 'Real weather is off unless you turn it on', 'If you switch it on, your location is rounded to about 10 km and used only to look up your weather. It isn’t saved.'],
-  ['shield', 'Reports', 'Bug and player reports go to this lake’s owner and the admins they pick. Bug reports include game details (version, browser, screen) unless you untick them.'],
+  ['shield', 'Reports', 'Bug and player reports go to this lake’s owner and the admins they pick. Bug reports include game details (version, browser, screen) unless you untick them. If the game hits an error, it sends a crash report with the same details and the error, nothing personal (Settings, Gameplay turns this off).'],
   ['home', 'Whose lake this is', 'Each lake is a copy of Reel Time that belongs to the Claude user who shared it with you. They are its admin; the game\u2019s maker can\u2019t see inside it.'],
   ['chat', 'Questions', 'About this lake: ask its owner. About the game itself: email meganbess+reeltime@mail.grokbot.com.'],
 ];
@@ -27,7 +27,7 @@ export function showPrivacy(game) {
       let ok = false;
       try { await navigator.clipboard.writeText(PRIVACY_URL); ok = true; } catch { /* clipboard blocked */ }
       if (!ok) { const r = document.createRange(); r.selectNodeContents(url); const s = getSelection(); s.removeAllRanges(); s.addRange(r); }
-      copy.lastChild.textContent = ok ? 'Copied' : 'Selected, press Ctrl+C';
+      copy.lastChild.textContent = ok ? 'Copied' : 'Selected: press Ctrl+C';
     } } }, icon('copy'), h('span', 'Copy link'));
     const open = h('a.btn', { href: PRIVACY_URL, target: '_blank', rel: 'noopener noreferrer' }, icon('link'), h('span', 'Read the full notice'));
     const ok = h('button.btn.primary', { on: { click: done } }, 'Close');

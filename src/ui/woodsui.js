@@ -52,7 +52,7 @@ Sheets.prototype.render_valleyjournal = function (c) {
   PAGES.forEach((p, i) => list.append(h(`button.vj-tab${p.id === sel ? '.on' : ''}${have[p.id] ? '' : '.missing'}`, { disabled: !have[p.id], on: { click: () => { this.state.journalPage = p.id; this.render(); } } }, have[p.id] ? `${i + 1}. ${p.title}` : `${i + 1}. ???`)));
   c.body.append(list);
   const P = PAGES.find((p) => p.id === sel);
-  c.body.append(P ? h('div.vj-page.paper', h('h3', P.title), h('p', P.text), h('small', '— E. Fenn')) : h('div.empty', 'No pages yet. Look for loose paper fluttering round the woods\' landmarks.'));
+  c.body.append(P ? h('div.vj-page.paper', h('h3', P.title), h('p', P.text), h('small', 'E. Fenn')) : h('div.empty', 'No pages yet. Look for loose paper fluttering round the woods\' landmarks.'));
 };
 
 Sheets.prototype.render_wagon = function (c) {

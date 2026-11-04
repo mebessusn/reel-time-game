@@ -58,7 +58,7 @@ export class RodHolders {
     // the rod in your hands goes into the holder: you take out the next one, ready to cast
     f.bobber = null; f.state = 'idle';
     g.audio.sfx('click');
-    g.ui.toast(`Rod propped up (${this.list.length}/${this.max}). Cast another! A bell rings when one bites.`, { icon: 'rod', ms: 3200 });
+    g.ui.toast(`Rod propped up (${this.list.length}/${this.max}). Cast another! A bell rings on a bite.`, { icon: 'rod', ms: 3200 });
   }
 
   remove(h) {

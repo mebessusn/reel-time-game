@@ -10,6 +10,7 @@ import { HALF, walkY, heightAt, trailDist, regionName, CLEARINGS, onDock } from 
 import { blocked } from '../world/colliders.js';
 import { ITEMS } from '../data/items.js';
 import { buildChest, coinMaterial, pearlMaterial } from '../entities/treasureModels.js';
+import { aan } from '../core/text.js';
 
 const FIND_CHANCE = 0.01; // per fish landed (v1.13.9: was 0.04, about a map every 25 fish)
 const DIG_R = 2.4; // how close to the X counts
@@ -87,7 +88,7 @@ export class Treasure {
   /** The map card: a sepia sketch of the land around the X. */
   open() {
     const m = this.map;
-    if (!m) { this.game.ui.toast('You have no treasure map right now. Keep fishing: maps turn up on hooks now and then.', { icon: 'map' }); return; }
+    if (!m) { this.game.ui.toast('No treasure map right now. Keep fishing: maps turn up on hooks now and then.', { icon: 'map' }); return; }
     const g = this.game;
     const span = 90; // blocks across the sketch
     const cx = m.x + m.ox, cz = m.z + m.oz;
@@ -148,7 +149,7 @@ export class Treasure {
 
   needShovel() {
     const g = this.game;
-    g.ui.toast(`You need a shovel to dig. Gus sells one at the shop (Away gear tab) for ${SHOVEL_PRICE.coins} coins.`, { icon: 'shop', ms: 4500 });
+    g.ui.toast(`You need a shovel to dig. Gus sells one (Away gear tab) for ${SHOVEL_PRICE.coins} coins.`, { icon: 'shop', ms: 4500 });
     g.audio.sfx('miss');
   }
 
@@ -234,7 +235,7 @@ export class Treasure {
     g.fx.ring(c.mesh.position.clone().add(new THREE.Vector3(0, 0.05, 0)), '#ffd84a', 36);
     g.engine.shake = Math.max(g.engine.shake || 0, 0.35);
     this.burst = new LootBurst(g, top, Math.min(42, 18 + Math.round(L.coins / 30)), Math.min(14, L.pearls + 2));
-    await g.reward('treasure', `t-${L.id}`, { coins: L.coins, pearls: L.pearls, xp: 120, item: L.item }, L.item ? `Buried treasure, with a ${ITEMS.find((i) => i.id === L.item)?.name}!` : 'Buried treasure');
+    await g.reward('treasure', `t-${L.id}`, { coins: L.coins, pearls: L.pearls, xp: 120, item: L.item }, L.item ? `Buried treasure, with ${aan(ITEMS.find((i) => i.id === L.item)?.name)} ${ITEMS.find((i) => i.id === L.item)?.name}!` : 'Buried treasure');
   }
 
   update(dt) {

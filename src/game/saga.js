@@ -17,6 +17,7 @@ import { placeModels } from '../world/polyfork.js';
 import { PLACES } from './places.js';
 import { h } from '../ui/dom.js';
 import { icon } from '../ui/icons.js';
+import { dayFraction, DAY_MS } from '../core/clock.js';
 
 const GEAR = { rod: 'rod_bamboo', lure: 'lure_classic', boat: 'boat_oak' };
 const LABEL = { cottage: 'a bigger home', lodge: 'the Lodge' };
@@ -46,6 +47,8 @@ export class Saga {
   rules(m = this.map()) { return SAGA_MAPS[m] || null; }
   mapName(m) { return m === 'valley' ? 'the Five Lakes' : SAGA_MAPS[m]?.name || m; }
   night() { return (this.game.engine.sky.night || 0) > 0.45; }
+  /** "in about 9 min": how long till it's dark enough for a night step (the sky's night passes 0.45 at about 0.777 of the day). */
+  darkIn() { const m = Math.ceil((((DARK_AT - dayFraction()) % 1 + 1) % 1) * DAY_MS / 60000); return m <= 1 ? 'any moment now' : `in about ${m} min`; }
   line(id) { return SAGA_BY_ID[id]; }
   lineOf(s) { return SAGA.find((L) => L.steps.includes(s)); }
   /** Where one of the stories' people is standing right now. */
@@ -119,8 +122,20 @@ export class Saga {
       for (const it of L.items || []) await g.reward('saga', `${L.id}-${it}`, { item: it }, L.name);
       if (L.decor) g.ext.change((x) => { x.home.owned = [...new Set([...(x.home.owned || []), L.decor])]; if (!x.home.decor.includes(L.decor)) x.home.decor.push(L.decor); });
       for (const M of maps()) M.onDone?.(g, L);
+      const nx = this.whatNext(L); if (nx) setTimeout(() => g.ui.toast(nx, { title: 'What next', icon: 'scroll', ms: 9000 }), 5500);
     } else g.ui.toast(`Next: ${L.steps[next].text}.`, { title: L.name, icon: 'scroll', ms: 4500 });
     this.show();
+  }
+  /** At the end of a line: who has the next quest for you, and how to get to them (a map's rules say how in `reach`). */
+  whatNext(L) {
+    const g = this.game, here = this.map();
+    const open = SAGA.filter((o) => o !== L && !this.state(o.id) && !maps().some((M) => M.lineOpen && !M.lineOpen(g, o)) && this.spot(o.giver));
+    const o = open.find((x) => this.spot(x.giver).map === here) || open[0];
+    if (!o) return null;
+    const m = this.spot(o.giver).map, who = `${o.giver.name}${o.giver.title ? ` (${o.giver.title})` : ''}`;
+    const lvl = o.level && g.profile.level < o.level ? ` from level ${o.level}` : '';
+    const how = m !== here && SAGA_MAPS[m]?.reach ? ` ${SAGA_MAPS[m].reach}` : '';
+    return `${who}${m !== here ? ` in ${this.mapName(m)}` : ''} has a quest for you${lvl}: ${o.name}.${how}`;
   }
   async finish(L, s) {
     const q = this.spot(s), base = s.t === 'talk' ? (s.who ? PEOPLE[s.who].name : s.name || s.npc) : L.name;
@@ -147,7 +162,7 @@ export class Saga {
       if (!q || q.map !== m || ['catch', 'check'].includes(s.t) || Math.hypot(q.x - me.x, q.z - me.z) > (q.r || 4)) continue;
       const gate = ask('gate', g, s); // (another map's step can wait: down the mine, underwater, for the lights)
       if (gate === 'skip') continue;
-      if (s.when === 'night' && !this.night()) { out.push({ id: `saga-wait-${L.id}`, label: 'Come back after dark', fn: () => g.ui.toast('Nothing to see yet. Come back after dark.', { icon: 'scroll' }) }); continue; }
+      if (s.when === 'night' && !this.night()) { out.push({ id: `saga-wait-${L.id}`, label: `Come back after dark (${this.darkIn()})`, fn: () => g.ui.toast(`Nothing to see yet. Come back after dark: it gets dark ${this.darkIn()}. Fish while you wait!`, { icon: 'scroll' }) }); continue; }
       if (gate) { out.push({ id: `saga-wait-${L.id}`, label: gate.label, fn: () => g.ui.toast(gate.text, { icon: 'scroll' }) }); continue; }
       const label = s.t === 'talk' ? `Talk to ${s.who ? PEOPLE[s.who].name : s.name || s.npc}` : s.label;
       out.push({ id: `saga-${L.id}`, label, color: 'gold', fn: () => this.act(L, s) });
@@ -243,7 +258,7 @@ export class Saga {
     if (!L && !o) { el.style.display = 'none'; return; }
     el.style.display = document.body.classList.contains('in-dialogue') ? 'none' : 'block';
     const s = L && this.stepOf(L), st = L && this.state(L.id), n = this.active().length, q = s && (['catch', 'check'].includes(s.t) ? s.pin : this.spot(s)), where = q && q.map !== this.map() ? ` (in ${this.mapName(q.map)})` : '';
-    el.textContent = o ? `New quest here: ${o.name}, from ${o.giver.name}` : C ? `${C.s.text}: ${Math.ceil(C.t)} s` : `${L.name}${n > 1 ? ` (${n})` : ''}: ${s.text}${s.n > 1 ? ` (${st.have}/${s.n})` : ''}${where}`;
+    el.textContent = o ? `New quest here: ${o.name}, from ${o.giver.name}` : C ? `${C.s.text}: ${Math.ceil(C.t)} s` : `${L.name}${n > 1 ? ` (${n})` : ''}: ${s.text}${s.n > 1 ? ` (${st.have}/${s.n})` : ''}${where}${s.when === 'night' && !this.night() ? ` (dark ${this.darkIn()})` : ''}`;
   }
   /** Tests: everything a step points at, on this map, that can't be stood on or found. */
   audit() {
@@ -253,4 +268,5 @@ export class Saga {
     return bad;
   }
 }
+const DARK_AT = 0.777;
 export { SAGA_BY_ID };

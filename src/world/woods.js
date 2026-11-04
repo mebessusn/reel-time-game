@@ -220,6 +220,7 @@ function trapperCabin() {
   for (let i = 0; i < 4; i++) s.add(box(0.12, 0.42, 0.06), wmat('#9aa8a0'), 1.9 + i * 0.4, 1.3, 3.6);
   const [cx, cz] = s.w(0, 0); addBox(cx - 2.9, cz - 2.9, cx + 2.9, cz + 2.9); // (yawed, so a generous square)
   s.solid(-3.4, -0.7, 0.6); s.solid(-1.8, 3.4, 0.35);
+  for (let x = 1.6; x <= 3.41; x += 0.45) s.solid(x, 3.6, 0.12); // (v1.17.12: the fish rack: its posts and the fish hanging off its rail)
   T.chimney = s.w(2.0, -1.2); T.y = s.y;
   return s.bake();
 }
@@ -431,6 +432,7 @@ function footbridge(B) {
   }
 
   addWalkway({ cx: B.x, cz: B.z, ux: Math.sin(yaw), uz: Math.cos(yaw), half: 2.9, w: 1.3, y: base + 0.35 }); // (walk height: the deck's middle)
+  for (let z = -2.4; z <= 2.41; z += 0.4) for (const x of [-0.78, 0.78]) s.solid(x, z, 0.1); // (v1.17.12: the rails: on and off at the ends, and no wading through it underneath)
   return s.bake();
 }
 
@@ -440,6 +442,7 @@ function beavers() {
   const d = new Site('dam', D.x, D.z, Math.atan2(D.ux, D.uz) + Math.PI / 2, WATER_Y - 0.4);
   for (let i = 0; i < 26; i++) d.add(cyl(0.07, 0.09, 1.2 + jit(i) * 1.4, 5), i % 3 ? sticks : sticksD, (jit(i, 2) - 0.5) * 3.4, 0.2 + jit(i, 5) * 0.55, (jit(i, 7) - 0.5) * 0.7, (jit(i, 9) - 0.5) * 0.6, (jit(i, 4) - 0.5) * 0.5, Math.PI / 2 + (jit(i, 3) - 0.5) * 0.5);
   d.add(box(3.2, 0.4, 0.9), mud, 0, 0.15, 0);
+  for (let x = -1.6; x <= 1.61; x += 0.4) d.solid(x, 0, 0.45, d.y + 0.85); // (v1.17.12: solid, but low enough to hop over)
   const l = new Site('beaver-lodge', L.x, L.z, 0.6, WATER_Y - 0.6);
   l.add(new THREE.SphereGeometry(1.7, 9, 6, 0, Math.PI * 2, 0, Math.PI / 2), mud, 0, 0, 0);
   for (let i = 0; i < 30; i++) { const a = jit(i) * Math.PI * 2, r = 0.6 + jit(i, 2) * 1.0; l.add(cyl(0.06, 0.08, 1 + jit(i, 3) * 0.9, 5), i % 2 ? sticks : sticksD, Math.cos(a) * r, 0.3 + (1.7 - r) * 0.7, Math.sin(a) * r, (jit(i, 4) - 0.5) * 1.6, a, (jit(i, 5) - 0.5) * 1.6); }

@@ -4,10 +4,20 @@ import { moveFocus, pressFocused, setKbNav } from '../ui/nav.js';
 // Keyboard: every action has a default key; Settings > Controls lets you rebind any of them (saved per
 // player). Movement keeps WASD/arrows as well as whatever you bind.
 //
-// Controller (standard mapping, e.g. Xbox/PlayStation): left stick moves/rows, right stick turns the
+// Controller (standard mapping, e.g. Xbox/PlayStation): left stick moves/rows/steers, right stick turns the
 // camera, A casts (hold) / hooks / reels, B cancels or closes, X uses what's nearby (E), Y opens the
-// creel, LB/RB angle the rod in a fight (the left stick works too), D-pad up/down zooms, Start opens
-// settings, Back/Select opens the map.
+// creel, LB hops (swims up), RB sprints (boosts, dives down), LB/RB angle the rod in a fight (the left stick
+// works too), LT gets on or off your ride, RT is the first action another map adds (the crew call at sea), L3 sprints too, R3 stows the rod,
+// D-pad up/down zooms, left the emotes, right the bait, Start pauses, Back/Select opens the map.
+// The buttons that stand for an action (PAD_KEYS) press its bound key, so every map's own use of it works.
+export const PAD_KEYS = { 4: 'jump', 5: 'sprint', 6: 'bike', 7: 'extra', 10: 'sprint', 11: 'rod' };
+export const PAD_HELP = [
+  ['Left stick', 'Move, row and steer'], ['Right stick', 'Camera'], ['A', 'Cast (hold), hook, reel; press in menus'],
+  ['B', 'Back, close, cancel a cast'], ['X', 'Use what’s nearby'], ['Y', 'Inventory'], ['LB', 'Hop, swim up; rod left in a fight'],
+  ['RB / L3', 'Sprint, boost, dive down; rod right in a fight'], ['LT', 'Get on or off your ride'], ['RT', () => ACTION_BY_ID[extraAction()]?.label || 'Nothing here'],
+  ['R3', 'Stow rod'], ['D-pad', 'Zoom (up, down), emotes (left), bait (right); move in menus'], ['LB / RB in menus', 'Switch tabs'],
+  ['Start', 'Pause menu'], ['Back / Select', 'Map'],
+];
 
 export const ACTIONS = [
   { id: 'up', label: 'Move forward', key: 'w' },
@@ -36,6 +46,9 @@ export const ACTIONS = [
   { id: 'social', label: 'Friends & party', key: 'o' },
 ];
 export const ACTION_BY_ID = Object.fromEntries(ACTIONS.map((a) => [a.id, a]));
+const BASE_ACTIONS = ACTIONS.length;
+/** The first action another map added (RT on a controller). */
+export const extraAction = () => ACTIONS[BASE_ACTIONS]?.id || null;
 /** Another map's own key actions ({ id, label, key }), handled by its keyDown hook. */
 export function addActions(list) { for (const a of list) { ACTIONS.push(a); ACTION_BY_ID[a.id] = a; } }
 
@@ -80,6 +93,7 @@ export class Gamepads {
   constructor(game) {
     this.game = game;
     this.prev = {};
+    this.keysDown = new Set(); // actions a button is holding down
     this.connected = false;
     window.addEventListener('gamepadconnected', (e) => { this.connected = true; game.ui?.toast(`Controller connected: ${e.gamepad.id.split('(')[0].trim().slice(0, 30)}`, { icon: 'smile' }); });
     window.addEventListener('gamepaddisconnected', () => { this.connected = !!this.pad(); });
@@ -89,7 +103,7 @@ export class Gamepads {
   update(dt) {
     const p = this.pad();
     const g = this.game;
-    if (!p) { if (this.active) { g.player.stick = null; this.active = false; } return; }
+    if (!p) { if (this.active) { g.player.stick = null; g.player.padDir = null; this.releaseKeys(); this.active = false; } return; }
     const b = (i) => !!p.buttons[i]?.pressed;
     const pressed = (i) => b(i) && !this.prev[i];
     const released = (i) => !b(i) && this.prev[i];
@@ -111,6 +125,7 @@ export class Gamepads {
     // Start: the pause menu
     if (pressed(9)) { if (g.menus?.open) g.menus.close(); else if (!modal && g.started) g.menus?.pause(); }
     if (modal) {
+      g.player.padDir = null; this.releaseKeys();
       // menus: d-pad or the left stick move focus, A presses
       const stick = Math.abs(lx) > 0.6 || Math.abs(ly) > 0.6 ? (Math.abs(lx) > Math.abs(ly) ? (lx > 0 ? 'right' : 'left') : (ly > 0 ? 'down' : 'up')) : null;
       const dpad = pressed(12) ? 'up' : pressed(13) ? 'down' : pressed(14) ? 'left' : pressed(15) ? 'right' : null;
@@ -129,8 +144,20 @@ export class Gamepads {
     }
     // movement (stick) and camera
     g.player.stick = (lx || ly) && g.fishing.state !== 'reeling' ? { x: lx, y: ly } : null;
-    g.engine.cam.yaw -= rx * dt * 2.4;
-    g.engine.cam.pitch = Math.min(1.25, Math.max(-1.25, g.engine.cam.pitch + ry * dt * 1.4));
+    const dirs = new Set();
+    if (g.fishing.state !== 'reeling') { if (ly < -0.35) dirs.add('up'); if (ly > 0.35) dirs.add('down'); if (lx < -0.35) dirs.add('left'); if (lx > 0.35) dirs.add('right'); }
+    g.player.padDir = dirs.size ? dirs : null;
+    // the buttons that stand for an action press its key (held while the button is)
+    const fight = g.fishing.state === 'reeling', want = new Set();
+    for (const [i, a] of Object.entries(PAD_KEYS)) {
+      const id = a === 'extra' ? extraAction() : a;
+      if (id && b(+i) && !(fight && (i === '4' || i === '5'))) want.add(id);
+    }
+    for (const id of this.keysDown) if (!want.has(id)) this.sendKey(id, false);
+    for (const id of want) if (!this.keysDown.has(id)) this.sendKey(id, true);
+    const cs = g.camFeel || { speed: 1, x: 1, y: 1 };
+    g.engine.cam.yaw -= rx * dt * 2.4 * cs.speed * cs.x;
+    g.engine.cam.pitch = Math.min(1.25, Math.max(-1.25, g.engine.cam.pitch + ry * dt * 1.4 * cs.speed * cs.y));
     // the rod in a fight: left stick or the bumpers
     if (g.fishing.state === 'reeling') {
       const aim = lx || (b(5) ? 1 : 0) - (b(4) ? 1 : 0);
@@ -149,4 +176,11 @@ export class Gamepads {
     this.save(p);
   }
   save(p) { p.buttons.forEach((x, i) => { this.prev[i] = x.pressed; }); }
+  /** Press or let go of an action's bound key, as if typed. */
+  sendKey(id, down) {
+    const k = this.game.keymap?.keyFor(id);
+    if (down) this.keysDown.add(id); else this.keysDown.delete(id);
+    if (k) window.dispatchEvent(new KeyboardEvent(down ? 'keydown' : 'keyup', { key: k === 'shift' ? 'Shift' : k }));
+  }
+  releaseKeys() { for (const id of [...this.keysDown]) this.sendKey(id, false); }
 }

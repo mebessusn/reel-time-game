@@ -665,6 +665,21 @@ export function softTrophyBoard() {
 
 // ---------------------------------------------------------------- Five Lakes Valley props
 // Jetties: plank walkways out over a lake (rect in world blocks, `along` = long axis, `dir` = toward the water).
+/** A jetty's posts, in its own (unturned) frame: every 2.5 m down both sides. */
+export function jettyPosts(j) {
+  const w = j.x1 - j.x0, d = j.z1 - j.z0, cx = (j.x0 + j.x1) / 2, cz = (j.z0 + j.z1) / 2, alongX = j.along === 'x', len = alongX ? w : d, out = [];
+  for (let t = 0.5; t < len; t += 2.5) for (const side of [-1, 1]) out.push([alongX ? j.x0 + t : cx + side * (w / 2 - 0.2), alongX ? cz + side * (d / 2 - 0.2) : j.z0 + t]);
+  return out;
+}
+
+/** Points along a jetty's end rail (its own frame), for its colliders. */
+export function jettyRail(j) {
+  const alongX = j.along === 'x', cx = (j.x0 + j.x1) / 2, cz = (j.z0 + j.z1) / 2, out = [];
+  const rx = alongX ? j.end.x - j.dir[0] * 0.15 : cx, rz = alongX ? cz : j.end.z - j.dir[1] * 0.15, half = (alongX ? j.z1 - j.z0 : j.x1 - j.x0) / 2;
+  for (let t = -half + 0.2; t <= half - 0.19; t += 0.4) out.push(alongX ? [rx, cz + t] : [cx + t, rz]);
+  return out;
+}
+
 export function softJetties(jetties, heightAt) {
   // (v1.9.2: a turned jetty is built straight in its own frame, then turned about its land end)
   const straight = jetties.filter((j) => !j.rot), group = new THREE.Group();
@@ -683,10 +698,7 @@ export function softJetties(jetties, heightAt) {
     const cx = (j.x0 + j.x1) / 2, cz = (j.z0 + j.z1) / 2;
     const alongX = j.along === 'x';
     k.box(w, 0.2, d, 0.05, { top: alongX ? planksAcross('#b8875a', 5, 7) : planksAlong('#b8875a', 5, 7), all: planksAlong('#94683e', 4, 3) }, cx, top - 0.1, cz);
-    const len = alongX ? w : d;
-    for (let t = 0.5; t < len; t += 2.5) for (const side of [-1, 1]) {
-      const px = alongX ? j.x0 + t : cx + side * (w / 2 - 0.2);
-      const pz = alongX ? cz + side * (d / 2 - 0.2) : j.z0 + t;
+    for (const [px, pz] of jettyPosts(j)) {
       const bed = Math.max(-2.5, Math.min(heightAt(Math.floor(px), Math.floor(pz)), 1)); // deep lakes: posts end out of sight below the surface
       const h = top + 0.25 - bed;
       k.box(0.26, h, 0.26, 0.11, { all: bark('#6a4a2a') }, px, bed + h / 2, pz);

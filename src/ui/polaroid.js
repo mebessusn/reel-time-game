@@ -59,7 +59,7 @@ export function showPrint(game, url, caption, ms = 3600) {
 /** Shoot, print, keep and show: everything the Field Guide camera does. */
 export function shoot(game, eye, at, line1, line2) {
   const photo = renderFrom(game, eye, at);
-  const url = print(photo, line1, line2), caption = `${line1} — ${line2}`;
+  const url = print(photo, line1, line2), caption = `${line1} · ${line2}`;
   album.add({ id: Date.now().toString(36), url, caption, ts: Date.now() });
   showPrint(game, url, caption);
   return url;

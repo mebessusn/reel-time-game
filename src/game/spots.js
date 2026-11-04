@@ -67,7 +67,7 @@ export function gateAt(x, z, zone = zoneAt(x, z)) {
 
 // Everything levels open, in order (Cozy Cove's zones, every spot, the lobster cage and level rewards).
 export const UNLOCKS = [
-  { level: BOAT_LEVEL, what: 'Rowboats', text: 'Rowboats: row out to the Cove\'s open water and feeding schools.' },
+  { level: BOAT_LEVEL, what: 'Rowboats', text: 'Rowboats: row out to the cove\'s open water and feeding schools.' },
   { level: DEEP_LEVEL, what: 'The Deep', text: 'The Deep in the middle of Cozy Cove.' },
   { level: 15, what: 'Lobster Cage', text: "Lobster cages at Gus's shop: they catch the big crayfish and crabs." },
   { level: RUINS_LEVEL, what: 'The Sunken Ruins', text: 'The Sunken Ruins under Cozy Cove, at night.' },

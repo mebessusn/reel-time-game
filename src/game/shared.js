@@ -26,8 +26,13 @@ export class Shared {
     return this;
   }
 
+  // ---- another device's copy: a friend's world can stand in for some collections. `mirror[name]` is their copy
+  // (reads and watchers see it instead of this device's), and `forward` sends writes for its names to them.
+  setMirror(name, all) { (this.mirror ||= {})[name] = all && typeof all === 'object' ? all : {}; this.localNotify(name); }
+  clearMirror() { const names = Object.keys(this.mirror || {}); this.mirror = null; this.forward = null; for (const n of names) this.localNotify(n); }
+
   // ---- local fallback
-  localAll(name) { return safe.get(`rt_shared_${name}`, {}); }
+  localAll(name) { return this.mirror?.[name] || safe.get(`rt_shared_${name}`, {}); }
   localNotify(name) { if (!name) return; const docs = Object.entries(this.localAll(name)).map(([id, d]) => ({ id, ...d })); this.watchers.get(name)?.forEach((fn) => fn(docs)); }
 
   /** Live list of docs in a collection: fn([{ id, ...data }]). Returns an unsubscribe. */
@@ -63,6 +68,7 @@ export class Shared {
 
   async set(name, id, data) {
     const docId = String(id).replace(/[^\w-]/g, '_').slice(0, 120);
+    if (this.forward?.names.has(name)) return this.forward.send({ op: 'set', name, id: docId, data });
     if (this.db) {
       try { await this.db.collection(name).doc(docId).set(data); return true; } catch { return false; }
     }
@@ -76,6 +82,7 @@ export class Shared {
 
   async update(name, id, patch) {
     const docId = String(id).replace(/[^\w-]/g, '_').slice(0, 120);
+    if (this.forward?.names.has(name)) return this.forward.send({ op: 'update', name, id: docId, data: patch });
     if (this.db) {
       try { await this.db.collection(name).doc(docId).update(patch); return true; } catch { return false; }
     }

@@ -4,7 +4,7 @@ import { Emitter } from '../core/events.js';
 
 const PEER_TIMEOUT = 9000;
 
-class BaseNet extends Emitter {
+export class BaseNet extends Emitter {
   constructor() {
     super();
     this.peers = new Map();

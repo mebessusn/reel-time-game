@@ -6,6 +6,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { surfaceY as heightAt, WATER_Y, FALLS_C } from './terrain.js'; // the smooth ground everywhere here
+import { addCircle } from './colliders.js';
 
 const NOISE = /* glsl */ `
   float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
@@ -221,6 +222,7 @@ function buildBoulders(list) {
   for (const [p, yHint, size, seed] of list) {
     const ground = heightAt(p.x, p.z);
     const y = yHint <= WATER_Y + 0.2 ? yHint : ground + size * 0.2; // bedded into the slope
+    addCircle(p.x, p.z, size * 0.95, { top: y + size * 0.7 }); // (v1.17.12: solid; you can still hop up onto them)
     const geo = new THREE.IcosahedronGeometry(size, 1); // already non-indexed
     const pos = geo.attributes.position;
     const r = (k) => { const v = Math.sin(seed * 12.9898 + k * 78.233) * 43758.5453; return v - Math.floor(v); };

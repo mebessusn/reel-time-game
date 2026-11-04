@@ -18,6 +18,7 @@ import { traitWords } from '../game/traits.js';
 import { EVENT_INFO } from '../game/worldevents.js';
 import { SEASONS } from '../data/seasons.js';
 import { regionName } from '../world/terrain.js';
+import { aan } from '../core/text.js';
 
 export const EMOTES = [
   { id: 'wave', label: 'Wave', sym: '\u{1F44B}', icon: 'hand' },
@@ -649,7 +650,7 @@ export class UI {
       if (!sp) return;
       color = p.variant === 'diamond' ? '#7ae0f0' : p.variant === 'gold' ? '#f2c040' : TIER_INFO[tierOf(sp)].color;
       const vname = p.variant === 'normal' ? '' : `${p.variant === 'diamond' ? 'Diamond' : 'Gold'} `;
-      text = [h('b', entry.name), ` landed a ${vname}${sp.name} (${lb(p.weight)})${p.record ? ' — lake record!' : ''}`];
+      text = [h('b', entry.name), ` landed ${aan((vname) + (sp.name))} ${vname}${sp.name} (${lb(p.weight)})${p.record ? ', a lake record!' : ''}`];
     } else if (entry.kind === 'achievement') {
       color = ACH_TIER_COLOR.gold;
       text = [h('b', entry.name), ' earned a gold achievement'];
@@ -720,7 +721,7 @@ export class UI {
         extras.push(h('button.btn.ghost.small.selfie-btn', { title: 'Keep it and take a selfie with it', on: { click: () => close('selfie') } }, icon('camera'), 'Selfie'));
         extras.push(h('button.btn.ghost.small.card-btn', { title: 'Make a shareable catch card', on: { click: () => openCatchCard(this.game, c) } }, icon('star'), 'Catch card'));
       } else actions.push(h('button.btn.green.large', { on: { click: () => close('keep') } }, `Sold for ${fmt(summary.autoSold || 0)} coins (backpack full)`));
-      const card = h('div.reveal.paper', { role: 'dialog', 'aria-label': `You caught a ${vname}${sp.name}` },
+      const card = h('div.reveal.paper', { role: 'dialog', 'aria-label': `You caught ${aan((vname) + (sp.name))} ${vname}${sp.name}` },
         h('div.banner', { style: { background: bannerColor }, 'data-mark': ({ common: '●', uncommon: '▲', rare: '◆', epic: '★', legendary: '♛', trophy: '⚑', mythic: '✦' })[tierOf(sp)] }, `${vname}${tier.name}`),
         pic,
         h('h3', `${vname}${sp.name}`),

@@ -4,6 +4,7 @@ import { SPECIES, SPECIES_BY_ID, TIER_INFO } from '../data/species.js';
 import { BAITS } from '../data/bait.js';
 import { weekId } from '../core/clock.js';
 import { hashString, mulberry32 } from '../core/rng.js';
+import { aan } from '../core/text.js';
 
 /** Pure: the Fish of the Week (the same for everyone). */
 export function fishOfWeek(week = weekId()) {
@@ -59,7 +60,7 @@ export class Social {
     net.on('ev:tandemDone', ({ data }) => {
       if (!data || data.to !== g.save.userId) return;
       const sp = SPECIES_BY_ID[data.speciesId];
-      g.chat?.system(`You helped land a ${sp?.name || 'big fish'}! Teamwork bonus.`, 'catch', { popup: true });
+      g.chat?.system(`You helped land ${aan(sp?.name || 'big fish')} ${sp?.name || 'big fish'}! Teamwork bonus.`, 'catch', { popup: true });
       g.reward('tandem', `t${data.key}`, { coins: 40, xp: 30 }, 'Tandem catch');
       g.ext.bump('tandems');
     });
@@ -143,7 +144,7 @@ export class Social {
         const tank = d.home.tank.length >= cap ? d.home.tank.slice(1) : d.home.tank;
         d.home.tank = [...tank, { id: `gift-${m.id}`, speciesId: sp.id, variant, weight, from: String(m.fromName || '').slice(0, 20) }];
       });
-      g.ui.toast(`${m.fromName || 'A friend'} sent you a ${variant !== 'normal' ? `${variant} ` : ''}${sp.name}! It's swimming in your cabin's aquarium.`, { icon: 'home', ms: 5000 });
+      g.ui.toast(`${m.fromName || 'A friend'} sent you ${aan((variant !== 'normal' ? `${variant} ` : '') + (sp.name))} ${variant !== 'normal' ? `${variant} ` : ''}${sp.name}! It's swimming in your cabin's aquarium.`, { icon: 'home', ms: 5000 });
       g.pushMeta();
     }
     g.ext.bump('giftsReceived');
@@ -159,7 +160,7 @@ export class Social {
     const cm = g.community;
     if (cm) lines.push(cm.festival ? `FESTIVAL: Lanterns are up! The lake filled the meter with ${cm.total} catches this week.` : `METER WATCH: ${cm.total} of 300 catches toward this week's Lantern Festival.`);
     const ev = g.events?.current;
-    if (ev) lines.push(`SKY: ${ev === 'meteor' ? 'Shooting stars tonight, anglers report bolder rare fish.' : ev === 'fog' ? 'Fog over the cove and a glow over the old ruins.' : 'Fish are pouring through the cove this morning.'}`);
+    if (ev) lines.push(`SKY: ${ev === 'meteor' ? 'Shooting stars tonight: anglers report bolder rare fish.' : ev === 'fog' ? 'Fog over the cove and a glow over the old ruins.' : 'Fish are pouring through the cove this morning.'}`);
     const wins = g.ext.d.derby.wins || 0;
     lines.push(wins ? `DERBIES: You have won ${wins} derb${wins > 1 ? 'ies' : 'y'}. The next one starts on the hour.` : 'DERBIES: A 10-minute derby starts every hour on the hour. Heaviest fish wins.');
     if (g.living) lines.push(`SEASON: ${g.living.season[0].toUpperCase()}${g.living.season.slice(1)} on the lake.`);

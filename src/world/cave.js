@@ -4,7 +4,7 @@
 // and dims the light while you're inside so the glowing fish stand out.
 import * as THREE from 'three';
 import { LAKES, RIVERS, WATER_Y, surfaceY, CAVE_DOME, caveDomeE, caveRoofY, caveTunnelAt, setWalkOverlay } from './terrain.js';
-import { addSolidFn } from './colliders.js';
+import { addSolidFn, addCircle } from './colliders.js';
 import { mulberry32 } from '../core/rng.js';
 
 const C = LAKES.cave;
@@ -229,7 +229,7 @@ export function buildCave(scene) {
   // seam reads as tumbled rock, not a saw-tooth edge
   {
     const rr = mulberry32(9090), parts = [];
-    const put = (x, z, size) => {
+    const put = (x, z, size, solid = true) => {
       const y = surfaceY(x, z);
       if (y < WATER_Y + 0.3) return;
       const geo = new THREE.IcosahedronGeometry(1, 2), p = geo.attributes.position, v = new THREE.Vector3();
@@ -237,6 +237,7 @@ export function buildCave(scene) {
       for (let i = 0; i < p.count; i++) { v.fromBufferAttribute(p, i); const n = 1 + (vnoise(v.x * 1.6 + seed, v.z * 1.6 + v.y, 31) - 0.5) * 0.45; p.setXYZ(i, v.x * sx * n * size, v.y * sy * n * size, v.z * sz * n * size); }
       geo.rotateY(rr() * 6.28);
       geo.translate(x, y - size * sy * 0.3, z);
+      if (solid && size >= 0.25) addCircle(x, z, size * (sx + sz) * 0.45, { top: y + Math.min(size * sy * 0.6, 0.9) }); // (v1.17.12: solid, low enough to hop onto)
       parts.push(paintObsidian(geo.toNonIndexed()));
     };
     // walk the seam: around the dome and down both sides of the tunnel, a step at a time
@@ -259,7 +260,7 @@ export function buildCave(scene) {
       const tn = caveTunnelAt(ex, ez);
       if (tn.t > 0.2 && tn.t < 1.4 && tn.d < TUNNEL_R + 1.5) continue; // leave the tunnel mouth open
       if (rr() < 0.15) continue;
-      put(ex + (rr() - 0.5) * 1.2, ez + (rr() - 0.5) * 1.2, 0.9 + Math.pow(rr(), 1.5) * 1.5);
+      put(ex + (rr() - 0.5) * 1.2, ez + (rr() - 0.5) * 1.2, 0.9 + Math.pow(rr(), 1.5) * 1.5, false); // (these lean on the dome, which is solid itself; colliders here walled off pockets of the skirt you couldn't get back out of)
     }
     if (parts.length) {
       const rocks = new THREE.Mesh(mergeAll(parts), rockMat);

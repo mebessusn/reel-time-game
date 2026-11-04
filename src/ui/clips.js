@@ -1,6 +1,8 @@
 // Tutorial clips: short silent demos that pop up the first time you meet something, in place of a block of text. There are no
 // video files (nothing binary goes in the artifact): each clip is a little scene the game plays live on its own small stage, with
-// your own character in it. The world dims with a spotlight on the thing to watch, and the clip loops till you close it.
+// your own character in it. Only clips marked `auto` play by themselves (the things that are hard or easy to miss), as a small card in
+// the corner that leaves the game running: click it to watch it big, Esc closes it, and it goes after two loops. Played from the
+// How to tab, a clip plays big: the world dims with a spotlight on the thing to watch, and the clip loops till you close it.
 // The style guide is docs/tutorial-clips.md. A clip is { title, watch (CSS selector to spotlight), secs, meter?, captions, build(stage) }:
 // build sets the scene and returns update(t, dt), with t running 0..secs; captions are [fromSecond, text].
 import * as THREE from 'three';
@@ -40,7 +42,7 @@ export class Clips {
   watch() {
     const g = this.game; if (performance.now() < this.rest || !this.calm()) return;
     for (const [id, C] of Object.entries(CLIPS)) {
-      if (!C.when || this.seen(id)) continue;
+      if (!C.auto || !C.when || this.seen(id)) continue;
       let hit = false; try { hit = C.when(g); } catch { hit = false; }
       if (!hit) continue;
       if (C.fresh && (g.profile.catchCount || 0) > 0) { g.ext.change((d) => { d.clips = { ...(d.clips || {}), [id]: 1 }; }); continue; }
@@ -49,33 +51,44 @@ export class Clips {
   }
   get all() { return CLIPS; }
   seen(id) { return !!this.game.ext.d.clips?.[id]; }
-  /** Play one: the first time it's met, or again on request (`force`). */
-  play(id, { force = false } = {}) {
+  /** Play one: the first time it's met (small, in the corner), or again on request (`force`, big). */
+  play(id, { force = false, big = force } = {}) {
     const C = CLIPS[id]; if (!C || this.open || (!force && (this.seen(id) || this.skip))) return false;
     const g = this.game, canvas = h('canvas.clip-canvas', { width: W, height: H }), stage = new Stage(canvas, g), cap = h('div.clip-cap'), fill = h('div.clip-time-fill'), frost = h('div.clip-frost');
     const meter = C.meter ? h('div.clip-meter', h('span', C.meter.icon), h('div.clip-meter-bar', h('div.clip-meter-fill'))) : null;
-    const close = h('button.btn.gold.small.clip-close', { on: { click: () => this.close() } }, 'Got it');
-    const card = h('div.clip-card.plank', h('div.clip-title', C.title), h('div.clip-view', canvas, frost, meter), h('div.clip-time', fill), cap, close);
-    const shade = h('div.clip-shade');
-    const spot = C.watch && [...document.querySelectorAll(C.watch)].find((e) => e.offsetParent !== null);
-    const ring = spot ? h('div.clip-spot') : null;
-    if (spot) { const place = () => { const r = spot.getBoundingClientRect(), q = g.ui.root.getBoundingClientRect(); Object.assign(ring.style, { left: `${r.left - q.left - 7}px`, top: `${r.top - q.top - 7}px`, width: `${r.width + 14}px`, height: `${r.height + 14}px` }); }; place(); shade.classList.add('with-spot'); }
-    g.ui.root.append(shade, ...(ring ? [ring] : []), card);
+    const close = h('button.btn.gold.small.clip-close', { on: { click: (e) => { e.stopPropagation(); this.close(); } } }, 'Got it');
+    const hint = h('div.clip-hint', 'Click to watch big');
+    const card = h('div.clip-card.plank', h('div.clip-title', C.title), h('div.clip-view', canvas, frost, meter), h('div.clip-time', fill), cap, hint, close);
+    let shade = null, ring = null, size = null;
+    // big: the world dims (with a ring round the thing to watch) and the keys are the clip's; small: nothing but Esc is taken
+    const grow = () => {
+      size = 'big'; card.classList.remove('mini'); g.ui.root.classList.remove('clip-mini-on'); hint.remove();
+      shade = h('div.clip-shade');
+      const spot = C.watch && [...document.querySelectorAll(C.watch)].find((e) => e.offsetParent !== null);
+      if (spot) { ring = h('div.clip-spot'); const r = spot.getBoundingClientRect(), q = g.ui.root.getBoundingClientRect(); Object.assign(ring.style, { left: `${r.left - q.left - 7}px`, top: `${r.top - q.top - 7}px`, width: `${r.width + 14}px`, height: `${r.height + 14}px` }); shade.classList.add('with-spot'); }
+      card.before(shade, ...(ring ? [ring] : []));
+    };
+    g.ui.root.append(card);
+    if (big) grow(); else { size = 'mini'; card.classList.add('mini'); g.ui.root.classList.add('clip-mini-on'); /* (a tip bubble waits underneath) */ card.addEventListener('click', () => { if (size === 'mini') grow(); }); }
     const update = C.build(stage);
-    const keys = (e) => { e.stopImmediatePropagation(); if (e.type === 'keydown' && ['Escape', 'Enter', ' ', 'e', 'E'].includes(e.key)) { e.preventDefault(); this.close(); } };
+    const keys = (e) => {
+      if (size === 'mini') { if (e.type === 'keydown' && e.key === 'Escape') { e.stopImmediatePropagation(); e.preventDefault(); this.close(); } return; }
+      e.stopImmediatePropagation(); if (e.type === 'keydown' && ['Escape', 'Enter', ' ', 'e', 'E'].includes(e.key)) { e.preventDefault(); this.close(); }
+    };
     addEventListener('keydown', keys, true);
     const fit = (t) => { let text = ''; for (const [at, s] of C.captions) if (t >= at) text = s; if (cap.textContent !== text) cap.textContent = text; };
     const t0 = performance.now(); let last = t0, run = true; void CLIP_GROUPS;
     const tick = () => {
       if (!run) return;
       const now = performance.now(), dt = Math.min(0.05, (now - last) / 1000), t = ((now - t0) / 1000) % C.secs; last = now;
+      if (size === 'mini' && now - t0 > C.secs * 2000) { this.close(); return; } // (twice round, then out of the way)
       const st = update(t, dt) || {}; stage.draw();
       fill.style.width = `${(t / C.secs) * 100}%`; fit(t);
       if (meter) { const f = meter.querySelector('.clip-meter-fill'); f.style.width = `${st.meter ?? 100}%`; meter.classList.toggle('cold', st.meter < (C.meter.coldAt || 0)); meter.classList.toggle('hot', st.meter > (C.meter.hotAt || 101)); }
       frost.style.opacity = st.frost || 0;
       requestAnimationFrame(tick);
     };
-    this.open = { id, stop: () => { run = false; removeEventListener('keydown', keys, true); stage.dispose(); for (const el of [shade, ring, card]) el?.remove(); } };
+    this.open = { id, get big() { return size === 'big'; }, stop: () => { run = false; removeEventListener('keydown', keys, true); stage.dispose(); for (const el of [shade, ring, card]) el?.remove(); g.ui.root.classList.remove('clip-mini-on'); } };
     g.ext.change((d) => { d.clips = { ...(d.clips || {}), [id]: 1 }; });
     tick();
     return true;

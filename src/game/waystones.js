@@ -3,6 +3,7 @@
 import * as THREE from 'three';
 import { heightAt, groundY, JETTIES, scAround } from '../world/terrain.js';
 import { WAYSTONE_MATS, WAYSTONE_NODES } from '../data/waystoneMesh.js';
+import { addCircle } from '../world/colliders.js';
 
 function nearJetty(lake) {
   const j = JETTIES.find((x) => x.lake === lake);
@@ -84,6 +85,7 @@ export class Waystones {
       const j = JETTIES.find((x) => x.lake === w.id);
       if (j) m.rotation.y = Math.atan2(w.at.x - j.end.x, w.at.z - j.end.z);
       m.name = `waystone-${w.id}`;
+      { const sz = new THREE.Box3().setFromObject(m).getSize(new THREE.Vector3()); addCircle(w.at.x, w.at.z, Math.max(sz.x, sz.z) * 0.42); } // (v1.17.12: solid)
       game.engine.scene.add(m);
       this.meshes.set(w.id, m);
     }

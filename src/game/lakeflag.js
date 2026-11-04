@@ -163,7 +163,7 @@ export class LakeFlag {
   read(lake) {
     const g = this.game, f = this.flags[lake], s = f.shown, L = FLAG_LAKES[lake];
     g.audio.sfx('page');
-    if (!s) { g.ui.toast(`The flag on this cairn belongs to whoever lands the heaviest fish at ${L.name} this week. Nobody has claimed it yet!`, { icon: 'flag', ms: 6000 }); return; }
+    if (!s) { g.ui.toast(`The heaviest fish at ${L.name} this week wins this cairn's flag. Nobody has claimed it yet!`, { icon: 'flag', ms: 6000 }); return; }
     const land = s.cc !== 'XX' ? COUNTRY_BY_CODE[s.cc]?.name : null;
     const sp = SPECIES_BY_ID[s.sp]?.name || 'fish';
     const mine = s.id === this.docId(lake);

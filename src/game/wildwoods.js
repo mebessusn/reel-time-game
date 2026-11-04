@@ -21,7 +21,7 @@ import { WOODS, buildWoods, cullWoods, campable, RING_GLOW, wmat, bakeLoose, hol
 import { POOLS, CREEKS, HALF, groundY, surfaceY, isWater, trailDist, heightAt, grassAt, WATER_Y, zoneAt, CLEARINGS, LAKES, regionName } from '../world/terrain.js';
 import { shoot } from '../ui/polaroid.js';
 import { placeModels } from '../world/polyfork.js';
-import { addCircle } from '../world/colliders.js';
+import { addCircle, addSolidFn } from '../world/colliders.js';
 import { PLACES } from './places.js';
 import { FORAGE, PANTRY, STEW, GUIDE, GUIDE_SETS, GUIDE_ALL, PAGES, PAGES_ALL, SECRET_WATERS, RANGER_TASKS, WAGON_HOURS, WAGON_DISCOUNT, RHEA, HOLLIS, WREN, RHEA_LOOK, HOLLIS_LOOK, WREN_LOOK } from '../data/woodsdata.js';
 import { defaultAvatar } from '../data/avatarOptions.js';
@@ -265,6 +265,13 @@ export class WildWoods {
     const lamp = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.28, 0.2), wmat('#ffd27a', { emissive: '#c88a2a' })); lamp.position.set(-1.8, 1.8, 0.9); w.add(lamp);
     this.wagon = bakeLoose(w); // one mesh per material
     scene.add(this.wagon);
+    // v1.17.12: solid wherever it has stopped (its body, wheels and shafts, in its own frame)
+    addSolidFn((x, z, r) => {
+      const W = this.wagon; if (!W?.visible) return false;
+      const dx = x - W.position.x, dz = z - W.position.z, c = Math.cos(W.rotation.y), sn = Math.sin(W.rotation.y);
+      const lx = dx * c - dz * sn, lz = dx * sn + dz * c;
+      return lx > -1.8 - r && lx < 2.9 + r && lz > -1.1 - r && lz < 1.2 + r;
+    });
   }
   /** Where the wagon is right now (the same for everyone): a new stop every few hours, in a shuffled order. */
   wagonStop(t = Date.now()) {
@@ -331,7 +338,7 @@ export class WildWoods {
       b.visible = true;
     } else for (const b of this.beavers) b.visible = false;
     // v1.17.1: a camp you've left (30 m away or more, or gone to another map) for five minutes is packed up for you
-    { const mine = this.d.camp; if (mine) { const away = Math.hypot(mine.x - p.x, mine.z - p.z) > 30; this.campAway = away ? (this.campAway || 0) + dt : 0; if (this.campAway > 300) { this.campAway = 0; this.packCamp(); this.game.ui.toast('You were gone a while, so your camp got packed up. Pitch a new one any time.', { icon: 'leaf', ms: 5000 }); } } }
+    { const mine = this.d.camp; if (mine) { const away = Math.hypot(mine.x - p.x, mine.z - p.z) > 30; this.campAway = away ? (this.campAway || 0) + dt : 0; if (this.campAway > 300) { this.campAway = 0; this.packCamp(); this.game.ui.toast('You were gone a while, so your camp was packed up. Pitch a new one any time.', { icon: 'leaf', ms: 5000 }); } } }
     for (const c of this.camps.values()) for (const [k, f] of (c.group.userData.flames || []).entries()) f.scale.set(1, 0.85 + Math.sin(t * (9 + k * 4) + k) * 0.15 + Math.sin(t * 23) * 0.05, 1);
     { const night = g.engine.sky.night || 0; for (const c of this.camps.values()) { const gl = c.group.userData.glow; if (gl) gl.material.opacity = 0.06 + night * 0.26; } } // (v1.14.10: the fire's glow shows after dark)
     // v1.14.10: embers and a wisp of smoke off camps you're near
@@ -581,7 +588,7 @@ export class WildWoods {
     const g = this.game, r = await g.save.buy('rod_fly');
     if (!r.ok) { g.ui.toast(r.reason || 'Not enough yet.'); return; }
     g.audio.sfx('purchase');
-    g.ui.toast('The Willowbend Fly Rod is yours. Equip it in your tackle (T) and try a creek.', { icon: 'star', ms: 5000 });
+    g.ui.toast('The Willowbend Fly Rod is yours. Equip it in your tackle box (G) and try a creek.', { icon: 'star', ms: 5000 });
     g.pushMeta?.();
   }
 
@@ -657,7 +664,7 @@ export class WildWoods {
     const yaw = pl.yaw, x = pl.pos.x + Math.sin(yaw) * 2.2, z = pl.pos.z + Math.cos(yaw) * 2.2;
     this.change((w) => { w.camp = { x: Math.round(x * 10) / 10, z: Math.round(z * 10) / 10, yaw: Math.round(yaw * 100) / 100 }; w.camps = (w.camps || 0) + 1; });
     g.audio.sfx('place');
-    g.ui.toast('Camp pitched. Friends can see it and roast fish at your fire. Pack it up any time (E at the tent).', { icon: 'flame', ms: 4200 });
+    g.ui.toast('Camp pitched! Friends can roast fish at your fire. Press E at the tent to pack up.', { icon: 'flame', ms: 4200 });
     g.pushMeta?.();
     this.renderCamps();
   }
@@ -706,7 +713,7 @@ export class WildWoods {
     const gate = WOODS.gate, crossing = (P, r = 3.2) => Math.hypot(p.x - P.x, p.z - P.z) < r;
     if (!b?.riding) { if (this.lap) this.endLap(false); return; }
     if (!this.lap) {
-      if (crossing(gate) && !this.atGate) { this.lap = { t0: performance.now(), next: 0 }; g.audio.sfx('toggle'); g.ui.toast('Lap started! Through all six arches in order, then back through the gate.', { icon: 'bike', ms: 2600 }); this.lapHud(); }
+      if (crossing(gate) && !this.atGate) { this.lap = { t0: performance.now(), next: 0 }; g.audio.sfx('toggle'); g.ui.toast('Lap started! Through all six arches in order, then back to the gate.', { icon: 'bike', ms: 2600 }); this.lapHud(); }
       this.atGate = crossing(gate, 4.5);
       return;
     }

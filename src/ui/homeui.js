@@ -505,7 +505,7 @@ export class HomeUI {
     this.hint = h('div.home-hint');
     this.prompt = h('div.context-btn.home-prompt.hidden');
     this.view = h('div.home-ui',
-      h('div.home-head.plank', icon('home'), h('b', mine ? 'Your cottage' : `${this.owner.name}'s cottage`),
+      h('div.home-head.plank', icon('home'), h('b', mine ? 'Your cabin' : `${this.owner.name}'s cabin`),
         mine ? h('div.home-modes', this.modeBtns) : null,
         h('button.btn.small', { 'aria-label': 'Leave', on: { click: () => this.close() } }, icon('exit'), 'Leave')),
       this.hint, this.prompt, this.camBar(), (this.placeBox = h('div.home-place.plank', { hidden: true })),

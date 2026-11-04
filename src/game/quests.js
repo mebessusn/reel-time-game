@@ -5,6 +5,7 @@ import { BAITS } from '../data/bait.js';
 import { mulberry32 } from '../core/rng.js';
 import { DEEP_C, zoneAt } from '../world/terrain.js';
 import { DEEP_LEVEL, RUINS_LEVEL, BOAT_LEVEL } from './rules.js';
+import { aan } from '../core/text.js';
 
 export const DAILY_BONUS = { coins: 100, xp: 80 };
 export const today = (now = Date.now()) => Math.floor(now / 86400000);
@@ -28,8 +29,8 @@ export function dailyQuests(day, level = 1) {
   const lakes = Object.entries(LAKE_ZONES).filter(([k]) => (k !== 'cave' || level >= BOAT_LEVEL));
   const makers = [
     () => { const [id, L] = pick(lakes); const n = 3 + Math.floor(r() * 3); return { kind: 'catchAt', lake: id, n, text: `Catch ${n} fish at ${L.name}`, reward: { coins: 30 + n * 10, xp: 30 + n * 10 } }; },
-    () => { const s = pick(easy); return { kind: 'species', speciesId: s.id, n: 1, text: `Catch a ${s.name}`, reward: { coins: s.tier === 'uncommon' ? 80 : 50, xp: 60 } }; },
-    () => { const s = pick(easy.filter((x) => x.weight[1] >= 2)); const w = Math.round((s.weight[0] + (s.weight[1] - s.weight[0]) * 0.55) * 10) / 10; return { kind: 'weight', speciesId: s.id, min: w, n: 1, text: `Land a ${s.name} over ${w} lb`, reward: { coins: 90, xp: 70 } }; },
+    () => { const s = pick(easy); return { kind: 'species', speciesId: s.id, n: 1, text: `Catch ${aan(s.name)} ${s.name}`, reward: { coins: s.tier === 'uncommon' ? 80 : 50, xp: 60 } }; },
+    () => { const s = pick(easy.filter((x) => x.weight[1] >= 2)); const w = Math.round((s.weight[0] + (s.weight[1] - s.weight[0]) * 0.55) * 10) / 10; return { kind: 'weight', speciesId: s.id, min: w, n: 1, text: `Land ${aan(s.name)} ${s.name} over ${w} lb`, reward: { coins: 90, xp: 70 } }; },
     () => { const ph = pick(['dawn', 'dusk', 'night']); return { kind: 'phase', phase: ph, n: 2, text: `Catch 2 fish at ${ph}`, reward: { coins: 70, xp: 60 } }; },
     () => ({ kind: 'release', n: 3, text: 'Release 3 fish back into the water', reward: { coins: 40, xp: 50 } }),
     () => { const b = pick(Object.keys(BAITS).filter((k) => k !== 'glowgrub')); return { kind: 'bait', bait: b, n: 2, text: `Catch 2 fish using ${BAITS[b].name}`, reward: { coins: 60, xp: 50 } }; },
@@ -307,20 +308,20 @@ export class Quests {
           g.ext.change((d) => { d.quests.npc.accepted = true; });
           g.audio.sfx('page');
           g.npcs.say(r.npc, 'Thank you!', performance.now());
-          g.ui.toast(`Request accepted: bring a ${sp.name} to ${q.name}.${where ? ` Try ${where}.` : ''} It's on your Notice board (B).`, { icon: 'scroll', ms: 5500 });
+          g.ui.toast(`Request accepted: bring ${aan(sp.name)} ${sp.name} to ${q.name}.${where ? ` Try ${where}.` : ''} It's on your notice board (B).`, { icon: 'scroll', ms: 5500 });
         } },
         { label: 'Not right now' },
       ] });
       return;
     }
     if (have.length) {
-      await D.open({ npc: r.npc, title: 'Your request', text: `Is that a ${sp.name} in your backpack? Oh, may I have it?`, choices: [
+      await D.open({ npc: r.npc, title: 'Your request', text: `Is that ${aan(sp.name)} ${sp.name} in your backpack? Oh, may I have it?`, choices: [
         { label: `Give the ${sp.name}`, primary: true, fn: () => this.give(have.sort((a, b) => a.weight - b.weight)[0]) },
         { label: 'Not yet' },
       ] });
       return;
     }
-    await D.open({ npc: r.npc, title: 'Your request', text: `Any luck finding a ${sp.name}?${where ? ` They say they bite around ${where}.` : ''} No rush!`, choices: [{ label: 'I\'m on it!', primary: true }] });
+    await D.open({ npc: r.npc, title: 'Your request', text: `Any luck finding ${aan(sp.name)} ${sp.name}?${where ? ` They say they bite around ${where}.` : ''} No rush!`, choices: [{ label: 'I\'m on it!', primary: true }] });
   }
 
   async give(c) {

@@ -10,7 +10,7 @@ export const TIPS = [
   'Each lake has its own fish. Frostpine Lake is cold and deep, Lilymarsh is warm and shallow.',
   'Willow River links Cozy Cove and Lilymarsh. Row under the footbridge to get there.',
   'Every lake has a jetty where you can launch your boat (level 3 and up).',
-  'Gus buys fish at the cabin. Diamond fish trade for Pearls.',
+  'Gus buys fish at the cabin. Diamond fish trade for pearls.',
   'Press T to stow your rod on your back while you explore.',
   'Press P for the selfie camera. Snap a polaroid with your latest catch!',
   'The Lake Legends board by the dock shows the three best fish ever caught. Press E there to see who caught them.',

@@ -68,7 +68,7 @@ export class Engine {
     this.renderer.setSize(w, h, false);
     this.camera.aspect = w / h;
     // Narrow side panels get a wider vertical FOV so the lake still fits.
-    this.camera.fov = w / h < 0.8 ? 58 : 48;
+    this.camera.fov = (w / h < 0.8 ? 58 : 48) + (this.fovAdd || 0); // (fovAdd: Settings > Graphics > Field of view)
     this.camera.updateProjectionMatrix();
     this.width = w; this.height = h;
     this.overlay?.resize?.(w, h);

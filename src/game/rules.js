@@ -424,7 +424,7 @@ export function canTrade(c) {
 
 export function tradeCatch(p, id) {
   const f = findCatch(p, id);
-  if (!f || !canTrade(f.c)) return { ok: false, reason: 'This fish cannot be traded for Pearls.' };
+  if (!f || !canTrade(f.c)) return { ok: false, reason: 'This fish cannot be traded for pearls.' };
   removeCatch(p, id);
   const pearls = tradePearls(f.c.speciesId, f.c.variant);
   p.pearls += pearls;
@@ -471,7 +471,7 @@ export function buyItem(p, itemId) {
   if (item.kind === 'boat' && p.level < BOAT_LEVEL) return { ok: false, reason: `Boats unlock at level ${BOAT_LEVEL}.` };
   if (item.level && p.level < item.level) return { ok: false, reason: `Unlocks at level ${item.level}.` };
   if (item.price.coins && p.coins < item.price.coins) return { ok: false, reason: 'Not enough coins.' };
-  if (item.price.pearls && p.pearls < item.price.pearls) return { ok: false, reason: 'Not enough Pearls.' };
+  if (item.price.pearls && p.pearls < item.price.pearls) return { ok: false, reason: 'Not enough pearls.' };
   p.coins -= item.price.coins || 0;
   p.pearls -= item.price.pearls || 0;
   p.owned.push(itemId);

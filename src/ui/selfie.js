@@ -6,6 +6,7 @@ import { icon } from './icons.js';
 import { fishThumb } from './thumbs.js';
 import { SPECIES_BY_ID, ZONES } from '../data/species.js';
 import { regionName } from '../world/terrain.js';
+import { aan } from '../core/text.js';
 
 const ALBUM_KEY = 'rt_album';
 const ALBUM_MAX = 12;
@@ -292,7 +293,7 @@ export class Selfie {
     const where = (f && ZONES[f.zone]?.name) || regionName(g.player.pos.x, g.player.pos.z) || 'Cozy Cove';
     const when = new Date();
     const who = prof.name;
-    const line1 = sp ? `${who} & a ${v}${sp.name}` : crew.length ? `${who} & friends at ${where}` : `${who} at ${where}`;
+    const line1 = sp ? `${who} & ${aan((v) + (sp.name))} ${v}${sp.name}` : crew.length ? `${who} & friends at ${where}` : `${who} at ${where}`;
     const withLine = crew.length ? `with ${crew.slice(0, 6).join(', ').replace(/, ([^,]*)$/, ' & $1')}${crew.length > 6 ? ` +${crew.length - 6}` : ''}` : '';
     const line2 = [sp ? lb(f.weight) : null, sp ? where : null, when.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })].filter(Boolean).join('  ·  ');
     c.fillStyle = '#2e3a6a';
@@ -307,7 +308,7 @@ export class Selfie {
     c.font = '16px Silkscreen, monospace';
     c.fillStyle = '#b8a888';
     c.fillText('REEL TIME', W / 2, H - 22);
-    const shot = { id: Date.now().toString(36), url: pc.toDataURL('image/jpeg', 0.86), caption: `${line1}${withLine ? ` ${withLine}` : ''} — ${line2}`, ts: Date.now() };
+    const shot = { id: Date.now().toString(36), url: pc.toDataURL('image/jpeg', 0.86), caption: `${line1}${withLine ? ` ${withLine}` : ''} · ${line2}`, ts: Date.now() };
     if (this.group && crew.length) { g.netEvent('groupSelfie', { x: g.player.pos.x, z: g.player.pos.z, snap: 1 }); g.ext?.bump('groupSelfies'); }
     const kept = album.add(shot);
     this.showCard(shot, kept);

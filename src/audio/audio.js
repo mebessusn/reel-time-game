@@ -56,7 +56,7 @@ export class AudioEngine {
   }
 
   makeNoise(kind) {
-    const ctx = this.ctx, len = ctx.sampleRate * 2;
+    const ctx = this.ctx, len = ctx.sampleRate * 7; // (v1.17.10: 7 s, so the water and breeze beds don't audibly cycle)
     const buf = ctx.createBuffer(1, len, ctx.sampleRate);
     const d = buf.getChannelData(0);
     let b0 = 0, b1 = 0, b2 = 0, last = 0;

@@ -139,7 +139,7 @@ export function openCreator(root, { avatar, owned = [], name = '', firstRun = fa
       return optBtn(cfg[key] === o.id, locked ? [icon('lock'), ` ${o.name}`] : o.name, thumb({ ...cfg, [key]: o.id, ...(key === 'hair' ? { hat: 'none' } : {}) }, REGION[key] || 'full'),
         { disabled: locked, title: locked ? 'Unlock in the shop or with an achievement' : o.name, on: { click: () => set(key, o.id) } });
     }));
-    const swatches = (key, colors) => h('div.swatches', colors.map((c, i) => h(`button${(cfg[key] ?? 0) === i ? '.on' : ''}`, { style: { background: c === 'default' ? 'repeating-linear-gradient(45deg,#e8dcc0 0 5px,#b8a888 5px 10px)' : c }, title: c === 'default' ? 'Original colour' : '', 'aria-label': c === 'default' ? 'Original colour' : `Color ${i + 1}`, on: { click: () => set(key, i) } })));
+    const swatches = (key, colors) => h('div.swatches', colors.map((c, i) => h(`button${(cfg[key] ?? 0) === i ? '.on' : ''}`, { style: { background: c === 'default' ? 'repeating-linear-gradient(45deg,#e8dcc0 0 5px,#b8a888 5px 10px)' : c }, title: c === 'default' ? 'Original color' : '', 'aria-label': c === 'default' ? 'Original color' : `Color ${i + 1}`, on: { click: () => set(key, i) } })));
 
     function renderOpts() {
       thumbJobs = [];
