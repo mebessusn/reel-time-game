@@ -4,6 +4,7 @@ import './ui/style.css';
 import { Game } from './game/game.js';
 import { LocalSave, safe } from './save/local.js';
 import { LocalNet, RoomNet, NullNet } from './net/net.js';
+import { STANDALONE } from './standalone.js';
 import { showSplash, showLoading } from './ui/login.js';
 import { randomAvatar } from './data/avatarOptions.js';
 import { bindKeyboardMode } from './ui/nav.js';
@@ -25,6 +26,8 @@ function guestName() {
 
 async function boot() {
   const hideLoading = showLoading(uiRoot);
+  // (fetched now, while the valley builds: awaiting it later must not leave a gap with the engine running and no game)
+  const onlineP = !window.claude?.use && STANDALONE.online ? STANDALONE.online().catch(() => null) : null;
   await new Promise((r) => requestAnimationFrame(() => setTimeout(r, 0))); // let the loading screen paint first
   hideLoading.step(0.2, 'Building the valley');
   await new Promise((r) => setTimeout(r, 30));
@@ -52,10 +55,13 @@ async function boot() {
     try { const me = await window.claude?.use?.('user').then((u) => u?.me()); if (me?.name) name = me.name.split(' ')[0].slice(0, 20); } catch { /* not in an artifact */ }
     await save.init(name);
   }
+  game.save = save; // (before anything else is awaited: tests and hooks read game.profile as soon as it exists)
 
   // Inside a Claude artifact, the artifact's room; otherwise tabs on this device (dev server, tests).
   // Interim transports. Multiplayer will move to the dedicated server: add it here as one more BaseNet (src/net/net.js).
-  const makeNet = () => (window.claude?.use ? new RoomNet() : new LocalNet(params.get('room') || 'main'));
+  // v1.17.13: the standalone game's dedicated server, when there's one to talk to (?server=wss://... or VITE_SERVER_URL)
+  const online = await onlineP, serverAt = online?.serverUrl();
+  const makeNet = () => (serverAt ? new online.ServerNet(serverAt) : window.claude?.use ? new RoomNet() : new LocalNet(params.get('room') || 'main'));
   let net = makeNet();
   game.makeNet = makeNet; // v1.13.7: switching back to multiplayer opens a fresh connection
   game.save = save;

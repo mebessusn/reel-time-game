@@ -6,7 +6,7 @@ import { groundY, dryAt } from '../world/terrain.js';
 import { blocked } from '../world/colliders.js';
 
 // His name, shown on his nameplate, his chat lines and the Pet button. The owner sets this one line.
-export const PIG_NAME = 'Wigger Pig';
+export const PIG_NAME = 'Pig';
 const HOME = { x: -20, z: 72 }; // open meadow on the trail north-west of the cove
 const ROAM_R = 7;
 const LINES = ['...', 'Oink.', 'Fresh cut. Don\'t touch the hair.', 'I\'m not a regular pig.', 'Same barber as Sundae. Don\'t tell him.',

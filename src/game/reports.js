@@ -43,7 +43,7 @@ function crashed(m, stack) {
     const list = crashBatch.splice(0);
     if (!list.length) return;
     crashSent++;
-    const r = { type: 'crash', cat: 'crash', kindLabel: 'Automatic crash report', from: g.profile?.name || 'an angler', title: list[0].m, at: Date.now(),
+    const r = { type: 'crash', cat: 'crash', kindLabel: 'Automatic crash report', from: 'an angler', /* (v1.17.13: no name: the Privacy card promises nothing personal) */ title: list[0].m, at: Date.now(),
       text: list.map((e) => (e.stack ? `${e.m}\n${e.stack}` : e.m)).join('\n\n'), diag: diagnostics(g) };
     sendBug(g, r).catch(() => {});
   }, 4000);
