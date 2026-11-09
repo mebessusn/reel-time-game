@@ -942,13 +942,14 @@ export class UI {
   closeAll() {
     if (this.game.dialogue?.active) { this.game.dialogue.close(null); return; }
     if (this.game.x?.first('closeModal')) return; // another map's own window
+    if (this.game.finale?.closeLetter()) return;
     if (this.game.selfie?.active) { this.game.selfie.stop(); return; }
     if (viewerOpen()) { closeViewer(); return; }
     if (this.wheel) this.toggleWheel();
     this.sheets.close();
   }
 
-  get modalOpen() { return !!(this.game.dialogue?.active || document.querySelector('.ow-modal') || this.game.menus?.open || document.querySelector('.menu-screen, .title-screen') || this.game.home?.active || this.game.selfie?.active || viewerOpen() || this.sheets.current || this.wheel || this.revealCard?.isConnected || document.querySelector('.creator') || document.querySelector('.splash')); }
+  get modalOpen() { return !!(this.game.dialogue?.active || document.querySelector('.ow-modal, .finale-letter') || this.game.menus?.open || document.querySelector('.menu-screen, .title-screen') || this.game.home?.active || this.game.selfie?.active || viewerOpen() || this.sheets.current || this.wheel || this.revealCard?.isConnected || document.querySelector('.creator') || document.querySelector('.splash')); }
 }
 
 export { avatarThumb };

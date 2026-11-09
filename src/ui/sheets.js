@@ -704,7 +704,7 @@ export class Sheets {
   render_board(c) {
     const g = this.game;
     c.title.textContent = 'Notice Board';
-    for (const [id, label] of [['requests', 'Requests'], ['gazette', 'Gazette'], ['mail', `Mail${g.social?.inbox().length ? ` (${g.social.inbox().length})` : ''}`], ['lake', 'Lake goal'], ['derby', 'Derby'], ['leaders', 'Leaderboard']]) this.tab(c, id, label, 'board');
+    for (const [id, label] of [['requests', 'Requests'], ['gazette', 'Gazette'], ['mail', `Mail${(g.social?.inbox().length || 0) + (g.finale?.d && !g.finale.d.read ? 1 : 0) ? ` (${(g.social?.inbox().length || 0) + (g.finale?.d && !g.finale.d.read ? 1 : 0)})` : ''}`], ['lake', 'Lake goal'], ['derby', 'Derby'], ['leaders', 'Leaderboard']]) this.tab(c, id, label, 'board');
     const b = this.state.board;
     if (b === 'requests') { this.renderRequests(c); return; }
     if (b === 'lake') { this.renderLake(c); return; }
@@ -795,7 +795,9 @@ export class Sheets {
     const g = this.game, s = g.social;
     const inbox = s.inbox();
     c.body.append(h('div.section-title', 'Your mailbox'));
-    if (!inbox.length) c.body.append(h('div.empty', 'No mail right now.'));
+    const fin = g.finale?.d; // v1.17.15 the townsfolk's letter, kept here to read again
+    if (fin) c.body.append(h(`div.list-row${fin.read ? '' : '.me'}`, icon('scroll'), h('div.grow', h('div.ttl', 'A letter from the townsfolk'), h('div.meta', fin.read ? 'Kept, to read again' : 'Unread')), h('button.btn.gold.small', { on: { click: () => { this.close(); g.finale.openLetter(); } } }, 'Read')));
+    if (!inbox.length && !fin) c.body.append(h('div.empty', 'No mail right now.'));
     c.body.append(h('div.row-list', inbox.map((m) => h('div.list-row', icon(m.kind === 'fish' ? 'fish' : 'worm'),
       h('div.grow', h('div.ttl', `From ${m.fromName || 'a friend'}: ${m.kind === 'fish' ? `${aan(SPECIES_BY_ID[m.speciesId]?.name || 'fish')} ${SPECIES_BY_ID[m.speciesId]?.name || 'fish'}` : `${m.n} ${BAITS[m.bait]?.name || 'bait'}`}`), m.note ? h('div.meta', `“${m.note}”`) : null),
       h('button.btn.green.small', { on: { click: () => this.act(() => s.open(m)) } }, 'Open')))));

@@ -865,4 +865,4 @@ export function softChairs(list) {
 }
 
 // shared with dressing.js (per-lake set dressing)
-export { Kit, noisy, planksAlong, planksAcross, bark, stone };
+export { Kit, noisy, planksAlong, planksAcross, bark, stone, paintText }; // (v1.17.15: and the home plot's wings and Lakehouse, homeplot.js)

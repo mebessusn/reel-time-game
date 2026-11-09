@@ -17,6 +17,7 @@ export const PAD_HELP = [
   ['RB / L3', 'Sprint, boost, dive down; rod right in a fight'], ['LT', 'Get on or off your ride'], ['RT', () => ACTION_BY_ID[extraAction()]?.label || 'Nothing here'],
   ['R3', 'Stow rod'], ['D-pad', 'Zoom (up, down), emotes (left), bait (right); move in menus'], ['LB / RB in menus', 'Switch tabs'],
   ['Start', 'Pause menu'], ['Back / Select', 'Map'],
+  ['In the camera', 'Sticks frame the shot, LT/RT zoom, LB/RB filter, X hide, Y free camera, A snap'],
 ];
 
 export const ACTIONS = [
@@ -113,6 +114,11 @@ export class Gamepads {
     if (!this.active) return;
     const modal = g.ui.modalOpen || g.home?.active;
     if (any) setKbNav(true);
+    // v1.17.15 photo mode has its own buttons (sticks frame the shot, A snaps, B backs out); its printed photo is an ordinary menu
+    if (g.selfie?.active && !g.selfie.card && !g.menus?.open && !g.dialogue?.active) {
+      g.player.stick = null; g.player.padDir = null; this.releaseKeys();
+      g.selfie.pad(p, { pressed, b, lx, ly, rx, ry }, dt); this.save(p); return;
+    }
     // B: back out of anything (the pause menu first, then panels)
     if (pressed(1)) {
       if (g.menus?.open) g.menus.close();

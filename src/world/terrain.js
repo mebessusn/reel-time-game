@@ -132,6 +132,15 @@ export const CLEARINGS = {
   ranger: { x: -143, z: -38, r: 8, h: 3 },
   aframe: { x: -124, z: -80, r: 8, h: 3 },
 };
+// v1.17.15: the Lakehouse's plot on Cozy Cove's west shore (src/world/homeplot.js builds the house, its deck and its
+// dock for players who own one). The ground stays as it is; trees, reeds, lily pads and grass keep off the plot so the
+// house never stands in anything.
+export const HOME_PLOT = { x0: -43, x1: -24, z0: -0.5, z1: 8.5 };
+export function inHomePlot(x, z, pad = 0) { const P = HOME_PLOT; return x > P.x0 - pad && x < P.x1 + pad && z > P.z0 - pad && z < P.z1 + pad; }
+// ...and the cabin's yard up the hill, where its den and great room go
+export const HOME_YARD = { x0: 5.5, x1: 17, z0: 56.5, z1: 68.5 };
+/** Is (x, z) within `pad` of the cabin's yard or the Lakehouse's plot? (scatter that lands there is left out, the rest stays put) */
+export function homeYardAt(x, z, pad = 0) { const Y = HOME_YARD; return inHomePlot(x, z, pad) || (x > Y.x0 - pad && x < Y.x1 + pad && z > Y.z0 - pad && z < Y.z1 + pad); }
 // Hills and mountains: [x, z, radius, height]
 const BUMPS0 = [[-88, -102, 40, 12], [-110, -62, 32, 9], [-50, -108, 24, 7], [104, -104, 30, 9], [110, 20, 24, 5], [-110, 16, 26, 5],
   [40, -92, 18, 3], [-30, 98, 20, 3], [-100, -24, 18, 4], [100, 40, 16, 4], [62, -18, 14, 3], [-62, 22, 16, 3], [22, -82, 12, 3],

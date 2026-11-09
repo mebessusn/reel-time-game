@@ -12,6 +12,7 @@ import { AudioEngine } from '../audio/audio.js';
 import { zoneAt, WATER_Y, FALLS_C, groundY, launchPointNear, nearestLanding, regionName, COVE_LAUNCH, boatable } from '../world/terrain.js';
 import { blocked } from '../world/colliders.js';
 import { Saga } from './saga.js';
+import { Finale } from './finale.js';
 import { Clips } from '../ui/clips.js';
 import { CABIN, BOARD, RACK, TROPHY, HOME_DOOR } from '../world/props.js';
 import { Trophies } from './trophies.js';
@@ -45,6 +46,7 @@ import { spotAt, unlocksAt, nextUnlock, LEVEL_REWARDS, SPOTS, LAKE_LEVELS, LAKE_
 import { Cookout } from './cookout.js';
 import { AwayGear } from './awaygear.js';
 import { HomeUI } from '../ui/homeui.js';
+import { HomePlot, LAKEHOUSE } from '../world/homeplot.js';
 import { homeLayout } from './home.js';
 import { Traits } from './traits.js';
 import { Quests } from './quests.js';
@@ -149,6 +151,7 @@ export class Game {
     this.woods = new WildWoods(this);
     this.clips = new Clips(this);
     this.saga = new Saga(this);
+    this.finale = new Finale(this); // v1.17.15 the ending moment
     this.events = new WorldEvents(this);
     this.realWeather = new RealWeather(this);
     this.pads = new Gamepads(this);
@@ -169,6 +172,7 @@ export class Game {
     bindUiSounds(this.audio);
     this.ui.setVisible(false);
     this.home = new HomeUI(this);
+    this.homePlot = new HomePlot(this); // v1.17.15: the cabin's outside grows with your home, and the Lakehouse
     this.tutorial = new Tutorial(this);
     this.rodStowed = true; // v1.14.4: the rod rides on your back until you cast (T or the rod button takes it out)
     this.ui.setRodButton?.(true);
@@ -251,6 +255,7 @@ export class Game {
     this.quests.init();
     this.collections.placeStatues();
     this.waystones.refresh();
+    this.homePlot.init();
     this.community.init();
     this.lakeFlag.init();
     this.bottles.init();
@@ -261,6 +266,7 @@ export class Game {
     this.bikes.init();
     this.buzz.init();
     this.x.each('init');
+    this.finale.init();
     this.testerGift();
     this.ui.captions.on = !!p.settings.captions;
     this.audio.onSound = (id) => this.ui.captions.show(id);
@@ -302,6 +308,8 @@ export class Game {
       this.chat.system('You are fishing solo: this copy of the game can\'t reach the shared lake. To play together, ask whoever shared it to invite you by email from Claude\'s Share menu, then open it signed in to Claude.', 'info');
       this.ui.toast('Fishing solo. Open Play with friends to see how to join others.', { icon: 'users', ms: 6000 });
     });
+    // v1.17.16: a transport's word to the player (the dedicated server: offline, reconnecting, back online)
+    on('notice', (e) => { this.chat.system(e.text, 'info'); if (e.toast) this.ui.toast(e.text, { icon: 'users', ms: 5000 }); });
     await net.connect(this.meta());
   }
   /** Switch modes, live: leave the shared lake (every other angler vanishes) or join it again. */
@@ -465,6 +473,7 @@ export class Game {
       }
       if ((k === 'enter' || k === '/') && !e.repeat && !document.querySelector('.splash, .creator')) { e.preventDefault(); this.chat.focus(k === '/' ? '/' : ''); return; }
       const act = this.keymap?.action(k);
+      if (this.selfie.active && this.selfie.onKey(k, act, e)) return; // v1.17.15 photo mode's own keys (free camera, filters, hide)
       if (act === 'jump' && this.selfie.active) { e.preventDefault(); if (!e.repeat && !this.selfie.card) this.selfie.snap(); return; }
       if (this.home.active) { if (act === 'home' && !e.repeat) this.home.close(); return; }
       // panel hotkeys work while a panel is open: the same key closes it, another key switches to that panel
@@ -503,6 +512,7 @@ export class Game {
       this.player.keys.delete(k);
       const act = this.keymap?.action(k);
       if (act === 'sprint') this.player.sprint = false;
+      if (this.selfie.active) this.selfie.onKeyUp(k, act);
       this.x?.each('keyUp', act);
       if (act === 'cast') this.primaryUp();
     });
@@ -577,6 +587,7 @@ export class Game {
     this.cookout.update(dt);
     this.woods.update(dt, t);
     this.saga.update(dt, t);
+    this.finale.update(dt);
 
     const now = performance.now();
     let pose = this.fishing.poseName();
@@ -804,6 +815,7 @@ export class Game {
     const ws = this.waystones.near();
     if (ws && this.player.mode === 'shore') acts.push({ id: `ws-${ws.id}`, label: 'Waystone: travel', color: 'blue', at: ws.at ? { x: ws.at.x, z: ws.at.z, y: heightAt(ws.at.x, ws.at.z), h: 2.6 } : null, fn: () => { this.ui.sheets.state.mapTab = 'travel'; this.ui.sheets.open('map'); } });
     if (this.player.mode === 'shore' && Math.hypot(this.player.pos.x - HOME_DOOR.x, this.player.pos.z - HOME_DOOR.z) < 2.2) acts.push({ id: 'home-door', label: 'Go inside', color: 'green', at: { x: HOME_DOOR.x, z: HOME_DOOR.z + 0.9, y: heightAt(HOME_DOOR.x, HOME_DOOR.z), h: 2.4 }, fn: () => this.home.enter() });
+    if (this.homePlot.nearLakeDoor(this.player)) acts.push({ id: 'lake-door', label: 'Go inside', color: 'green', at: { x: LAKEHOUSE.door.x, z: LAKEHOUSE.door.z, y: LAKEHOUSE.porchY, h: 2.4 }, fn: () => this.home.enter('lake') });
     if (this.nearCabin()) acts.push({ id: 'shop', label: "Gus's shop", color: 'gold', at: { x: CABIN.door.x, z: CABIN.door.z, y: heightAt(CABIN.door.x, CABIN.door.z), h: 2.6 }, fn: () => this.ui.sheets.open('shop') });
     acts.push(...this.bikes.contextActions());
     acts.push(...this.buzz.contextActions());

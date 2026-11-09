@@ -1572,3 +1572,26 @@ body.in-home .plate-layer, body.in-home .feed, body.in-home .chat-peek, body.in-
 .clip-hint { font-size: 12px; opacity: 0.7; margin-bottom: 6px; }
 @keyframes clip-in { from { opacity: 0; transform: translateX(20px); } to { opacity: 1; transform: none; } }
 .clip-mini-on .tip-bubble { visibility: hidden; }
+
+/* ---------- v1.17.15 photo mode: camera and filter rows, hide everything, and the townsfolk's letter ---------- */
+.selfie-bar { max-height: calc(100vh - 60px); overflow-y: auto; }
+.selfie-filters .btn, .selfie-cams .btn { padding: 4px 9px; }
+.selfie-hide { display: inline-flex; gap: 5px; align-items: center; }
+.selfie.clean .selfie-bar, .selfie.clean .selfie-tip, .selfie.clean .selfie-frame { display: none; }
+.selfie.clean .selfie-drag { cursor: default; }
+body.photo-clean #ui > *:not(.selfie):not(.polaroid-card):not(.selfie-flash) { visibility: hidden !important; }
+body.photo-clean .nameplate, body.photo-clean .labels { visibility: hidden !important; }
+.finale-letter { position: absolute; inset: 0; z-index: 400; display: grid; place-items: center; background: rgba(8, 20, 17, 0.62); padding: 12px; pointer-events: auto; animation: fl-in 0.5s ease-out; }
+.fl-paper { position: relative; width: min(520px, calc(100vw - 32px)); max-height: calc(100vh - 40px); overflow-y: auto; padding: 22px 28px 16px; border-radius: 6px; background: #f7f0de; color: #3a2e22;
+  background-image: repeating-linear-gradient(transparent 0 25px, rgba(90, 120, 160, 0.16) 25px 26px); background-attachment: local; box-shadow: 0 18px 40px rgba(0, 0, 0, 0.5); transform: rotate(-1deg);
+  font: 600 15px/26px Nunito, "Segoe Print", "Comic Sans MS", cursive; }
+.fl-paper p { margin: 0 0 10px; }
+.fl-to { font-weight: 800; font-size: 18px; }
+.fl-paper > p:nth-of-type(-n+2) { margin-right: 48px; }
+.fl-note { padding-left: 10px; border-left: 3px solid rgba(233, 185, 73, 0.7); }
+.fl-sign { margin-top: 14px !important; font-style: italic; }
+.fl-names { font-weight: 800; color: #2e3a6a; }
+.fl-stamp { position: absolute; top: 14px; right: 16px; width: 44px; height: 52px; display: grid; place-items: center; border: 2px dashed #c8584a; border-radius: 3px; color: #c8584a; transform: rotate(6deg); }
+.fl-stamp .ico { width: 24px; height: 24px; }
+.fl-actions { display: flex; justify-content: flex-end; margin-top: 8px; }
+@keyframes fl-in { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: none; } }

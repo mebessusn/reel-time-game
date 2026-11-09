@@ -13,7 +13,7 @@ export const CHANGE_KINDS = {
 
 export const CHANGELOG = [
   {
-    version: 'v1.17.14', date: 'Nov 1 2026', title: 'The Five Lakes',
+    version: 'v1.17.16', date: 'Nov 1 2026', title: 'The Five Lakes',
     changes: { new: ['The public edition of Reel Time: the Five Lakes, your cabin, the woods and everyone on your lake.'] },
   },
 ];

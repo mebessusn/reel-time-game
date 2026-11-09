@@ -79,7 +79,7 @@ export class Menus {
         modeRow, modeNote,
         item(first ? 'Start fishing' : 'Continue', 'play', go, '.main'),
         item('Play with friends', 'users', () => this.friends({ fromTitle: true })),
-        item('Customize angler', 'shirt', async () => { g.prepareMenus?.(); el.classList.add('away'); await g.openCreator(); el.classList.remove('away'); menu.querySelector('.title-item.main')?.focus(); }),
+        item('Customise angler', 'shirt', async () => { g.prepareMenus?.(); el.classList.add('away'); await g.openCreator(); el.classList.remove('away'); menu.querySelector('.title-item.main')?.focus(); }),
         item('Settings', 'gear', () => { g.prepareMenus?.(); g.ui.sheets.open('settings'); }),
         item('Changelog', 'history', () => this.changelog({ fromTitle: true })),
         item('Credits', 'star', () => this.credits()),

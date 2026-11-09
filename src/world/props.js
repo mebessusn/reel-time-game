@@ -12,7 +12,7 @@ import { buildDressing } from './dressing.js';
 import { buildLeviathan, leviathanAt } from './frostbones.js';
 import { buildLakePOIs } from './lakepois.js';
 import { splitByTiles } from '../render/cull.js';
-import { dryAt, heightAt, surfaceY, isWater, groundY, DOCK, FALLS_C, DEEP_C, LIGHTHOUSE_ISLE, HALF, LAKE_R, scatterSpots, WATER_Y, JETTIES, BRIDGES, bridgeYAlong, sc, scAround, LAKES, CLEARINGS, TRAILS, trailDist, valleyWater, riverSd, zoneAt, gentleAt, onBridge } from './terrain.js';
+import { dryAt, heightAt, surfaceY, isWater, groundY, DOCK, FALLS_C, DEEP_C, LIGHTHOUSE_ISLE, HALF, LAKE_R, scatterSpots, WATER_Y, JETTIES, BRIDGES, bridgeYAlong, sc, scAround, LAKES, CLEARINGS, TRAILS, trailDist, valleyWater, riverSd, zoneAt, gentleAt, onBridge, homeYardAt } from './terrain.js';
 import { buildGus as buildGusModel } from '../entities/gus.js';
 import { softCabin, softDock, softTrees, softPlants, softLilyPads, softLanterns, softCampfire, softBoard, softRack, softLighthouse, softRuins, softTrophyBoard, TROPHY_SLOTS, softJetties, jettyPosts, jettyRail, softBridge, softHut, softSignposts } from './softprops.js';
 import { buildFish, shellModel } from '../entities/fish.js';
@@ -131,6 +131,7 @@ function buildTrees() {
     return true;
   });
   for (let i = spots.length - 1; i >= 0; i--) if (Math.abs(spots[i].x + 107) < 15 && spots[i].z > -116 && spots[i].z < -60) spots.splice(i, 1);
+  for (let i = spots.length - 1; i >= 0; i--) if (homeYardAt(spots[i].x + 0.5, spots[i].z + 0.5, 2.6)) spots.splice(i, 1); // (v1.17.15: room for your home's den, great room and Lakehouse, homeplot.js)
   for (const s of spots) addCircle(s.x + 0.5, s.z + 0.5, 0.45); // trunks
   addCircle(-16.5, 46.5, 0.45);
   addCircle(16.5, 44.5, 0.45);
@@ -148,7 +149,7 @@ function buildPlants() {
     const w = valleyWater(x, z);
     return (w.zone === 'marsh' && w.sd > -5 && w.sd < 5) || (w.zone === 'pond' && w.sd > -2 && w.sd < 2.5) || (riverSd(x, z) > -0.5 && riverSd(x, z) < 1.5);
   };
-  const reeds = scatterSpots(7, 240, reedy);
+  const reeds = scatterSpots(7, 240, reedy).filter((s) => !homeYardAt(s.x + 0.5, s.z + 0.5, 1)); // (v1.17.15: none through the Lakehouse's dock)
   const flowers = scatterSpots(31, 280, (x, z) => { const h = heightAt(x, z); return h >= 2 && h < 7 && Math.hypot(x - CABIN.door.x, z - CABIN.door.z) > 3.5 && trailDist(x + 0.5, z + 0.5) > 1.2; });
   // the fallen log on the sand between the bridge and Pip's spot (moved toward the shore in v1.9.3, and again in v1.17.1)
   const LOG = { x: -31.8, z: 30.15 }; // (v1.17.1: out on the sand toward the shore, where Megan marked it)
@@ -162,7 +163,7 @@ function buildLilyPads(extra = []) {
     if (x < -12 && Math.abs(x) < 56 && Math.abs(z) < 56) return true;
     const zn = zoneAt(x, z);
     return zn === 'marsh' || zn === 'pond';
-  });
+  }).filter((s) => !homeYardAt(s.x + 0.5, s.z + 0.5, 1.2)); // (v1.17.15: none under the Lakehouse's dock)
   return softLilyPads(spots.concat(extra), WATER_Y);
 }
 

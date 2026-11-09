@@ -3,9 +3,10 @@ import { h, clear, fmt, lb } from './dom.js';
 import { icon, iconURL } from './icons.js';
 import { fishThumb } from './thumbs.js';
 import * as THREE from 'three';
-import { HomeScene, DECOR, WALLS, FLOORS, MOVABLE, WALL_ITEMS, ROOM, clampWall, clampFloor, homeLayout, sanitizeLayout, HOME_TIERS, tierNeeds } from '../game/home.js';
+import { HomeScene, DECOR, WALLS, FLOORS, MOVABLE, WALL_ITEMS, ROOM, clampWall, clampFloor, homeLayout, sanitizeLayout, HOME_TIERS, tierNeeds, homeTier } from '../game/home.js';
 import { buildAvatar, animateAvatar } from '../entities/avatar2.js';
 import { HOME_DOOR } from '../world/props.js';
+import { LAKEHOUSE } from '../world/homeplot.js';
 import { SPECIES_BY_ID } from '../data/species.js';
 
 const priceEl = (price) => h('span.price', h('img', { src: iconURL(price.coins ? 'coin' : 'pearl') }), fmt(price.coins || price.pearls));
@@ -19,8 +20,8 @@ export class HomeUI {
     try { this.snap = !!localStorage.getItem('rt_home_snap'); } catch { this.snap = false; }
   }
 
-  /** Walk in through the front door of your cottage. */
-  enter() { this.open(null, { fromDoor: true }); }
+  /** Walk in through the front door of your cottage (or, v1.17.15, the Lakehouse's door: door 'lake'). */
+  enter(door = 'home') { this.open(null, { fromDoor: door }); }
 
   get active() { return !!this.view; }
 
@@ -43,8 +44,10 @@ export class HomeUI {
     g.engine.overlay = scene;
     this.owner = owner;
     this.fromDoor = fromDoor;
-    this.me = { x: scene.door.x + 0.9, z: scene.door.z, yaw: Math.PI / 2, seat: null, target: null, moving: false };
-    scene.walkYaw = -Math.PI / 2 + 0.5; scene.walkPitch = 0.55;
+    const lake = fromDoor === 'lake' && scene.door2;
+    this.me = lake ? { x: scene.door2.x - 0.9, z: scene.door2.z, yaw: -Math.PI / 2, seat: null, target: null, moving: false } : { x: scene.door.x + 0.9, z: scene.door.z, yaw: Math.PI / 2, seat: null, target: null, moving: false };
+    scene.walkYaw = lake ? Math.PI / 2 + 0.5 : -Math.PI / 2 + 0.5; scene.walkPitch = 0.55;
+    this.exitBy = lake ? 'lake' : 'home';
     scene.onTick = (dt, t) => this.tick(dt, t);
     this.setMode('walk', true);
     this.buildPanel();
@@ -66,10 +69,12 @@ export class HomeUI {
     this.unbind?.();
     if (this.scene) this.scene.onTick = null;
     if (!silent) this.game.audio.sfx('close');
-    // came in through the cottage door: step back out onto the porch
+    // came in through a door: step back out of the one you leave by (the cabin's porch, or the Lakehouse's)
     if (this.fromDoor && !silent) {
       const pl = this.game.player;
-      pl.pos.set(HOME_DOOR.x, pl.pos.y, HOME_DOOR.z - 0.6); pl.yaw = Math.PI; pl.target = null;
+      if (this.exitBy === 'lake') { pl.pos.set(LAKEHOUSE.door.x + 0.5, LAKEHOUSE.porchY, LAKEHOUSE.door.z); pl.yaw = Math.PI / 2; }
+      else { pl.pos.set(HOME_DOOR.x, pl.pos.y, HOME_DOOR.z - 0.6); pl.yaw = Math.PI; }
+      pl.target = null;
     }
   }
 
@@ -163,7 +168,9 @@ export class HomeUI {
     const acts = [];
     const s = this.nearSeat();
     if (s) acts.push({ label: s.label, fn: () => this.sitOn(s) });
-    if (Math.hypot(this.scene.door.x - me.x, this.scene.door.z - me.z) < 1.4) acts.push({ label: this.owner ? 'Leave' : 'Go outside', fn: () => this.close() });
+    if (Math.hypot(this.scene.door.x - me.x, this.scene.door.z - me.z) < 1.4) acts.push({ label: this.owner ? 'Leave' : 'Go outside', fn: () => { this.exitBy = 'home'; this.close(); } });
+    const d2 = this.scene.door2; // (v1.17.15: the Lakehouse's door out to the dock)
+    if (d2 && Math.hypot(d2.x - me.x, d2.z - me.z) < 1.4) acts.push({ label: this.owner ? 'Leave' : 'Out to the dock', fn: () => { this.exitBy = this.fromDoor ? 'lake' : 'home'; this.close(); } });
     return acts;
   }
   sitOn(s) { this.me.seat = s; this.me.target = null; this.game.audio.sfx('plop'); }
@@ -272,7 +279,7 @@ export class HomeUI {
         const k = sc.dist * 0.0016;
         const cx = Math.cos(sc.yaw), sx = Math.sin(sc.yaw);
         sc.panX = Math.max(-4, Math.min(sc.tier >= 2 ? 17 : sc.tier >= 1 ? 9 : 4, drag.pan.x - (dx * cx + dy * sx) * k)); // (v1.17.1: over to the den, in a Cottage)
-        sc.panZ = Math.max(-3.5, Math.min(3.5, drag.pan.z - (-dx * sx + dy * cx) * k));
+        sc.panZ = Math.max(-3.5, Math.min(sc.tier >= 3 ? 8 : 3.5, drag.pan.z - (-dx * sx + dy * cx) * k)); // (v1.17.15: down to the sunroom, in a Lakehouse)
         return;
       }
       // walking: drag with any button to look around (a plain click still walks you there)
@@ -538,7 +545,7 @@ export class HomeUI {
         let btn;
         if (owned) btn = h(`button.btn.small${placed ? '' : '.green'}`, { on: { click: () => { g.ext.change((x) => { x.home.decor = placed ? x.home.decor.filter((k) => k !== id) : [...x.home.decor, id]; x.home.owned = [...new Set([...(x.home.owned || []), id])]; }); this.rebuild(); } } }, placed ? 'Put away' : 'Place');
         else if (it.earned) btn = h('span.muted', it.how ? 'Not earned yet' : 'Complete the collection');
-        else if ((it.tier || 0) > (d.home.tier || 0)) btn = h('button.btn.small', { on: { click: () => { this.tab = 'grow'; this.renderBody(); } } }, `Needs the ${HOME_TIERS[it.tier].name}`);
+        else if ((it.tier || 0) > homeTier(d.home)) btn = h('button.btn.small', { on: { click: () => { this.tab = 'grow'; this.renderBody(); } } }, `Needs the ${HOME_TIERS[it.tier].name}`);
         else btn = h('button.btn.gold.small', { on: { click: () => this.buyDecor(id) } }, 'Buy');
         return h('div.list-row', h('div.grow', h('div.ttl', it.name), h('div.meta', it.desc || (it.earned ? it.how || 'Earned from a lake collection' : '')), owned || it.earned ? null : priceEl(it.price)), btn);
       })));
@@ -566,9 +573,9 @@ export class HomeUI {
       B.append(h('div.section-title', 'Floor'), h('div.chooser', Object.entries(FLOORS).map(([id, col]) => h(`button${d.home.floor === id ? '.on' : ''}`, { style: { borderBottom: `6px solid ${col}` }, on: { click: () => { g.ext.change((x) => { x.home.floor = id; }); this.rebuild(); } } }, id))));
     } else if (this.tab === 'grow') {
       // v1.17.1: bigger homes. The next tier up: what it adds, what it needs, and the price (coins, or pearls instead)
-      const cur = d.home.tier || 0, next = HOME_TIERS[cur + 1];
+      const cur = homeTier(d.home), next = HOME_TIERS[cur + 1];
       B.append(h('div.muted', `Your home: the ${HOME_TIERS[cur].name}.`));
-      if (!next) B.append(h('div.empty', 'This is the biggest home there is for now. The Lodge and the Lakehouse are on their way.'));
+      if (!next) B.append(h('div.empty', 'This is the biggest home there is. Enjoy the view from the dock!'));
       else {
         const needs = tierNeeds(cur + 1, g.profile, d), ok = !needs.length;
         const tick = (done, text) => h(`div.home-need${done ? '.done' : ''}`, icon(done ? 'check' : 'lock'), text);
@@ -593,19 +600,21 @@ export class HomeUI {
   /** v1.17.1: build the next home tier (the level and the collections are checked again here, not just on the button). */
   async buyTier(tier, price) {
     const g = this.game, T = HOME_TIERS[tier], d = g.ext.d;
-    if (!T || (d.home.tier || 0) !== tier - 1 || tierNeeds(tier, g.profile, d).length) return;
+    if (!T || homeTier(d.home) !== tier - 1 || tierNeeds(tier, g.profile, d).length) return;
     const r = await g.save.spend('home', T.id, price);
     if (!r.ok) { g.ui.toast(price.pearls ? 'Not enough pearls yet.' : 'Not enough coins yet.'); return; }
     g.ext.change((x) => { x.home.tier = tier; });
     g.audio.sfx('purchase');
-    g.ui.toast(`Your ${T.name} is built! Walk through the new doorway in the east wall.`, { icon: 'home', title: 'Bigger home', ms: 5000 });
+    const where = { lakehouse: 'Walk through the great room into the sunroom, or out to your own dock on the west shore of Cozy Cove.', lodge: 'Walk through the den into the great room.' }[T.id] || 'Walk through the new doorway in the east wall.';
+    g.ui.toast(`Your ${T.name} is built! ${where}`, { icon: 'home', title: 'Bigger home', ms: 6000 });
     g.ext.bump('homeTier');
+    g.homePlot?.refresh();
     this.rebuild();
   }
 
   async buyDecor(id) {
     const g = this.game, it = DECOR[id];
-    if ((it.tier || 0) > (g.ext.d.home.tier || 0)) return;
+    if ((it.tier || 0) > homeTier(g.ext.d.home)) return;
     const r = await g.save.spend('decor', id, it.price);
     if (!r.ok) { g.ui.toast(r.reason || 'Not enough yet.'); return; }
     g.ext.change((x) => { x.home.owned = [...new Set([...(x.home.owned || []), id])]; if (!x.home.decor.includes(id)) x.home.decor.push(id); });

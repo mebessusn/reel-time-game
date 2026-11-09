@@ -37,11 +37,20 @@ export const DECOR = {
   lamp2: { name: 'Den Lamp', model: 'lamp', price: { coins: 550 }, slot: 'lamp', tier: 1, desc: 'A second lantern lamp. Needs the Cottage.' },
   plant2: { name: 'Den Fern', model: 'plant', price: { coins: 350 }, slot: 'plant', tier: 1, desc: 'A second fern in a pot. Needs the Cottage.' },
   shelf2: { name: 'Den Bookshelf', model: 'shelf', price: { coins: 1000 }, slot: 'shelf', tier: 1, desc: 'A second bookshelf. Needs the Cottage.' },
+  // v1.17.15: for the Lakehouse's sunroom on the water
+  rug4: { name: 'Sunroom Rug', model: 'rug', price: { coins: 1200 }, slot: 'floor', tier: 3, desc: 'A braided rug for the sunroom. Needs the Lakehouse.' },
+  armchair4: { name: 'Sunroom Armchair', model: 'armchair', price: { coins: 2400 }, slot: 'seat', tier: 3, desc: 'An armchair by the glass, looking out on the water. Needs the Lakehouse.' },
+  plant4: { name: 'Sunroom Fern', model: 'plant', price: { coins: 900 }, slot: 'plant', tier: 3, desc: 'A fern that loves the light. Needs the Lakehouse.' },
+  shelf4: { name: 'Sunroom Bookshelf', model: 'shelf', price: { coins: 2000 }, slot: 'shelf', tier: 3, desc: 'A bookshelf for the sunroom. Needs the Lakehouse.' },
+  // v1.17.15 the ending moment (src/game/finale.js): from the townsfolk, once every quest line is finished
+  trophy_saga: { name: 'Friends of the Water Cup', earned: 'saga', how: 'Finish every quest line', slot: 'floor', desc: 'A golden cup on a stand, from the townsfolk, for finishing every quest line.' },
 };
 
 // v1.17.1: bigger homes. Your place grows in tiers; each needs a level and some lake collections, and costs coins (or
 // pearls instead of the coins: never instead of the level or the collections). The Cottage adds a den through a
-// doorway in the east wall. (Lodge and Lakehouse come later: see the project's next-ideas doc.)
+// doorway in the east wall, the Lodge a great room past the den, and the Lakehouse (v1.17.15) a sunroom on the water
+// off the great room, plus a house of its own with a dock on Cozy Cove's west shore (src/world/homeplot.js). Outside,
+// the cabin up the hill grows with the tier too.
 /** Another map's home pieces: their DECOR entries, where they stand (MOVABLE) or hang (WALL_ITEMS), and a builder. */
 const DECOR_BUILDERS = {};
 export function addDecor({ decor = {}, movable = {}, wall = {}, build }) {
@@ -55,7 +64,14 @@ export const HOME_TIERS = [
     desc: 'Knock through the east wall into a den: a quilted bed, two more windows, and room for a second rug, armchair, lamp, fern and bookshelf.' },
   { id: 'lodge', name: 'Lodge', level: 20, collections: 4, price: { coins: 90000 }, alt: { pearls: 450 },
     desc: 'Build on a great room past the den: a stone fireplace, a long table, tall windows on the lake, and room for one more rug, armchair and fern.' },
+  { id: 'lakehouse', name: 'Lakehouse', level: 30, collections: 6, price: { coins: 220000 }, alt: { pearls: 1100 },
+    desc: 'A house on the west shore of Cozy Cove with its own dock to fish from, and a glass sunroom on the water off the great room, with room for one more rug, armchair, fern and bookshelf.' },
 ];
+/** The tier a save or a layout really has: a whole number from 0 (the Cabin) to the biggest there is. */
+export function homeTier(h) {
+  const t = Math.floor(Number(h?.tier ?? h) || 0);
+  return Math.max(0, Math.min(HOME_TIERS.length - 1, t));
+}
 /** What's still missing before you can buy a tier: [] when it's yours to buy. */
 export function tierNeeds(tier, profile, ext) {
   const T = HOME_TIERS[tier]; if (!T) return ['There is no bigger home yet'];
@@ -82,8 +98,13 @@ export const MOVABLE = {
   plant2: { at: [5.6, -3.4, 0], size: [0.9, 0.9] },
   shelf2: { at: [10.75, -0.6, Math.PI], size: [0.5, 1.8] },
   rug3: { at: [15, 0.5, 0], size: [4, 3], walk: true },
+  rug4: { at: [15, 6.6, 0], size: [4, 3], walk: true },
+  armchair4: { at: [12.4, 7.6, 2.4], size: [1.4, 1.3], seat: { h: 0.62, face: 0 } },
+  plant4: { at: [18.4, 4.6, 0], size: [0.9, 0.9] },
+  shelf4: { at: [11.3, 5.4, 0], size: [0.5, 1.8] },
   armchair3: { at: [15.4, 1.6, 2.6], size: [1.4, 1.3], seat: { h: 0.62, face: 0 } },
   plant3: { at: [11.8, 3.3, 0], size: [0.9, 0.9] },
+  trophy_saga: { at: [-1.6, 3.35, Math.PI], size: [0.7, 0.7] },
 };
 export const ROOM = { x0: -5, x1: 5, z0: -4, z1: 4 };
 // the Cottage's den, east of the main room, and the doorway between them (in the main room's east wall)
@@ -91,9 +112,12 @@ export const DEN = { x0: 5, x1: 11, z0: -4, z1: 2 };
 export const DOORWAY = { z0: -1, z1: 1 };
 // the Lodge's great room, east of the den, through a doorway of the same size in the den's east wall
 export const GREAT = { x0: 11, x1: 19, z0: -4, z1: 4 };
+// the Lakehouse's sunroom, south of the great room through a doorway in its window wall, with glass on three sides
+export const SUN = { x0: 11, x1: 19, z0: 4.3, z1: 9 };
+export const SUN_DOOR = { x0: 14, x1: 16 };
 /** Keep a floor piece (half sizes hw, hd) inside the room it's in: the main room, or (a Cottage) the den. */
 export function clampFloor(x, z, hw, hd, tier = 0) {
-  const R = tier >= 2 && x > DEN.x1 ? GREAT : tier >= 1 && x > ROOM.x1 ? DEN : ROOM;
+  const R = tier >= 3 && x > DEN.x1 && z > GREAT.z1 ? SUN : tier >= 2 && x > DEN.x1 ? GREAT : tier >= 1 && x > ROOM.x1 ? DEN : ROOM;
   return [Math.max(R.x0 + hw, Math.min(R.x1 - hw, x)), Math.max(R.z0 + hd, Math.min(R.z1 - hd, z))];
 }
 // v1.13.7: pieces that hang on a wall, movable in the editor along the back wall (0, z = -4) or the left wall (1, x = -5).
@@ -139,6 +163,25 @@ function fitFish(m, len) {
 const lam = (c, extra = {}) => new THREE.MeshLambertMaterial({ color: c, ...extra });
 const box = (w, h, d, c, x, y, z, extra) => { const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), lam(c, extra)); m.position.set(x, y, z); return m; };
 
+/** v1.17.15 the townsfolk's trophy for finishing every quest line: a golden cup with two handles on a wooden stand, a brass
+ *  plate on the front (local +z) and a little gold fish leaping off the lid. About 1.5 m tall, 0.7 m square. */
+export function buildSagaTrophy() {
+  const g = new THREE.Group(), wood = '#5a3a22', woodD = '#3e2616', gold = { emissive: '#4a3000' }, G = '#e8b830';
+  const mesh = (geo, c, x, y, z, extra) => { const m = new THREE.Mesh(geo, lam(c, extra)); m.position.set(x, y, z); return m; };
+  g.add(box(0.62, 0.74, 0.62, wood, 0, 0.41, 0), box(0.72, 0.08, 0.72, woodD, 0, 0.04, 0), box(0.7, 0.06, 0.7, woodD, 0, 0.81, 0));
+  g.add(box(0.36, 0.14, 0.012, '#d8b050', 0, 0.5, 0.316, gold), box(0.3, 0.02, 0.014, '#7a5a20', 0, 0.52, 0.318), box(0.22, 0.02, 0.014, '#7a5a20', 0, 0.48, 0.318));
+  g.add(mesh(new THREE.CylinderGeometry(0.15, 0.19, 0.07, 20), G, 0, 0.875, 0, gold)); // foot
+  g.add(mesh(new THREE.CylinderGeometry(0.04, 0.06, 0.2, 12), G, 0, 1.01, 0, gold)); // stem
+  const bowl = new THREE.LatheGeometry([[0.02, 0], [0.12, 0.02], [0.2, 0.1], [0.24, 0.24], [0.25, 0.34], [0.23, 0.34], [0.22, 0.25]].map(([x, y]) => new THREE.Vector2(x, y)), 24);
+  g.add(mesh(bowl, G, 0, 1.1, 0, { ...gold, side: THREE.DoubleSide }));
+  for (const s of [-1, 1]) { const hd = mesh(new THREE.TorusGeometry(0.09, 0.02, 8, 16, Math.PI * 1.2), G, s * 0.25, 1.3, 0, gold); hd.rotation.z = s > 0 ? -Math.PI * 0.6 : Math.PI * 0.4; g.add(hd); }
+  g.add(mesh(new THREE.CylinderGeometry(0.235, 0.235, 0.03, 24), G, 0, 1.455, 0, gold)); // lid
+  const fish = new THREE.Group(); fish.position.set(0, 1.56, 0); fish.rotation.z = 0.5;
+  fish.add(mesh(new THREE.SphereGeometry(0.07, 12, 8).scale(1.6, 1, 0.55), G, 0, 0, 0, gold), mesh(new THREE.ConeGeometry(0.06, 0.1, 4).rotateZ(Math.PI / 2).scale(1, 1, 0.3), G, -0.15, 0, 0, gold));
+  g.add(fish, mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.1, 6), G, 0, 1.5, 0, gold));
+  return g;
+}
+
 /** A compact, shareable description of a home (rides in presence). */
 export function homeLayout(ext, profile) {
   const h = ext.home;
@@ -147,7 +190,7 @@ export function homeLayout(ext, profile) {
   const best = all.reduce((a, c) => (!a || c.weight > a.weight ? c : a), null);
   const pos = {};
   for (const [id, v] of Object.entries(h.pos || {})) if ((MOVABLE[id] || WALL_ITEMS[id]) && Array.isArray(v)) pos[id] = v.map((n) => Math.round(n * 100) / 100);
-  const tier = Math.max(0, Math.min(2, h.tier || 0));
+  const tier = homeTier(h);
   return { h: tier, d: (h.decor || []).filter((id) => DECOR[id] && (DECOR[id].tier || 0) <= tier).slice(0, 40), t: tank, w: h.wall in WALLS ? h.wall : 'pine', f: h.floor in FLOORS ? h.floor : 'oak', m: best ? [best.speciesId, best.variant === 'normal' ? 'n' : best.variant[0], best.weight] : null, p: pos };
 }
 
@@ -155,7 +198,7 @@ export function homeLayout(ext, profile) {
 export function sanitizeLayout(l) {
   if (!l || typeof l !== 'object') return null;
   const v = (x) => (x === 'g' ? 'gold' : x === 'd' ? 'diamond' : 'normal');
-  const tier = l.h === 2 ? 2 : l.h === 1 ? 1 : 0;
+  const tier = [1, 2, 3].includes(l.h) ? l.h : 0;
   return {
     h: tier,
     d: Array.isArray(l.d) ? l.d.filter((id) => typeof id === 'string' && DECOR[id] && (DECOR[id].tier || 0) <= tier).slice(0, 40) : [],
@@ -182,9 +225,11 @@ export class HomeScene {
     this.lampLight.position.set(3.5, 2.4, -1.5);
     this.scene.add(this.lampLight);
     this.lampLight2 = new THREE.PointLight('#ffc070', 0, 8, 1.5); this.scene.add(this.lampLight2); // (the den's lamp)
+    this.sunLight = new THREE.PointLight('#fff2d8', 0, 14, 1.2); this.sunLight.position.set(15, 2.8, 6.5); this.scene.add(this.sunLight); // (the sunroom's daylight)
     this.root = new THREE.Group();
     this.scene.add(this.root);
     this.fish = [];
+    this.door2Z = 7.3;
   }
 
   /** Build the room from a sanitized layout. */
@@ -196,7 +241,7 @@ export class HomeScene {
     const L = layout;
     const R = this.root;
     const wall = WALLS[L.w], floor = FLOORS[L.f];
-    const tier = this.tier = L.h >= 2 ? 2 : L.h >= 1 ? 1 : 0;
+    const tier = this.tier = homeTier(L.h);
     const shade = (k) => new THREE.Color(wall).offsetHSL(0, 0, k).getStyle();
     // floor planks
     for (let i = 0; i < 10; i++) R.add(box(1, 0.2, 8, i % 2 ? floor : new THREE.Color(floor).offsetHSL(0, 0, 0.04).getStyle(), -4.5 + i, -0.1, 0));
@@ -246,12 +291,14 @@ export class HomeScene {
     R.add(this.cut);
     if (tier) this.buildDen(L, wall, floor, shade);
     if (tier >= 2) this.buildGreatRoom(L, wall, floor, shade);
+    this.sunLight.intensity = tier >= 3 ? 1.6 : 0;
     // a built-in bench under the window, with a cushion: somewhere to sit and look at the lake
     const bench = buildDecor('bench'); bench.position.set(-1.8, 0, -3.6); R.add(bench);
     this.colliders = [{ x: -1.8, z: -3.6, w: 2.6, d: 0.8 }, { x: 2.2, z: -3.2, w: tw + 0.3, d: 1.3 }];
     this.seats = [{ id: 'bench', x: -1.8, z: -3.2, y: 0.52, yaw: 0, label: 'Sit by the window' }];
     if (tier >= 2) { this.colliders.push({ x: 13.2, z: -1.6, w: 2.5, d: 3.7 }, { x: GREAT.x1 - 0.4, z: 0, w: 1, d: 3.3 }); this.seats.push({ id: 'greatbench', x: 14.2, z: -1.6, y: 0.5, yaw: -Math.PI / 2, label: 'Sit at the long table' }); }
     if (tier) { this.colliders.push({ x: DEN_BED.x, z: DEN_BED.z, w: DEN_BED.w + 0.1, d: DEN_BED.d + 0.1 }); this.seats.push({ id: 'bed', x: DEN_BED.x, z: DEN_BED.z + DEN_BED.d / 2 - 0.35, y: 0.56, yaw: 0, label: 'Sit on the bed' }); }
+    if (tier >= 3) this.buildSunroom(L, wall, floor, shade);
     // decor: wall pieces stay put; furniture can be moved in the editor view
     const has = (id) => L.d.includes(id);
     this.items = {};
@@ -297,18 +344,21 @@ export class HomeScene {
     if (has('banner')) placeWall('banner', buildDecor('banner'));
     for (const [id, build] of Object.entries(DECOR_BUILDERS)) if (has(id)) (WALL_ITEMS[id] ? placeWall : placeItem)(id, build(id)); // another map's pieces (addDecor)
     if (tier >= 2) for (const id of ['rug3', 'armchair3', 'plant3']) if (has(id)) placeItem(id, model(id));
+    if (tier >= 3) for (const id of ['rug4', 'armchair4', 'plant4', 'shelf4']) if (has(id)) placeItem(id, model(id));
     // collection plaques: a row of golden fish on boards along the right of the back wall
     L.d.filter((id) => id.startsWith('plaque_')).forEach((id, i) => {
       const x = 4.4 - (i % 4) * 0.75, y = 2.9 - Math.floor(i / 4) * 0.7;
       const pq = buildPlaque(DECOR[id].color); pq.position.set(x, y, ROOM.z0); R.add(pq);
     });
     if (has('catbed')) placeItem('catbed', buildDecor('catbed'));
+    if (has('trophy_saga')) placeItem('trophy_saga', buildSagaTrophy());
     if (has('mount') && L.m) {
       const m = fitFish(buildFish(L.m.speciesId, L.m.variant, L.m.weight), 1.4);
       m.position.set(0, 0, 0.15);
       const mg = buildDecor('mount'); mg.add(m); placeWall('mount', mg);
     }
     this.door = { x: -4.4, z: 2.4 };
+    this.door2 = tier >= 3 ? { x: SUN.x1 - 0.6, z: this.door2Z } : null; // (the Lakehouse: the sunroom's door out to your dock)
     this.layout = L;
     if (this.avatar) R.add(this.avatar.group);
   }
@@ -359,11 +409,12 @@ export class HomeScene {
     for (let y = 0; y < 4; y++) {
       const a = y % 2 ? wall : shade(-0.05), b = y % 2 ? shade(-0.05) : wall;
       W.gn.add(box(lx + 0.6, 0.8, 0.3, a, cx, 0.4 + y * 0.8, D.z0 - 0.15));
-      W.gs.add(box(lx + 0.6, 0.8, 0.3, b, cx, 0.4 + y * 0.8, D.z1 + 0.15));
+      if (this.tier >= 3 && y < 3) for (const [x0, x1] of [[D.x0 - 0.3, SUN_DOOR.x0], [SUN_DOOR.x1, D.x1 + 0.3]]) W.gs.add(box(x1 - x0, 0.8, 0.3, b, (x0 + x1) / 2, 0.4 + y * 0.8, D.z1 + 0.15));
+      else W.gs.add(box(lx + 0.6, 0.8, 0.3, b, cx, 0.4 + y * 0.8, D.z1 + 0.15));
       W.ge.add(box(0.3, 0.8, lz + 0.6, a, D.x1 + 0.15, 0.4 + y * 0.8, 0));
       W.gw.add(box(0.3, 0.8, D.z1 - DEN.z1, b, D.x0 - 0.15, 0.4 + y * 0.8, (D.z1 + DEN.z1) / 2));
     }
-    for (const x of [13, 15, 17]) W.gs.add(box(1.5, 2.1, 0.1, '#8fc9f0', x, 1.75, D.z1 - 0.02), box(1.7, 0.12, 0.2, frame, x, 2.85, D.z1 - 0.05), box(1.7, 0.12, 0.2, frame, x, 0.68, D.z1 - 0.05), box(0.1, 2.1, 0.15, frame, x, 1.75, D.z1 - 0.05));
+    for (const x of this.tier >= 3 ? [13, 17] : [13, 15, 17]) W.gs.add(box(1.5, 2.1, 0.1, '#8fc9f0', x, 1.75, D.z1 - 0.02), box(1.7, 0.12, 0.2, frame, x, 2.85, D.z1 - 0.05), box(1.7, 0.12, 0.2, frame, x, 0.68, D.z1 - 0.05), box(0.1, 2.1, 0.15, frame, x, 1.75, D.z1 - 0.05));
     for (const sx of [10.98, 11.32]) W.de.add(box(0.12, 2.45, 0.16, frame, sx, 1.22, DOORWAY.z0 - 0.05), box(0.12, 2.45, 0.16, frame, sx, 1.22, DOORWAY.z1 + 0.05), box(0.12, 0.16, 2.3, frame, sx, 2.42, 0));
     W.ceil.add(box(lx + 0.6, 0.2, lz + 0.6, shade(-0.12), cx, 3.3, 0));
     for (let i = 0; i < 4; i++) W.ceil.add(box(0.3, 0.3, lz + 0.4, frame, D.x0 + 1 + i * 2, 3.1, 0));
@@ -380,12 +431,57 @@ export class HomeScene {
     R.add(t);
   }
 
+  /** The Lakehouse: a sunroom on the water south of the great room. A low log wall with glass above it on three sides,
+   *  a glass door out to the dock in the east wall, pale deck boards, a window seat and the lake all round outside. */
+  buildSunroom(L, wall, floor, shade) {
+    const R = this.root, D = SUN, W = this.walls, cx = (D.x0 + D.x1) / 2, cz = (D.z0 + D.z1) / 2, lx = D.x1 - D.x0, lz = D.z1 - D.z0;
+    const frame = '#f2ead8', post = '#5a3a22', glassC = '#a8dcf4', deck = '#c8a878';
+    for (let i = 0; i < lx; i++) R.add(box(1, 0.2, lz + 0.3, i % 2 ? deck : new THREE.Color(deck).offsetHSL(0, 0, 0.04).getStyle(), D.x0 + 0.5 + i, -0.1, cz - 0.15)); // (from under the doorway)
+    // the lake outside, the deck's edge and the posts the room stands on
+    const water = new THREE.Mesh(new THREE.PlaneGeometry(30, 22), new THREE.MeshLambertMaterial({ color: '#3a86b8' }));
+    water.rotation.x = -Math.PI / 2; water.position.set(D.x0 - 0.3 + 15, -0.7, D.z0 + 11); R.add(water); // (south and east of the sunroom only)
+    // and past it, the far shore and the sky (one-sided, facing the house; with the walls, so the editor's view leaves them out)
+    const far = (w, x, z, ry) => {
+      for (const [h, y, c] of [[14, 7.65, '#bfe3f5'], [1.4, -0.05, '#4a7a4a']]) { const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ color: c })); m.position.set(x, y, z); m.rotation.y = ry; this.cut.add(m); }
+    };
+    far(30, D.x0 - 0.3 + 15, D.z0 + 22, Math.PI); far(22, D.x0 - 0.3 + 30, D.z0 + 11, -Math.PI / 2);
+    R.add(box(lx + 0.8, 0.14, lz + 0.6, '#7a5a3a', cx, -0.27, cz + 0.1));
+    for (const x of [D.x0 - 0.2, cx, D.x1 + 0.2]) R.add(box(0.3, 0.5, 0.3, post, x, -0.55, D.z1 + 0.25));
+    W.ss = new THREE.Group(); W.se = new THREE.Group(); W.sw = new THREE.Group();
+    const glassMat = { transparent: true, opacity: 0.28, depthWrite: false };
+    const pane = (w, h, d, x, y, z) => { const m = box(w, h, d, glassC, x, y, z, glassMat); m.renderOrder = 2; return m; };
+    const zs = D.z1 + 0.15; // (the south wall's middle)
+    // south: the long glass wall on the lake, a low log wall under it, a sill, posts every 2 m and a beam on top
+    W.ss.add(box(lx + 0.6, 0.8, 0.3, shade(-0.05), cx, 0.4, zs), pane(lx, 2.1, 0.06, cx, 1.85, zs), box(lx + 0.6, 0.3, 0.3, post, cx, 3.05, zs), box(lx + 0.6, 0.08, 0.42, frame, cx, 0.84, zs - 0.02));
+    for (let x = D.x0 + 2; x < D.x1 - 0.5; x += 2) W.ss.add(box(0.14, 2.1, 0.34, post, x, 1.85, zs));
+    for (const x of [D.x0 - 0.15, D.x1 + 0.15]) W.ss.add(box(0.3, 2.1, 0.3, post, x, 1.85, zs)); // (the corner posts)
+    // west: the same, from the great room's wall to the corner
+    const xw = D.x0 - 0.15;
+    W.sw.add(box(0.3, 0.8, lz, shade(-0.04), xw, 0.4, cz), pane(0.06, 2.1, lz, xw, 1.85, cz), box(0.3, 0.3, lz, post, xw, 3.05, cz), box(0.42, 0.08, lz, frame, xw + 0.02, 0.84, cz), box(0.34, 2.1, 0.14, post, xw, 1.85, cz));
+    // east: the same, with a glass door out to the dock
+    const xe = D.x1 + 0.15, dz = this.door2Z, dw = 1.2, a0 = D.z0, a1 = dz - dw / 2 - 0.14, b0 = dz + dw / 2 + 0.14, b1 = D.z1;
+    for (const [z0, z1] of [[a0, a1], [b0, b1]]) W.se.add(box(0.3, 0.8, z1 - z0, shade(-0.04), xe, 0.4, (z0 + z1) / 2), pane(0.06, 2.1, z1 - z0, xe, 1.85, (z0 + z1) / 2), box(0.42, 0.08, z1 - z0, frame, xe - 0.02, 0.84, (z0 + z1) / 2));
+    W.se.add(box(0.3, 0.3, lz, post, xe, 3.05, cz));
+    for (const z of [dz - dw / 2 - 0.07, dz + dw / 2 + 0.07]) W.se.add(box(0.34, 2.9, 0.14, post, xe, 1.45, z));
+    W.se.add(box(0.36, 0.14, dw, post, xe, 2.6, dz), pane(0.05, 2.5, dw, xe, 1.27, dz), box(0.36, 0.06, dw, post, xe, 0.03, dz), box(0.08, 0.1, 0.36, '#f2c040', D.x1 - 0.02, 1.1, dz - 0.3));
+    // the doorway from the great room: posts and a lintel on both faces of the wall
+    for (const sz of [GREAT.z1 - 0.04, D.z0 + 0.04]) W.gs.add(box(0.16, 2.45, 0.1, post, SUN_DOOR.x0 - 0.06, 1.22, sz), box(0.16, 2.45, 0.1, post, SUN_DOOR.x1 + 0.06, 1.22, sz), box(SUN_DOOR.x1 - SUN_DOOR.x0 + 0.28, 0.16, 0.1, post, (SUN_DOOR.x0 + SUN_DOOR.x1) / 2, 2.42, sz));
+    W.ceil.add(box(lx + 0.6, 0.2, lz + 0.3, '#e8e0cc', cx, 3.3, cz + 0.15));
+    for (let i = 0; i < 4; i++) W.ceil.add(box(0.24, 0.24, lz, post, D.x0 + 1 + i * 2, 3.12, cz));
+    this.cut.add(W.ss, W.sw, W.se);
+    // a window seat along the glass, looking out on the water
+    const seat = buildDecor('bench'); seat.position.set(15, 0, D.z1 - 0.4); seat.rotation.y = Math.PI; R.add(seat);
+    this.colliders.push({ x: 15, z: D.z1 - 0.4, w: 2.6, d: 0.8 });
+    this.seats.push({ id: 'sunbench', x: 15, z: D.z1 - 0.8, y: 0.52, yaw: Math.PI, label: 'Sit by the water' });
+  }
+
   /** Is this spot free to stand on? (inside the walls, not in furniture) */
   canStand(x, z, r = 0.3) {
     const inside = (A) => x >= A.x0 + r && x <= A.x1 - r && z >= A.z0 + r && z <= A.z1 - r;
     const ok = inside(ROOM) || (this.tier >= 1 && (inside(DEN) || (x > ROOM.x1 - 1 && x < DEN.x0 + 1 && z >= DOORWAY.z0 + r && z <= DOORWAY.z1 - r)));
     const lodge = this.tier >= 2 && (inside(GREAT) || (x > DEN.x1 - 1 && x < GREAT.x0 + 1 && z >= DOORWAY.z0 + r && z <= DOORWAY.z1 - r));
-    if (!ok && !lodge) return false;
+    const sun = this.tier >= 3 && (inside(SUN) || (z > GREAT.z1 - 1 && z < SUN.z0 + 1 && x >= SUN_DOOR.x0 + r && x <= SUN_DOOR.x1 - r));
+    if (!ok && !lodge && !sun) return false;
     for (const c of this.colliders || []) if (Math.abs(x - c.x) < c.w / 2 + r && Math.abs(z - c.z) < c.d / 2 + r) return false;
     return true;
   }
@@ -414,7 +510,7 @@ export class HomeScene {
       this.camera.lookAt(av.x, 1.05, av.z);
       const c = this.camera.position, W = this.walls;
       if (this.cut) this.cut.visible = true;
-      if (W) { W.n.visible = c.z > -4.0; W.s.visible = c.z < 4.0; W.w.visible = c.x > -5.0; W.e.visible = this.tier >= 1 ? (c.x < ROOM.x1) === (av.x < ROOM.x1) : c.x < 5.0; W.ceil.visible = c.y < 3.15; if (W.de) { W.de.visible = this.tier >= 2 ? (c.x < DEN.x1) === (av.x < DEN.x1) : c.x < DEN.x1; W.ds.visible = c.z < DEN.z1; } if (W.gn) { W.gn.visible = c.z > GREAT.z0; W.gs.visible = c.z < GREAT.z1; W.ge.visible = c.x < GREAT.x1; W.gw.visible = c.x > GREAT.x0; } }
+      if (W) { W.n.visible = c.z > -4.0; W.s.visible = c.z < 4.0; W.w.visible = c.x > -5.0; W.e.visible = this.tier >= 1 ? (c.x < ROOM.x1) === (av.x < ROOM.x1) : c.x < 5.0; W.ceil.visible = c.y < 3.15; if (W.de) { W.de.visible = this.tier >= 2 ? (c.x < DEN.x1) === (av.x < DEN.x1) : c.x < DEN.x1; W.ds.visible = c.z < DEN.z1; } if (W.gn) { W.gn.visible = c.z > GREAT.z0; W.gs.visible = this.tier >= 3 ? (c.z < GREAT.z1) === (av.z < GREAT.z1) : c.z < GREAT.z1; W.ge.visible = c.x < GREAT.x1; W.gw.visible = c.x > GREAT.x0; } if (W.ss) { W.ss.visible = c.z < SUN.z1; W.se.visible = c.x < SUN.x1; W.sw.visible = c.x > SUN.x0; } }
       return;
     }
     this.camInit = false;

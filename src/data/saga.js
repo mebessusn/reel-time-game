@@ -9,6 +9,7 @@
 //   hold   do something by hand, n times over, at `at`
 //   rocks  the engine repair: a little game against the rocks, in a storm
 // `unlock` opens something in the shops; `prop` stands a scene object at the step's place (it tows behind you on a carry);
+// `thanks` ({ who, text }) is that line's note in the townsfolk's letter at the very end (src/game/finale.js);
 // `who`/`walker` is someone who walks with you on a carry; `storm` brings the weather in round the step. Another map's lines can
 // add their own step fields, which its rules (addSagaMap) understand.
 // Places are { map, x, z } in world coordinates; people are named in PEOPLE or found live.
@@ -27,6 +28,7 @@ export const PEOPLE = {
 
 export const SAGA = [
   { id: 'survey', name: 'The Lost Survey', map: 'valley', giver: { name: 'Gus', title: 'The bait shop', npc: 'Gus', at: v(6, 45) }, level: 3,
+    thanks: { who: 'Gus', text: 'The old map hangs over my counter now, and I tell everyone who comes in who put it back together.' }, // (the ending's letter: src/game/finale.js)
     intro: 'My grandfather walked every shore of these lakes with a compass and a notebook. Finest map anyone ever made, and it got torn up and handed round the valley. I would dearly love to see it whole.',
     reward: { coins: 5000, pearls: 25, xp: 2500, title: 'The Surveyor' }, items: ['rod_surveyor'], rewardText: 'the Surveyor\'s Rod, plans for the Lodge, 5,000 coins, 25 pearls and the title The Surveyor', unlock: 'lodge', unlockText: 'The builders will take on your biggest home now: the Lodge.',
     steps: [

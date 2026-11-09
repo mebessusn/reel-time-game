@@ -5,8 +5,15 @@ import { h, clear, lb } from './dom.js';
 import { icon } from './icons.js';
 import { fishThumb } from './thumbs.js';
 import { SPECIES_BY_ID, ZONES } from '../data/species.js';
-import { regionName } from '../world/terrain.js';
+import { regionName, surfaceY, WATER_Y } from '../world/terrain.js';
 import { aan } from '../core/text.js';
+import { FILTERS, FILTER_BY_ID, filterCanvas, filterElement } from './photofilters.js';
+
+// v1.17.15 photo mode: a free camera that leaves your angler where they stand (within FREE_R of them, never under the
+// ground or the water), filters, and the camera's own controls hidden for a clean screen.
+const FREE_R = 12; // how far the free camera's pivot may wander from you (m)
+const FREE_D = [1.2, 14]; // how close and how far the free camera sits from its pivot
+const FREE_PITCH = [-0.35, 1.45];
 
 const ALBUM_KEY = 'rt_album';
 const ALBUM_MAX = 12;
@@ -114,6 +121,9 @@ export class Selfie {
     this.pose = 'idle';
     this.fish = null;
     this.cam = new THREE.Vector3();
+    // photo mode (v1.17.15)
+    this.free = false; this.clean = false; this.filter = 'none';
+    this.pivot = new THREE.Vector3(); this.fy = 0; this.fp = 0.3; this.fd = 4; this.held = new Set(); this.padMove = null;
   }
 
   fishChoices() {
@@ -142,7 +152,9 @@ export class Selfie {
     this.setFish(withFish === undefined ? choices[0] || null : withFish);
     this.pose = this.fish ? 'hold' : 'idle';
     g.ui.setVisible(false);
+    this.free = false; this.clean = false; this.held.clear(); this.padMove = null;
     this.buildOverlay(choices);
+    filterElement(g.engine.renderer.domElement, this.filter); // (the filter you last used stays picked)
     g.audio.sfx('open');
   }
 
@@ -152,7 +164,127 @@ export class Selfie {
     this.game.actor.clearHeld();
     this.overlay?.remove(); this.overlay = null;
     this.card?.remove(); this.card = null;
+    this.free = false; this.held.clear(); this.padMove = null;
+    this.setClean(false);
+    filterElement(this.game.engine.renderer.domElement, 'none');
     this.game.ui.setVisible(true);
+  }
+
+  // ---------------------------------------------------------------- photo mode (v1.17.15)
+  /** Free camera on or off. It starts where the selfie camera is, looking at the same spot. */
+  setFree(on) {
+    if (!this.active || on === this.free) return;
+    this.free = on; this.held.clear();
+    if (on) {
+      const g = this.game, head = g.actor.headWorld(new THREE.Vector3()), c = g.engine.camera.position;
+      this.pivot.set(g.player.pos.x, head.y - 0.5, g.player.pos.z);
+      const dx = c.x - this.pivot.x, dy = c.y - this.pivot.y, dz = c.z - this.pivot.z, d = Math.hypot(dx, dy, dz) || 4;
+      this.fy = Math.atan2(dx, dz); this.fp = Math.asin(Math.max(-1, Math.min(1, dy / d))); this.fd = Math.max(FREE_D[0], Math.min(FREE_D[1], d));
+      this.cam.copy(c);
+    }
+    this.game.audio.sfx('toggle');
+    this.refreshBar?.();
+  }
+  setFilter(id) {
+    if (!FILTER_BY_ID[id]) return;
+    this.filter = id;
+    filterElement(this.game.engine.renderer.domElement, id);
+    this.game.audio.sfx('click');
+    this.refreshBar?.();
+  }
+  stepFilter(d) { const i = FILTERS.findIndex((f) => f.id === this.filter); this.setFilter(FILTERS[(i + d + FILTERS.length) % FILTERS.length].id); }
+  /** Hide the camera's own controls (and everything else on screen) for a clean view; any tap, H, X or B brings them back. */
+  setClean(on) {
+    this.clean = !!on;
+    this.overlay?.classList.toggle('clean', this.clean);
+    document.body.classList.toggle('photo-clean', this.clean);
+  }
+  /** Keys while the camera's up. True when the key was the camera's. */
+  onKey(k, act, e) {
+    if (this.card) return false;
+    const MOVE = { w: 'f', arrowup: 'f', s: 'b', arrowdown: 'b', a: 'l', arrowleft: 'l', d: 'r', arrowright: 'r', q: 'dn', e: 'up' };
+    const dir = { up: 'f', down: 'b', left: 'l', right: 'r' }[act] || MOVE[k];
+    if (this.free && dir) { this.held.add(dir); e.preventDefault(); return true; }
+    if (act === 'sprint') { this.fast = true; return true; }
+    if (e.repeat) return !!dir;
+    if (k === 'f') { this.setFree(!this.free); return true; }
+    if (k === 'h') { this.setClean(!this.clean); return true; }
+    if (k === 'g') { this.stepFilter(e.shiftKey ? -1 : 1); return true; }
+    if (/^[1-9]$/.test(k) && FILTERS[+k - 1]) { this.setFilter(FILTERS[+k - 1].id); return true; }
+    if (!this.free && dir === 'l') { this.angle = Math.max(-1.3, this.angle + 0.15); return true; }
+    if (!this.free && dir === 'r') { this.angle = Math.min(1.3, this.angle - 0.15); return true; }
+    return false;
+  }
+  onKeyUp(k, act) {
+    const MOVE = { w: 'f', arrowup: 'f', s: 'b', arrowdown: 'b', a: 'l', arrowleft: 'l', d: 'r', arrowright: 'r', q: 'dn', e: 'up' };
+    const dir = { up: 'f', down: 'b', left: 'l', right: 'r' }[act] || MOVE[k];
+    if (dir) this.held.delete(dir);
+    if (act === 'sprint') this.fast = false;
+  }
+  /** A controller while the camera's up (src/game/controls.js hands it over). */
+  pad(p, { pressed, b, lx, ly, rx, ry }, dt) {
+    if (pressed(1)) { if (this.clean) this.setClean(false); else this.stop(); return; }
+    if (pressed(0)) { if (this.clean) this.setClean(false); this.snap(); return; }
+    if (pressed(2)) this.setClean(!this.clean);
+    if (pressed(3)) this.setFree(!this.free);
+    if (pressed(4)) this.stepFilter(-1);
+    if (pressed(5)) this.stepFilter(1);
+    if (pressed(14) || pressed(15)) { const ok = POSES.filter((q) => !q.needsFish || this.fish), i = ok.findIndex((q) => q.id === this.pose); this.pose = ok[(i + (pressed(15) ? 1 : ok.length - 1)) % ok.length].id; this.refreshBar?.(); }
+    const zoom = (p.buttons[6]?.value || 0) - (p.buttons[7]?.value || 0);
+    if (this.free) {
+      this.fy -= rx * dt * 2.2; this.fp = Math.max(FREE_PITCH[0], Math.min(FREE_PITCH[1], this.fp + ry * dt * 1.4));
+      this.fd = Math.max(FREE_D[0], Math.min(FREE_D[1], this.fd * (1 + zoom * dt * 1.5)));
+      this.padMove = { x: lx, z: ly, y: (b(12) ? 1 : 0) - (b(13) ? 1 : 0), fast: b(10) };
+    } else {
+      this.angle = Math.max(-1.3, Math.min(1.3, this.angle - (rx || lx) * dt * 1.8));
+      this.tilt = Math.max(-0.25, Math.min(0.9, this.tilt + (ry || ly) * dt * 1.2));
+      const z = zoom || ((b(13) ? 1 : 0) - (b(12) ? 1 : 0));
+      this.dist = Math.max(2.2, Math.min(7, this.dist * (1 + z * dt * 1.5)));
+    }
+  }
+  /** The lowest the free camera may go here: just over the ground, and over the water unless you're under it. */
+  floorAt(x, z) {
+    const gy = surfaceY(x, z), under = this.game.player.pos.y < WATER_Y - 0.5;
+    return under ? (gy ?? -1e9) + 0.3 : Math.max(gy ?? WATER_Y, WATER_Y) + 0.3;
+  }
+  updateFree(dt) {
+    const g = this.game, pl = g.player, cam = g.engine.camera, P = this.pivot;
+    // move the pivot: keys (relative to where the camera looks), or the controller's left stick
+    const H = this.held, M = this.padMove;
+    let f = (H.has('f') ? 1 : 0) - (H.has('b') ? 1 : 0), r = (H.has('r') ? 1 : 0) - (H.has('l') ? 1 : 0), u = (H.has('up') ? 1 : 0) - (H.has('dn') ? 1 : 0);
+    if (M) { f -= M.z; r += M.x; u += M.y; }
+    const sp = (this.fast || M?.fast ? 9 : 4) * dt;
+    if (f || r || u) {
+      const sx = Math.sin(this.fy), cz = Math.cos(this.fy);
+      P.x += (-sx * f + cz * r) * sp; P.z += (-cz * f - sx * r) * sp; P.y += u * sp * 0.7;
+    }
+    // stay near your angler, above the ground and not too high
+    const dx = P.x - pl.pos.x, dz = P.z - pl.pos.z, d = Math.hypot(dx, dz);
+    if (d > FREE_R) { P.x = pl.pos.x + dx / d * FREE_R; P.z = pl.pos.z + dz / d * FREE_R; }
+    P.y = Math.max(this.floorAt(P.x, P.z) + 0.2, Math.min(pl.pos.y + 8, P.y));
+    // the camera on its orbit, pulled in where the ground is between it and the pivot
+    const want = new THREE.Vector3(P.x + Math.sin(this.fy) * Math.cos(this.fp) * this.fd, P.y + Math.sin(this.fp) * this.fd, P.z + Math.cos(this.fy) * Math.cos(this.fp) * this.fd);
+    const N = 24;
+    for (let i = 1; i <= N; i++) {
+      const t = i / N, x = P.x + (want.x - P.x) * t, y = P.y + (want.y - P.y) * t, z = P.z + (want.z - P.z) * t;
+      if (y < this.floorAt(x, z)) { const k = Math.max(0.05, (i - 1) / N); want.set(P.x + (want.x - P.x) * k, P.y + (want.y - P.y) * k, P.z + (want.z - P.z) * k); break; }
+    }
+    const fit = g.engine.camFit?.(P.x, P.y, P.z, want.x, want.y, want.z); // (inside a cave or a mine: its own walls)
+    if (fit != null && fit < 1) want.set(P.x + (want.x - P.x) * fit, P.y + (want.y - P.y) * fit, P.z + (want.z - P.z) * fit);
+    want.y = Math.max(want.y, this.floorAt(want.x, want.z));
+    this.cam.lerp(want, Math.min(1, dt * 10));
+    this.cam.y = Math.max(this.cam.y, this.floorAt(this.cam.x, this.cam.z));
+    cam.position.copy(this.cam);
+    cam.lookAt(P);
+    cam.updateMatrixWorld();
+  }
+  tipText() {
+    const pad = this.game.pads?.active, touch = matchMedia?.('(pointer: coarse)').matches;
+    if (pad) return this.free ? 'Left stick to move · right stick to look · LT/RT zoom · D-pad up/down to rise · LB/RB filter · X hide · Y selfie camera · A snap'
+      : 'Sticks to frame the shot · LT/RT zoom · LB/RB filter · X hide · Y free camera · A snap';
+    if (touch) return this.free ? 'Drag to look round · pinch to zoom · two fingers to slide' : 'Drag to frame the shot · pinch to zoom';
+    return this.free ? 'WASD to move · Q/E down and up · drag to look round · right-drag to slide · scroll to zoom · Space to snap · F selfie camera · G filter · H hide'
+      : 'Drag to frame the shot · scroll to zoom · Space to snap · F free camera · G filter · H hide';
   }
 
   setFish(c) {
@@ -174,7 +306,8 @@ export class Selfie {
   updateCamera(dt) {
     // friends walking up (or away) light the group-shot button up as it happens
     this.nearT = (this.nearT || 0) - dt;
-    if (this.nearT <= 0) { this.nearT = 1; if (this.refreshBar && this.friendsNear().length !== this.groupN) this.refreshBar(); }
+    if (this.nearT <= 0) { this.nearT = 1; if (this.refreshBar && this.friendsNear().length !== this.groupN) this.refreshBar(); if (this.tipEl && this.tipEl.textContent !== this.tipText()) this.tipEl.textContent = this.tipText(); }
+    if (this.free) { this.updateFree(dt); return; }
     const g = this.game, pl = g.player, cam = g.engine.camera;
     const head = g.actor.headWorld(new THREE.Vector3());
     const yaw = pl.yaw + this.angle;
@@ -214,12 +347,17 @@ export class Selfie {
       this.refreshBar();
     } } });
     this.group = this.friendsNear().length > 0; // with friends around, default to a group shot
+    const camRow = h('div.selfie-poses.selfie-cams'), filterRow = h('div.selfie-poses.selfie-filters');
+    const hideBtn = h('button.btn.small.selfie-hide', { title: 'Hide everything on screen (H). Tap, H or X to bring it back', on: { click: () => this.setClean(true) } }, icon('eye'), h('span', 'Hide'));
     const bar = h('div.selfie-bar.plank',
       h('div.selfie-label', 'Hold up'), fishRow,
       h('div.selfie-label', 'Pose'), poseRow,
+      h('div.selfie-label', 'Camera'), camRow,
+      h('div.selfie-label', 'Filter'), filterRow,
       h('div.selfie-actions',
         h('button.btn.ghost.small', { on: { click: () => this.stop() } }, 'Done'),
         h('button.btn.small', { on: { click: () => this.openAlbum() } }, 'Album'),
+        hideBtn,
         groupBtn,
         snapBtn));
     this.refreshBar = () => {
@@ -237,21 +375,50 @@ export class Selfie {
       clear(groupBtn).append(icon('users'), h('span', n === 0 ? 'Group shot (nobody near)' : this.group ? `Group shot (${n + 1})` : `Group shot? ${n} near`));
       groupBtn.classList.toggle('gold', !!this.group);
       clear(poseRow).append(...POSES.map((p) => h(`button.btn.small${this.pose === p.id ? '.gold' : '.ghost'}`, { disabled: p.needsFish && !this.fish, on: { click: () => { this.pose = p.id; this.refreshBar(); } } }, p.label)));
+      clear(camRow).append(
+        h(`button.btn.small${this.free ? '.ghost' : '.gold'}`, { 'data-cam': 'selfie', on: { click: () => this.setFree(false) } }, 'Selfie'),
+        h(`button.btn.small${this.free ? '.gold' : '.ghost'}`, { 'data-cam': 'free', title: 'Move the camera away from your angler (F)', on: { click: () => this.setFree(true) } }, 'Free camera'));
+      clear(filterRow).append(...FILTERS.map((f, i) => h(`button.btn.small${this.filter === f.id ? '.gold' : '.ghost'}`, { 'data-filter': f.id, title: `${f.label} (${i + 1})`, on: { click: () => this.setFilter(f.id) } }, f.label)));
+      if (this.tipEl) this.tipEl.textContent = this.tipText();
     };
-    this.refreshBar();
+    // Drag to orbit (selfie: round the front of your angler; free: anywhere), the wheel or a pinch to zoom, and in the free
+    // camera a right-drag (or two fingers) to slide it about. With everything hidden, a tap brings it back.
     const drag = h('div.selfie-drag', { title: 'Drag to move the camera, scroll to zoom' });
+    const pts = new Map(); let moved = 0, pan = false, pinch = 0;
+    const mid = () => { const a = [...pts.values()]; return { x: a.reduce((s, q) => s + q.x, 0) / a.length, y: a.reduce((s, q) => s + q.y, 0) / a.length, d: a.length > 1 ? Math.hypot(a[0].x - a[1].x, a[0].y - a[1].y) : 0 }; };
     let last = null;
-    drag.addEventListener('pointerdown', (e) => { last = { x: e.clientX, y: e.clientY }; drag.setPointerCapture?.(e.pointerId); });
-    drag.addEventListener('pointermove', (e) => {
-      if (!last) return;
-      this.angle = Math.max(-1.3, Math.min(1.3, this.angle - (e.clientX - last.x) * 0.006));
-      this.tilt = Math.max(-0.25, Math.min(0.9, this.tilt + (e.clientY - last.y) * 0.004));
-      last = { x: e.clientX, y: e.clientY };
+    const zoomBy = (k) => { if (this.free) this.fd = Math.max(FREE_D[0], Math.min(FREE_D[1], this.fd * k)); else this.dist = Math.max(2.2, Math.min(7, this.dist * k)); };
+    drag.addEventListener('contextmenu', (e) => e.preventDefault());
+    drag.addEventListener('pointerdown', (e) => {
+      pts.set(e.pointerId, { x: e.clientX, y: e.clientY }); drag.setPointerCapture?.(e.pointerId);
+      if (pts.size === 1) moved = 0;
+      pan = e.button === 2 || e.shiftKey; last = mid(); pinch = last.d;
     });
-    const end = () => { last = null; };
+    drag.addEventListener('pointermove', (e) => {
+      if (!pts.has(e.pointerId)) return;
+      pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      const m = mid(), dx = m.x - last.x, dy = m.y - last.y; moved += Math.abs(dx) + Math.abs(dy);
+      if (pts.size > 1 && pinch && m.d) { zoomBy(pinch / m.d); pinch = m.d; }
+      if (this.free && (pan || pts.size > 1)) { // slide the pivot across the screen
+        const k = this.fd * 0.0022, sx = Math.sin(this.fy), cz = Math.cos(this.fy);
+        this.pivot.x += (-cz * dx - sx * dy) * k; this.pivot.z += (sx * dx - cz * dy) * k;
+      } else if (this.free) {
+        this.fy -= dx * 0.006; this.fp = Math.max(FREE_PITCH[0], Math.min(FREE_PITCH[1], this.fp + dy * 0.004));
+      } else if (pts.size === 1) {
+        this.angle = Math.max(-1.3, Math.min(1.3, this.angle - dx * 0.006));
+        this.tilt = Math.max(-0.25, Math.min(0.9, this.tilt + dy * 0.004));
+      }
+      last = m;
+    });
+    const end = (e) => {
+      pts.delete(e.pointerId); last = pts.size ? mid() : null; pinch = last?.d || 0;
+      if (!pts.size && this.clean && moved < 6) this.setClean(false); // (a tap: show the controls again)
+    };
     drag.addEventListener('pointerup', end); drag.addEventListener('pointercancel', end);
-    drag.addEventListener('wheel', (e) => { e.preventDefault(); this.dist = Math.max(2.2, Math.min(7, this.dist * (1 + Math.sign(e.deltaY) * 0.08))); }, { passive: false });
-    this.overlay = h('div.selfie', drag, frame, h('div.selfie-tip', 'Drag to frame the shot · scroll to zoom · Space to snap'), bar);
+    drag.addEventListener('wheel', (e) => { e.preventDefault(); zoomBy(1 + Math.sign(e.deltaY) * 0.08); }, { passive: false });
+    this.tipEl = h('div.selfie-tip');
+    this.refreshBar();
+    this.overlay = h('div.selfie', drag, frame, this.tipEl, bar);
     g.ui.root.append(this.overlay);
   }
 
@@ -276,6 +443,7 @@ export class Selfie {
     const vg = p.createRadialGradient(PHOTO / 2, PHOTO / 2, PHOTO * 0.35, PHOTO / 2, PHOTO / 2, PHOTO * 0.75);
     vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(30,15,0,0.38)');
     p.fillStyle = vg; p.fillRect(0, 0, PHOTO, PHOTO);
+    filterCanvas(photo, this.filter); // v1.17.15 the filter you picked, the same sums as the live view
     // the polaroid
     // v1.8.2: everyone near you is in a group shot, and their names get a line of their own on the polaroid
     const crew = this.group ? this.friendsNear().map((r) => String(r.peer.meta?.name || r.name || 'a friend').slice(0, 18)) : [];

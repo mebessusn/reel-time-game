@@ -139,7 +139,7 @@ export function openCreator(root, { avatar, owned = [], name = '', firstRun = fa
       return optBtn(cfg[key] === o.id, locked ? [icon('lock'), ` ${o.name}`] : o.name, thumb({ ...cfg, [key]: o.id, ...(key === 'hair' ? { hat: 'none' } : {}) }, REGION[key] || 'full'),
         { disabled: locked, title: locked ? 'Unlock in the shop or with an achievement' : o.name, on: { click: () => set(key, o.id) } });
     }));
-    const swatches = (key, colors) => h('div.swatches', colors.map((c, i) => h(`button${(cfg[key] ?? 0) === i ? '.on' : ''}`, { style: { background: c === 'default' ? 'repeating-linear-gradient(45deg,#e8dcc0 0 5px,#b8a888 5px 10px)' : c }, title: c === 'default' ? 'Original color' : '', 'aria-label': c === 'default' ? 'Original color' : `Color ${i + 1}`, on: { click: () => set(key, i) } })));
+    const swatches = (key, colors) => h('div.swatches', colors.map((c, i) => h(`button${(cfg[key] ?? 0) === i ? '.on' : ''}`, { style: { background: c === 'default' ? 'repeating-linear-gradient(45deg,#e8dcc0 0 5px,#b8a888 5px 10px)' : c }, title: c === 'default' ? 'Original colour' : '', 'aria-label': c === 'default' ? 'Original colour' : `Color ${i + 1}`, on: { click: () => set(key, i) } })));
 
     function renderOpts() {
       thumbJobs = [];
@@ -157,11 +157,11 @@ export function openCreator(root, { avatar, owned = [], name = '', firstRun = fa
             H('Body frame'), chooser('frame', O.FRAMES), H('Height'), chooser('height', O.HEIGHTS), H('Skin tone'), swatches('skin', O.SKINS));
           break;
         case 'hair':
-          opts.append(H('Hair style'), chooser('hair', O.HAIR_STYLES), H('Hair color'), swatches('hairColor', O.HAIR_COLORS));
+          opts.append(H('Hair style'), chooser('hair', O.HAIR_STYLES), H('Hair colour'), swatches('hairColor', O.HAIR_COLORS));
           break;
         case 'face': {
           const extras = new Set(cfg.extras || []);
-          opts.append(H('Eyes'), chooser('eyes', O.EYES), H('Eye color'), swatches('eyeColor', O.EYE_COLORS), H('Brows'), chooser('brows', O.BROWS),
+          opts.append(H('Eyes'), chooser('eyes', O.EYES), H('Eye colour'), swatches('eyeColor', O.EYE_COLORS), H('Brows'), chooser('brows', O.BROWS),
             H('Mouth'), chooser('mouth', O.MOUTHS), H('Facial hair'), chooser('facialHair', O.FACIAL_HAIR),
             H('Eyewear'), chooser('eyewear', O.EYEWEAR),
             H('Extras'), h('div.chooser.opt-grid', O.EXTRAS.map((x) => optBtn(extras.has(x.id), x.name, thumb({ ...cfg, extras: [...new Set([...(cfg.extras || []).filter((e) => !(x.id.startsWith('glasses') && e.startsWith('glasses'))), x.id])] }, 'head'), { on: { click: () => {
@@ -176,10 +176,10 @@ export function openCreator(root, { avatar, owned = [], name = '', firstRun = fa
           break;
         }
         case 'top':
-          opts.append(H('Hat'), chooser('hat', O.HATS), ...(cfg.hat && cfg.hat !== 'none' && cfg.hat !== 'hat_crown' && cfg.hat !== 'hat_captain' ? [H('Hat color'), swatches('hatColor', O.HAT_COLORS)] : []), H('Shirt'), chooser('shirt', O.SHIRTS), H(cfg.shirt === 'sundress' ? 'Dress color' : cfg.shirt === 'denim' ? 'Inner shirt color' : 'Shirt color'), swatches('shirtColor', O.CLOTH_COLORS), H('Accessory'), chooser('accessory', O.ACCESSORIES));
+          opts.append(H('Hat'), chooser('hat', O.HATS), ...(cfg.hat && cfg.hat !== 'none' && cfg.hat !== 'hat_crown' && cfg.hat !== 'hat_captain' ? [H('Hat colour'), swatches('hatColor', O.HAT_COLORS)] : []), H('Shirt'), chooser('shirt', O.SHIRTS), H(cfg.shirt === 'sundress' ? 'Dress colour' : cfg.shirt === 'denim' ? 'Inner shirt color' : 'Shirt colour'), swatches('shirtColor', O.CLOTH_COLORS), H('Accessory'), chooser('accessory', O.ACCESSORIES));
           break;
         case 'bottom':
-          opts.append(H('Pants'), chooser('pants', O.PANTS), H('Pants color'), swatches('pantsColor', O.PANT_COLORS), H('Shoes'), chooser('shoes', O.SHOES));
+          opts.append(H('Pants'), chooser('pants', O.PANTS), H('Pants colour'), swatches('pantsColor', O.PANT_COLORS), H('Shoes'), chooser('shoes', O.SHOES));
           break;
         case 'country':
           opts.append(H('Country of origin'),
@@ -213,7 +213,7 @@ export function openCountryPicker(root, { audio } = {}) {
     const go = h('button.btn.primary', { disabled: true, on: { click: () => { el.remove(); audio?.sfx('open'); resolve(pick); } } }, icon('check'), "Let's fish");
     const el = h('div.country-sheet', h('div.plank.country-card', { role: 'dialog', 'aria-label': 'Pick your country' },
       h('h3', 'Where are you fishing from?'),
-      h('div.muted', 'New at Frostpine Lake: whoever holds the lake record each week gets their flag planted on the cairn. Pick your country to join in. You can change it any time under Customize angler.'),
+      h('div.muted', 'New at Frostpine Lake: whoever holds the lake record each week gets their flag planted on the cairn. Pick your country to join in. You can change it any time under Customise angler.'),
       countryGrid(null, (code) => { pick = code; go.disabled = false; audio?.sfx('click'); }),
       h('div.country-foot', go)));
     root.append(el);

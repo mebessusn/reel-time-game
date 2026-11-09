@@ -122,6 +122,7 @@ export class Saga {
       for (const it of L.items || []) await g.reward('saga', `${L.id}-${it}`, { item: it }, L.name);
       if (L.decor) g.ext.change((x) => { x.home.owned = [...new Set([...(x.home.owned || []), L.decor])]; if (!x.home.decor.includes(L.decor)) x.home.decor.push(L.decor); });
       for (const M of maps()) M.onDone?.(g, L);
+      if (g.finale?.check(true)) { this.show(); return; } // (the last line: the ending moment)
       const nx = this.whatNext(L); if (nx) setTimeout(() => g.ui.toast(nx, { title: 'What next', icon: 'scroll', ms: 9000 }), 5500);
     } else g.ui.toast(`Next: ${L.steps[next].text}.`, { title: L.name, icon: 'scroll', ms: 4500 });
     this.show();

@@ -5,7 +5,7 @@ import * as THREE from 'three';
 import { mergeGeometries, mergeVertices } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { camperAt } from './campers.js';
 import { leviathanAt } from './frostbones.js';
-import { surfaceY, grassAt, heightAt, groundY, onDock, trailDist, WATER_Y, HALF, CLEARINGS, LAKES } from './terrain.js';
+import { surfaceY, grassAt, heightAt, groundY, onDock, trailDist, WATER_Y, HALF, CLEARINGS, LAKES, homeYardAt } from './terrain.js';
 import { blocked, addCircle } from './colliders.js';
 import { natureBushes } from './nature.js';
 import { caveRockAt } from './cave.js';
@@ -316,7 +316,8 @@ export function buildGroundCover(scene, wind, cabin = null) {
     if (!s) continue;
     placed.push(s);
     const berries = r() < 0.3 ? 1 + Math.floor(r() * 3) : 0;
-    bushList.push({ x: s.x, y: surfaceY(s.x, s.z) - 0.06, z: s.z, ry: r() * 6.28, s: 0.8 + r() * 0.55, shape: Math.floor(r() * 3), green: Math.floor(r() * 4), berries });
+    const row = { x: s.x, y: surfaceY(s.x, s.z) - 0.06, z: s.z, ry: r() * 6.28, s: 0.8 + r() * 0.55, shape: Math.floor(r() * 3), green: Math.floor(r() * 4), berries };
+    if (!homeYardAt(s.x, s.z, 1.2)) bushList.push(row); // (v1.17.15: your home's yard and plot stay clear; the seeded layout elsewhere is unchanged)
   }
   const bushes = natureBushes(bushList);
   addWind(bushes.material, wind, 0.05, 'bushes-nature');
@@ -333,7 +334,7 @@ export function buildGroundCover(scene, wind, cabin = null) {
       const dx = s.x - BIKE_YARD.x, dz = s.z - BIKE_YARD.z, d = Math.hypot(dx, dz), need = BIKE_YARD.r + size * 1.4;
       if (d < need) { const k = need / Math.max(d, 0.01); s.x = BIKE_YARD.x + (d < 0.01 ? need : dx * k); s.z = BIKE_YARD.z + (d < 0.01 ? 0 : dz * k); }
     }
-    const gone = dockYard(s.x, s.z);
+    const gone = dockYard(s.x, s.z) || homeYardAt(s.x, s.z, size + 0.4); // (v1.17.15: and your home's yard and plot)
     placed.push(s);
     const g = rockGeometry(r, size);
     g.rotateY(r() * 6.28); g.rotateX((r() - 0.5) * 0.3); g.rotateZ((r() - 0.5) * 0.3);
