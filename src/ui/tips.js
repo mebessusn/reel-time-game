@@ -10,7 +10,7 @@ export const TIPS = [
   'Each lake has its own fish. Frostpine Lake is cold and deep, Lilymarsh is warm and shallow.',
   'Willow River links Cozy Cove and Lilymarsh. Row under the footbridge to get there.',
   'Every lake has a jetty where you can launch your boat (level 3 and up).',
-  'Gus buys fish at the cabin. Diamond fish trade for pearls.',
+  'Gus buys fish at the cabin. Diamond fish trade for pearls: pearls are only ever earned by playing, never sold.',
   'Press T to stow your rod on your back while you explore.',
   'Press P for the selfie camera. Snap a polaroid with your latest catch!',
   'The Lake Legends board by the dock shows the three best fish ever caught. Press E there to see who caught them.',
@@ -34,6 +34,8 @@ export const TIPS = [
   'Plug in a controller: A casts and reels, X uses things nearby, B backs out.',
   'Catch every fish on a lake’s list (Fishpedia > Collections) for a title and a statue.',
 ];
+// Tips about other anglers, left out in single player: chat, whispers, and fishing near friends.
+const SOCIAL_TIPS = new Set([TIPS[0], TIPS[1], 'Fishing near friends makes bites come a little faster.']);
 
 const safe = {
   get(k, d) { try { const v = JSON.parse(localStorage.getItem(k)); return v ?? d; } catch { return d; } },
@@ -72,8 +74,9 @@ export class Tips {
 
   // A fresh tip you haven't seen yet (cycles once all are seen).
   pick() {
-    let pool = TIPS.filter((t) => !this.seen.has(t));
-    if (!pool.length) { this.seen.clear(); pool = TIPS; }
+    const all = this.game.solo ? TIPS.filter((t) => !SOCIAL_TIPS.has(t)) : TIPS;
+    let pool = all.filter((t) => !this.seen.has(t));
+    if (!pool.length) { this.seen.clear(); pool = all; }
     const t = pool[Math.floor(Math.random() * pool.length)];
     this.seen.add(t);
     safe.set('rt_tips_seen', [...this.seen]);
@@ -91,6 +94,6 @@ export class Tips {
   // First visit: the casting tip right away.
   welcome(isNew) {
     if (!this.enabled) return;
-    if (isNew) { this.seen.add(TIPS[0]); this.show(TIPS[0]); this.next = 90; }
+    if (isNew && !this.game.solo) { this.seen.add(TIPS[0]); this.show(TIPS[0]); this.next = 90; } // (the chat tip: nothing to say it to in single player)
   }
 }

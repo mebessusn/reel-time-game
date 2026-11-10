@@ -70,6 +70,7 @@ export class Actor {
     }
     const gkey = `${equipped.rod}|${equipped.lure}|${equipped.boat}|${gearReady()}`; // rebuilt once the detailed models arrive
     if (gkey !== this.gearKey) {
+      this.freeRodBend();
       if (this.rod) this.rod.parent?.remove(this.rod);
       this.rod = buildRod(equipped.rod, this.lite); // (lite: villagers' rods are one draw call)
       this.rodPlace = null;
@@ -150,6 +151,62 @@ export class Actor {
   setMode(mode) {
     this.mode = mode;
     if (this.boatObj) this.boatObj.visible = mode === 'boat';
+  }
+
+  /** Bend the rod toward the line under tension (k: 0 straight .. 1 doubled over; toward: the bobber, in the world).
+   *  The rod's parts get their own copy of the geometry the first time (the models share theirs), and its vertices
+   *  are curved along its length from just above the grip; the tip (where the line ties on) moves with them. */
+  bendRod(dt, k, toward) {
+    const rod = this.rod;
+    if (!rod?.userData.tip || this.lite) return;
+    let B = this.rodBend;
+    if (!B || B.rod !== rod) {
+      if (!(k > 0.01)) return; // never bent: nothing to do (most rods never are)
+      this.freeRodBend();
+      rod.updateWorldMatrix(true, true);
+      const inv = new THREE.Matrix4().copy(rod.matrixWorld).invert(), parts = [];
+      rod.traverse((o) => {
+        if (!o.isMesh || !o.geometry?.attributes.position) return;
+        const src = o.geometry.attributes.position, n = src.count, base = new Float32Array(n * 3);
+        const to = new THREE.Matrix4().multiplyMatrices(inv, o.matrixWorld), from = to.clone().invert();
+        for (let i = 0; i < n; i++) { tmpV.fromBufferAttribute(src, i).applyMatrix4(to); base[i * 3] = tmpV.x; base[i * 3 + 1] = tmpV.y; base[i * 3 + 2] = tmpV.z; } // (in the rod's own space)
+        const shared = o.geometry, geo = shared.clone();
+        geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(n * 3), 3)); // (the models' positions are packed integers: bend in floats)
+        o.geometry = geo;
+        parts.push({ o, shared, geo, base, from });
+      });
+      B = this.rodBend = { rod, parts, k: 0, shown: -1, dx: 0, dz: 1, len: rod.userData.tip.position.y, tipY: rod.userData.tip.position.y };
+    }
+    B.k += (Math.max(0, Math.min(1, k)) - B.k) * Math.min(1, dt * 12);
+    if (toward && B.k > 0.005) { // which way is "toward the fish", across the rod
+      rod.updateWorldMatrix(true, false);
+      tmpV.copy(toward); rod.worldToLocal(tmpV);
+      const l = Math.hypot(tmpV.x, tmpV.z);
+      if (l > 1e-4) { B.dx += (tmpV.x / l - B.dx) * Math.min(1, dt * 8); B.dz += (tmpV.z / l - B.dz) * Math.min(1, dt * 8); }
+    }
+    if (B.k < 0.004) B.k = 0;
+    if (Math.abs(B.k - B.shown) < 0.004 && B.k !== 0) return;
+    if (B.k === 0 && B.shown === 0) return;
+    B.shown = B.k;
+    const L = B.len, y0 = L * 0.22, span = L - y0, bow = B.k * 0.3 * L; // the tip swings up to 30% of the rod's length
+    for (const p of B.parts) {
+      const arr = p.geo.attributes.position.array, base = p.base;
+      for (let i = 0; i < base.length; i += 3) {
+        const u = Math.max(0, (base[i + 1] - y0) / span), d = bow * u * u;
+        tmpV.set(base[i] + B.dx * d, base[i + 1] - (2 / 3) * bow * bow * u * u * u / span, base[i + 2] + B.dz * d).applyMatrix4(p.from); // (the curve keeps its length: the tip drops a little)
+        arr[i] = tmpV.x; arr[i + 1] = tmpV.y; arr[i + 2] = tmpV.z;
+      }
+      p.geo.attributes.position.needsUpdate = true;
+    }
+    rod.userData.tip.position.set(B.dx * bow, B.tipY - (2 / 3) * bow * bow / span, B.dz * bow);
+  }
+  /** Give a bent rod its shared geometry back (before it is rebuilt or thrown away). */
+  freeRodBend() {
+    const B = this.rodBend;
+    if (!B) return;
+    for (const p of B.parts) { p.o.geometry = p.shared; p.geo.dispose(); }
+    B.rod.userData.tip?.position.set(0, B.tipY, 0);
+    this.rodBend = null;
   }
 
   rodTip(out = new THREE.Vector3()) {
@@ -273,6 +330,7 @@ export class Actor {
       const y = s.bobber.y ?? (WATER_Y + waveAt(s.bobber.x, s.bobber.z) + Math.sin(t * 2.4) * 0.03 - dunk * 0.18);
       this.bobberObj.position.set(s.bobber.x, y, s.bobber.z);
       this.bobberObj.rotation.y = t * 0.2;
+      this.bendRod(dt, pose === 'reel' ? Math.pow(Math.min(1, s.tension || 0), 1.2) : 0, this.bobberObj.position); // the rod bows with the line's tension
       this.rodTip(tmpV);
       this.line.line.visible = true;
       this.line.update(tmpV, this.bobberObj.position, s.bobber.flying ? 0.1 : 0.5, Math.min(1, s.tension || 0));
@@ -280,6 +338,7 @@ export class Actor {
     } else {
       this.bobberObj.visible = false;
       this.line.line.visible = false;
+      if (this.rodBend) this.bendRod(dt, 0, null);
     }
 
     // Held fish over the head
@@ -303,6 +362,7 @@ export class Actor {
 
   dispose() {
     if (this.lantern) this.scene.remove(this.lantern.userData.pool);
+    this.freeRodBend();
     this.avatar?.dispose?.();
     this.scene.remove(this.root);
     this.scene.remove(this.line.line);

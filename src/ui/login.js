@@ -2,14 +2,15 @@ import { randomFact } from '../data/facts.js';
 // Splash for a brand-new angler: the logo and one button.
 import { h } from './dom.js';
 import { logo } from './menus.js';
+import { TAGLINE } from './edition.js';
 
-/** Resolves when the person picks Start fishing. */
+/** Resolves when the person picks Start fishing. (The Five Lakes inside Claude only: see main.js.) */
 export function showSplash(root) {
   return new Promise((resolve) => {
     const start = h('button.btn.primary.large.block', { on: { click: () => { el.remove(); resolve('guest'); } } }, 'Start fishing');
     const el = h('div.splash',
       h('div.card.paper',
-        logo('brand.splash-logo'), h('div.splash-tag', 'A cozy lake for the wait.'),
+        logo('brand.splash-logo'), h('div.splash-tag', TAGLINE),
         h('div.stack', start)));
     root.append(el);
   });

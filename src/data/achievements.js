@@ -1,5 +1,12 @@
 // The valley's achievements (design doc section 10); another map adds its own with addAchievements. Data-driven: { id, name, desc, category, tier, stat, threshold, reward, secret }
 // stat names are counters kept in profile.stats (see game/rules.js).
+import { SPECIES } from './species.js';
+
+// The Fishpedia goals count the valley's own fish, straight from the species list, so the words and the targets can
+// never drift from it again (they said 10 / 8 / 6 / 4 / 32 long after the valley had 76). Another map's fish are added
+// with addSpecies and never land in SPECIES, so they don't move these. A goal claimed at an old, lower count stays claimed.
+const inTier = (tier) => SPECIES.filter((s) => s.tier === tier).length;
+const VALLEY = { common: inTier('common'), uncommon: inTier('uncommon'), rare: inTier('rare'), epic: inTier('epic'), all: SPECIES.length };
 
 export const achievement = (id, name, desc, category, tier, stat, threshold, reward, extra = {}) =>
   ({ id, name, desc, category, tier, stat, threshold, reward, ...extra });
@@ -16,17 +23,17 @@ export const ACHIEVEMENTS = [
   achievement('lake_regular', 'Lake Regular', 'Catch 1,000 fish', 'Volume', 'silver', 'catches', 1000, { pearls: 3 }),
   achievement('busy_bobber_3', 'Busy Bobber III', 'Catch 5,000 fish', 'Volume', 'gold', 'catches', 5000, { pearls: 10 }),
   achievement('lifelong', 'Lifelong Angler', 'Catch 10,000 fish', 'Volume', 'gold', 'catches', 10000, { title: 'Lifelong Angler', item: 'boat_oars_gold' }),
-  achievement('while_you_wait', 'While You Wait', 'Catch 50 fish while Claude works', 'Volume', 'silver', 'waitCatches', 50, { item: 'lure_spark' }),
+  achievement('while_you_wait', 'While You Wait', 'Catch 50 fish while Claude works', 'Volume', 'silver', 'waitCatches', 50, { item: 'lure_spark' }, { claude: true }), // (only where Claude can be linked: see achievementsFor)
   // Collection
-  achievement('pedia_common', 'Fishpedia: Commons', 'Catch all 10 Common species', 'Collection', 'bronze', 'species_common', 10, { coins: 150 }),
-  achievement('pedia_uncommon', 'Fishpedia: Uncommons', 'Catch all 8 Uncommon species', 'Collection', 'silver', 'species_uncommon', 8, { coins: 400 }),
-  achievement('pedia_rare', 'Fishpedia: Rares', 'Catch all 6 Rare species', 'Collection', 'silver', 'species_rare', 6, { pearls: 5 }),
-  achievement('pedia_epic', 'Fishpedia: Epics', 'Catch all 4 Epic species', 'Collection', 'gold', 'species_epic', 4, { pearls: 10 }),
-  achievement('pedia_complete', 'Fishpedia: Complete', 'Catch all 32 species', 'Collection', 'gold', 'speciesCaught', 32, { pearls: 25, title: 'Lake Scholar' }),
+  achievement('pedia_common', 'Fishpedia: Commons', `Catch all ${VALLEY.common} Common species`, 'Collection', 'bronze', 'species_common', VALLEY.common, { coins: 150 }),
+  achievement('pedia_uncommon', 'Fishpedia: Uncommons', `Catch all ${VALLEY.uncommon} Uncommon species`, 'Collection', 'silver', 'species_uncommon', VALLEY.uncommon, { coins: 400 }),
+  achievement('pedia_rare', 'Fishpedia: Rares', `Catch all ${VALLEY.rare} Rare species`, 'Collection', 'silver', 'species_rare', VALLEY.rare, { pearls: 5 }),
+  achievement('pedia_epic', 'Fishpedia: Epics', `Catch all ${VALLEY.epic} Epic species`, 'Collection', 'gold', 'species_epic', VALLEY.epic, { pearls: 10 }),
+  achievement('pedia_complete', 'Fishpedia: Complete', `Catch all ${VALLEY.all} species of the Five Lakes`, 'Collection', 'gold', 'speciesCaught', VALLEY.all, { pearls: 25, title: 'Lake Scholar' }),
   achievement('gilded', 'Gilded', 'Catch 10 Gold variants', 'Collection', 'silver', 'golds', 10, { item: 'lure_spinner' }),
   achievement('first_diamond', 'First Diamond', 'Catch any Diamond variant', 'Collection', 'silver', 'diamonds', 1, { pearls: 5 }),
   achievement('diamond_hoard', 'Diamond Hoard', 'Catch 10 Diamond variants', 'Collection', 'gold', 'diamonds', 10, { pearls: 30 }),
-  achievement('jewel_case', 'The Jewel Case', 'Catch every species in Diamond', 'Collection', 'gold', 'diamondSpecies', 32, { item: 'boat_crystal', title: 'Jeweller of the Deep' }, { secret: true }),
+  achievement('jewel_case', 'The Jewel Case', 'Catch 32 different species in Diamond', 'Collection', 'gold', 'diamondSpecies', 32, { item: 'boat_crystal', title: 'Jeweller of the Deep' }, { secret: true }),
   // Skill
   achievement('perfect_cast', 'Perfect Cast', 'Make 25 perfect casts', 'Skill', 'bronze', 'perfectCasts', 25, { coins: 100 }),
   achievement('perfect_cast_2', 'Perfect Cast II', 'Make 250 perfect casts', 'Skill', 'silver', 'perfectCasts', 250, { pearls: 3 }),
@@ -57,4 +64,7 @@ export const ACHIEVEMENTS = [
 
 export const ACH_BY_ID = Object.fromEntries(ACHIEVEMENTS.map((a) => [a.id, a]));
 export function addAchievements(list) { for (const a of list) { ACHIEVEMENTS.push(a); ACH_BY_ID[a.id] = a; } }
+/** The achievements this player sees and counts: one that needs Claude linked (`claude: true`) is left out where
+ *  linking isn't possible (the standalone game), unless they earned it already. */
+export const achievementsFor = (p, claudeHere) => ACHIEVEMENTS.filter((a) => !a.claude || claudeHere || !!p?.achievements?.[a.id]);
 export const ACH_TIER_COLOR = { bronze: '#c08a5a', silver: '#c8d0d8', gold: '#f2c040' };

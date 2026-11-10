@@ -189,6 +189,15 @@ export class Chat {
     this.game.ui?.setChatBadge?.(this.totalUnread());
   }
   toggle() { this.setOpen(!this.open); }
+  /** Single player: there's nobody to talk to, so the "Press Enter to chat" bar and the typing row go. What the lake
+   *  has to say (catches, weather, quests) still pops up, and Enter opens the log to read back through. */
+  setSolo(v) {
+    this.solo = !!v;
+    this.root.classList.toggle('solo', this.solo);
+    if (this.solo && this.typing) this.input.blur();
+    if (this.solo && this.active !== 'system' && !this.tabs.get(this.active)?.msgs.length) this.select('system');
+    this.measure();
+  }
   // The open panel fades back after a while with nothing new; new lines, hovering or typing wake it.
   wake() {
     this.panel.classList.remove('idle');
@@ -203,6 +212,7 @@ export class Chat {
 
   // Enter from the game: open the box and focus it (optionally pre-filled).
   focus(prefill = '') {
+    if (this.solo) { this.setOpen(!this.open); return; } // (single player: Enter opens and closes the log; there's nothing to type into)
     if (!this.open) this.setOpen(true);
     this.input.focus();
     if (prefill && !this.input.value) this.input.value = prefill;

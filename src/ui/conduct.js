@@ -1,5 +1,6 @@
-// Lake rules (code of conduct), v1.10. Shown once, the first time someone starts the game; after they agree it
-// never shows again (remembered on this device and in their save). /rules in chat opens it again to read.
+// Lake rules (code of conduct), v1.10. Shown once, the first time someone is on a lake with other anglers (never in
+// single player); after they agree it never shows again (remembered on this device and in their save). /rules in chat
+// opens it again to read.
 import { h } from './dom.js';
 import { icon } from './icons.js';
 import { menuNav } from './menus.js';
@@ -15,16 +16,34 @@ export const RULES = [
   ['gavel', 'Rules are enforced', "The lake's admins can mute, suspend or ban anglers who break them."],
 ];
 
-export function conductAccepted(game) {
+const agreed = (game) => {
   try { if (localStorage.getItem(KEY)) return true; } catch { /* storage blocked */ }
   return !!game?.ext?.d?.conductAt;
+};
+let showing = false;
+
+/** True when there's nothing to show: the angler has agreed already, or is in single player, where there's nobody
+ *  to be rude to. (The rules wait for the first time they go multiplayer: see conductCheck.) */
+export function conductAccepted(game) {
+  return showing || !!game?.solo || agreed(game);
+}
+
+/** Called now and then by the HUD: the first time an angler who hasn't agreed is on a lake with other people (they
+ *  picked Multiplayer, switched to it mid-game, or joined a friend), the rules show. Returns true once they've agreed,
+ *  so the caller can stop asking. */
+export function conductCheck(game) {
+  if (agreed(game)) return true;
+  if (game.started && !conductAccepted(game) && !new URLSearchParams(location.search).has('autoplay')) showConduct(game, { firstTime: true });
+  return false;
 }
 
 /** Shows the rules. With `firstTime`, the only way out is "I agree", which is remembered. */
 export function showConduct(game, { firstTime = false } = {}) {
   return new Promise((resolve) => {
     const root = game.ui.root;
+    if (firstTime) showing = true;
     const done = () => {
+      if (firstTime) showing = false;
       if (firstTime) {
         try { localStorage.setItem(KEY, String(Date.now())); } catch { /* ignore */ }
         game.ext?.change?.((d) => { d.conductAt = Date.now(); });
@@ -35,7 +54,7 @@ export function showConduct(game, { firstTime = false } = {}) {
     };
     const ok = h('button.btn.primary', { on: { click: done } }, firstTime ? 'I agree, let me fish' : 'Close');
     const card = h('div.menu-card.conduct-card', { role: 'dialog', 'aria-modal': 'true', 'aria-label': 'Lake rules' },
-      h('div.conduct-head', h('span.conduct-badge', icon('rules')), h('div', h('h3', 'Lake rules'), h('p', firstTime ? 'Before you cast your first line, here is how we keep the lake cozy for everyone.' : 'How we keep the lake cozy for everyone.'))),
+      h('div.conduct-head', h('span.conduct-badge', icon('rules')), h('div', h('h3', 'Lake rules'), h('p', firstTime ? 'Before you fish alongside other anglers, here is how we keep the lake cozy for everyone.' : 'How we keep the lake cozy for everyone.'))),
       h('ul.conduct-list', RULES.map(([ic, t, d]) => h('li', h('span.cr-ic', icon(ic)), h('div.cr-tx', h('b', t), h('span.cr-d', d))))),
       h('p.conduct-foot', 'Someone breaking the rules? Click their name in chat to mute or report them. ',
         h('button.link-btn', { type: 'button', on: { click: () => import('./privacy.js').then((m) => m.showPrivacy(game)) } }, 'How we handle your data')),

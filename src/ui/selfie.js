@@ -8,6 +8,7 @@ import { SPECIES_BY_ID, ZONES } from '../data/species.js';
 import { regionName, surfaceY, WATER_Y } from '../world/terrain.js';
 import { aan } from '../core/text.js';
 import { FILTERS, FILTER_BY_ID, filterCanvas, filterElement } from './photofilters.js';
+import { addEvictor } from '../save/store.js';
 
 // v1.17.15 photo mode: a free camera that leaves your angler where they stand (within FREE_R of them, never under the
 // ground or the water), filters, and the camera's own controls hidden for a clean screen.
@@ -27,15 +28,21 @@ const POSES = [
   { id: 'shrug', label: 'Shrug' },
 ];
 
+const ALBUM_BYTES = 1500000; // v1.17.18: the album never takes more than this, so the save always has room
 const store = {
   get() { try { return JSON.parse(localStorage.getItem(ALBUM_KEY)) || []; } catch { return []; } },
   set(list) {
-    for (let n = list.length; n > 0; n--) { // drop the oldest if the browser runs out of room
-      try { localStorage.setItem(ALBUM_KEY, JSON.stringify(list.slice(-n))); return n; } catch { /* quota */ }
+    for (let n = list.length; n > 0; n--) { // drop the oldest if it's over its share or the browser runs out of room
+      const s = JSON.stringify(list.slice(-n));
+      if (s.length > ALBUM_BYTES && n > 1) continue;
+      try { localStorage.setItem(ALBUM_KEY, s); return n; } catch { /* quota */ }
     }
+    try { localStorage.removeItem(ALBUM_KEY); } catch { /* ignore */ }
     return 0;
   },
 };
+// progress comes before photos: when a save write runs out of room, the oldest photo goes first (store.js)
+addEvictor(() => { const l = store.get(); if (!l.length) return false; store.set(l.slice(1)); return 'your oldest photo'; });
 export const album = {
   list: () => store.get(),
   add(photo) { const l = store.get(); l.push(photo); const kept = store.set(l.slice(-ALBUM_MAX)); return kept; },

@@ -2,7 +2,7 @@
 // browser storage (the profile, album, trophies, settings and tips: every `rt_` key) to a small .json file; Import reads
 // one back, replacing this browser's save, and restarts the game. Lake-wide data (the shared lake store, feed, board and
 // records) stays with the lake and isn't moved.
-const SKIP = /^rt_(shared_|feed|board|records)/;
+const SKIP = /^rt_(shared_|feed|board|records|bak_)/; // (rt_bak_: this browser's own last-good copies, store.js)
 const APP = 'reel-time-save';
 
 export function collectSave() {
@@ -43,10 +43,18 @@ export function parseSave(text) {
   return { ok: true, keys, at: d.at };
 }
 
-/** Replace this browser's save with `keys` (from parseSave). The caller restarts the game straight after. */
+/** Replace this browser's save with `keys` (from parseSave). The caller restarts the game straight after.
+ *  v1.17.18: all or nothing. If the browser won't store the new save (full or blocked), the old one is put back exactly
+ *  as it was and this throws, so a failed import never leaves neither save. */
 export function applySave(keys) {
-  const old = [];
-  for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); if (k && k.startsWith('rt_') && !SKIP.test(k)) old.push(k); }
-  for (const k of old) localStorage.removeItem(k);
-  for (const [k, v] of Object.entries(keys)) localStorage.setItem(k, v);
+  const old = {};
+  for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); if (k && k.startsWith('rt_') && !SKIP.test(k)) old[k] = localStorage.getItem(k); }
+  try {
+    for (const k of Object.keys(old)) if (!(k in keys)) localStorage.removeItem(k); // (frees room for the new save)
+    for (const [k, v] of Object.entries(keys)) localStorage.setItem(k, v);
+  } catch (e) {
+    for (const k of Object.keys(keys)) if (!(k in old)) { try { localStorage.removeItem(k); } catch { /* ignore */ } }
+    for (const [k, v] of Object.entries(old)) { try { localStorage.setItem(k, v); } catch { /* ignore */ } }
+    throw e;
+  }
 }

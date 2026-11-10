@@ -19,19 +19,29 @@ const KEYS = [
   { f: 1.0, sky: '#1b2646', fog: '#1b2646', sun: 0.0, amb: 0.42, ambCol: '#7f8fd0', light: [0.42, 0.48, 0.72] },
 ];
 
-const cA = new THREE.Color(), cB = new THREE.Color();
+// update() runs every frame: the colours it needs are parsed once here, and it works in the scratch objects below
+// (it used to parse hex strings and make about a dozen Color / Vector3 objects a frame, plus an array per raindrop).
+const C = (hex) => new THREE.Color(hex);
+const KEYC = KEYS.map((k) => ({ sky: C(k.sky), fog: C(k.fog), ambCol: C(k.ambCol) }));
+const COL = {
+  greyRain: C('#7c838b'), grey: C('#8a94a0'), bloodSky: C('#5a0610'), bloodFog: C('#560a14'), sunLow: C('#ffd0a0'), sunHigh: C('#fff4e0'),
+  moonBlood: C('#ff2a1a'), moon: C('#9fb0ff'), groundNight: C('#202838'), groundDay: C('#6a6a50'), bloodHemi: C('#c0202a'), bloodGround: C('#3a0810'),
+  white: C('#ffffff'), cloudGrey: C('#9aa2ae'), lampOn: C('#fffaf0'), lampOff: C('#d8d0b0'),
+};
+const UP = new THREE.Vector3(0, 1, 0), MOON_UP = new THREE.Vector3(0, 1, -1), MOON_DIR = new THREE.Vector3(-0.4, 0.8, 0.3).normalize();
+const K = { sky: new THREE.Color(), fog: new THREE.Color(), ambCol: new THREE.Color(), sun: 0, amb: 0, light: [0, 0, 0] };
+const S = { sky: new THREE.Color(), fog: new THREE.Color(), grey: new THREE.Color(), tint: new THREE.Color(), shade: new THREE.Color(), fogCol: new THREE.Color(), sunDir: new THREE.Vector3() };
+/** The sky at time-of-day f, into K (one shared object: read it before the next call). */
 function sampleKeys(f) {
   let i = 0;
   while (i < KEYS.length - 2 && f > KEYS[i + 1].f) i++;
-  const a = KEYS[i], b = KEYS[i + 1];
+  const a = KEYS[i], b = KEYS[i + 1], ca = KEYC[i], cb = KEYC[i + 1];
   const t = Math.min(1, Math.max(0, (f - a.f) / (b.f - a.f)));
   const s = t * t * (3 - 2 * t);
-  const mix = (x, y) => cA.set(x).lerp(cB.set(y), s).clone();
-  return {
-    sky: mix(a.sky, b.sky), fog: mix(a.fog, b.fog), ambCol: mix(a.ambCol, b.ambCol),
-    sun: a.sun + (b.sun - a.sun) * s, amb: a.amb + (b.amb - a.amb) * s,
-    light: a.light.map((v, k) => v + (b.light[k] - v) * s),
-  };
+  K.sky.copy(ca.sky).lerp(cb.sky, s); K.fog.copy(ca.fog).lerp(cb.fog, s); K.ambCol.copy(ca.ambCol).lerp(cb.ambCol, s);
+  K.sun = a.sun + (b.sun - a.sun) * s; K.amb = a.amb + (b.amb - a.amb) * s;
+  for (let n = 0; n < 3; n++) K.light[n] = a.light[n] + (b.light[n] - a.light[n]) * s;
+  return K;
 }
 
 export class Sky {
@@ -138,9 +148,9 @@ export class Sky {
     const k = sampleKeys(wt.f);
     const wx = wt.weather;
     const gloom = wx === 'overcast' ? 0.35 : wx === 'rain' ? 0.72 : wx === 'storm' ? 0.8 : 0; // v1.13.1: rain greys the sky a little more
-    const grey = new THREE.Color(wx === 'rain' || wx === 'storm' ? '#7c838b' : '#8a94a0').multiplyScalar(0.4 + k.sun * 0.6);
-    const sky = k.sky.clone().lerp(grey, gloom);
-    const fog = k.fog.clone().lerp(grey, gloom);
+    const grey = S.grey.copy(wx === 'rain' || wx === 'storm' ? COL.greyRain : COL.grey).multiplyScalar(0.4 + k.sun * 0.6);
+    const sky = S.sky.copy(k.sky).lerp(grey, gloom);
+    const fog = S.fog.copy(k.fog).lerp(grey, gloom);
 
     // Lightning (v1.13.1: a real bolt in the sky, and a double flicker like the real thing)
     if (wx === 'storm') {
@@ -156,7 +166,7 @@ export class Sky {
     const night0 = 1 - Math.min(1, k.sun * 3);
     const blood = wt.bloodMoon ? night0 : 0;
     this.blood = blood;
-    if (blood > 0) { sky.lerp(new THREE.Color('#5a0610'), blood * 0.92); fog.lerp(new THREE.Color('#560a14'), blood * 0.85); } // v1.9: properly red
+    if (blood > 0) { sky.lerp(COL.bloodSky, blood * 0.92); fog.lerp(COL.bloodFog, blood * 0.85); } // v1.9: properly red
     this.scene.background.copy(sky).addScalar(flash);
     this.scene.fog.color.copy(fog).addScalar(flash);
     // The valley is big: let the far mountains show through a soft haze on clear days.
@@ -164,7 +174,7 @@ export class Sky {
     this.scene.fog.far = 150 + (1 - gloom) * 120;
 
     const ang = (wt.f - 0.25) * Math.PI * 2;
-    const sunDir = new THREE.Vector3(Math.cos(ang), Math.sin(ang), -0.35).normalize();
+    const sunDir = S.sunDir.set(Math.cos(ang), Math.sin(ang), -0.35).normalize();
     const R = this.sunR || 200;
     this.sunSprite.scale.set(24 * R / 200, 24 * R / 200, 1);
     this.sunSprite.position.copy(focus).addScaledVector(sunDir, R);
@@ -180,17 +190,17 @@ export class Sky {
 
     this.sun.intensity = k.sun * 1.25 * (1 - gloom * 0.7);
     if (this.shadowNow !== false) { // only when the shadow map is redrawn this frame (engine.js), so the two always agree
-      this.sun.position.copy(focus).addScaledVector(sunDir.y > 0 ? sunDir : new THREE.Vector3(0, 1, 0), 80);
+      this.sun.position.copy(focus).addScaledVector(sunDir.y > 0 ? sunDir : UP, 80);
       this.sun.target.position.copy(focus);
     }
-    this.sun.color.copy(k.light[1] < 0.9 ? new THREE.Color('#ffd0a0') : new THREE.Color('#fff4e0'));
+    this.sun.color.copy(k.light[1] < 0.9 ? COL.sunLow : COL.sunHigh);
     this.moonLight.intensity = night * 0.35 * (1 - gloom * 0.5) * (1 + blood * 1.6);
-    this.moonLight.color.set(blood > 0 ? '#ff2a1a' : '#9fb0ff');
-    this.moonLight.position.copy(focus).addScaledVector(this.moon.dir || new THREE.Vector3(0, 1, -1), 80);
+    this.moonLight.color.copy(blood > 0 ? COL.moonBlood : COL.moon);
+    this.moonLight.position.copy(focus).addScaledVector(this.moon.dir || MOON_UP, 80);
     this.hemi.intensity = k.amb * (1 - gloom * 0.25) + flash * 3;
     this.hemi.color.copy(k.ambCol);
-    this.hemi.groundColor.set(night > 0.5 ? '#202838' : '#6a6a50');
-    if (blood > 0) { this.hemi.color.lerp(new THREE.Color('#c0202a'), blood * 0.8); this.hemi.groundColor.lerp(new THREE.Color('#3a0810'), blood * 0.8); this.hemi.intensity *= 1 + blood * 0.4; }
+    this.hemi.groundColor.copy(night > 0.5 ? COL.groundNight : COL.groundDay);
+    if (blood > 0) { this.hemi.color.lerp(COL.bloodHemi, blood * 0.8); this.hemi.groundColor.lerp(COL.bloodGround, blood * 0.8); this.hemi.intensity *= 1 + blood * 0.4; }
 
     const lampsOn = wt.f > 0.72 || wt.f < 0.27 || gloom > 0.45;
     this.lampsOn = lampsOn;
@@ -210,7 +220,7 @@ export class Sky {
       const ang = t * 0.5;
       lh.beam.visible = lampsOn;
       lh.beam.rotation.y = ang;
-      lh.lampMat.color.set(lampsOn ? '#fffaf0' : '#d8d0b0');
+      lh.lampMat.color.copy(lampsOn ? COL.lampOn : COL.lampOff);
       if (lh.beamMat.uniforms) { lh.beamMat.uniforms.uOn.value += ((lampsOn ? 1 : 0) - lh.beamMat.uniforms.uOn.value) * Math.min(1, dt * 1.5); lh.beamMat.uniforms.uTime.value = t; }
       // which way the beams point (local -x after the spin), and how squarely one faces the camera
       const bx = -Math.cos(ang), bz = Math.sin(ang);
@@ -227,10 +237,11 @@ export class Sky {
     props?.falls?.userData.update?.(t, water?.uniforms.uLight.value);
 
     // Clouds drift; ground fog pools at dawn, wisps at dusk and night
-    const tint = sky.clone().lerp(new THREE.Color('#ffffff'), 0.55 + k.sun * 0.4).lerp(new THREE.Color('#9aa2ae'), gloom * 0.5);
-    { const light = sunDir.y > 0.02 ? sunDir : (this._moonDir ??= new THREE.Vector3(-0.4, 0.8, 0.3).normalize());
-      this.clouds.update(dt, { sun: light, lit: tint, shade: tint.clone().multiplyScalar(0.5).lerp(sky, 0.32), haze: fog, cover: 0.46 + gloom * 0.42, wind: 1 + gloom * 1.5 }); }
-    const fogCol = fog.clone().lerp(new THREE.Color('#ffffff'), 0.35 + k.sun * 0.3);
+    const tint = S.tint.copy(sky).lerp(COL.white, 0.55 + k.sun * 0.4).lerp(COL.cloudGrey, gloom * 0.5);
+    { const light = sunDir.y > 0.02 ? sunDir : MOON_DIR;
+      const o = (this._cloudOpts ??= {}); o.sun = light; o.lit = tint; o.shade = S.shade.copy(tint).multiplyScalar(0.5).lerp(sky, 0.32); o.haze = fog; o.cover = 0.46 + gloom * 0.42; o.wind = 1 + gloom * 1.5;
+      this.clouds.update(dt, o); }
+    const fogCol = S.fogCol.copy(fog).lerp(COL.white, 0.35 + k.sun * 0.3);
     if (this.camera) updateGroundFog(this.groundFog, t, fogAmount(wt.f, wx), fogCol, this.camera.position);
 
     // Fireflies
@@ -238,11 +249,12 @@ export class Sky {
     this.ffMat.opacity += ((ffOn ? 0.95 : 0) - this.ffMat.opacity) * Math.min(1, dt);
     if (this.ffMat.opacity > 0.01) {
       const arr = this.fireflies.geometry.attributes.position.array;
-      this.ffBase.forEach((b, i) => {
+      for (let i = 0, B = this.ffBase; i < B.length; i++) {
+        const b = B[i];
         arr[i * 3] = b.x + Math.sin(t * 0.5 + b.ph) * 1.2;
         arr[i * 3 + 1] = b.y + Math.sin(t * 1.3 + b.ph * 2) * 0.4;
         arr[i * 3 + 2] = b.z + Math.cos(t * 0.4 + b.ph) * 1.2;
-      });
+      }
       this.fireflies.geometry.attributes.position.needsUpdate = true;
       this.ffMat.size = 3 + Math.sin(t * 3) * 1;
     }
@@ -253,12 +265,13 @@ export class Sky {
     this.rain.visible = this.rainMat.opacity > 0.01;
     if (this.rain.visible) {
       const arr = this.rain.geometry.attributes.position.array;
-      this.rainSeed.forEach((d, i) => {
+      for (let i = 0, R = this.rainSeed; i < R.length; i++) {
+        const d = R[i], j = i * 6;
         d[1] -= dt * 22 * d[3];
         if (d[1] < -2) d[1] += 30;
         const x = focus.x + d[0], y = focus.y + d[1], z = focus.z + d[2];
-        arr.set([x, y, z, x + 0.1, y + 0.7, z], i * 6);
-      });
+        arr[j] = x; arr[j + 1] = y; arr[j + 2] = z; arr[j + 3] = x + 0.1; arr[j + 4] = y + 0.7; arr[j + 5] = z;
+      }
       this.rain.geometry.attributes.position.needsUpdate = true;
     }
 

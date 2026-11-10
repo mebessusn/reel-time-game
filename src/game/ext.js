@@ -3,11 +3,7 @@
 // key bindings). Kept on this device (localStorage, per player) and, for signed-in players, mirrored to
 // the server's `ext` column through save_ext so it follows you between devices.
 import { Emitter } from '../core/events.js';
-
-const safe = {
-  get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } },
-  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch { return false; } },
-};
+import { loadSafe, writeJSON } from '../save/store.js';
 
 export function extDefaults() {
   return {
@@ -62,7 +58,8 @@ export class Ext extends Emitter {
   load(save) {
     this.save = save;
     this.key = `rt_ext_${save.userId}`;
-    const local = safe.get(this.key);
+    const { value: local, status } = loadSafe(this.key); // v1.17.18: a damaged ext is kept, never written over
+    this.loadStatus = status;
     const cloud = save.ext;
     const pick = cloud && (!local || (cloud.updatedAt || 0) > (local.updatedAt || 0)) ? cloud : local;
     this.d = merge(extDefaults(), pick || {});
@@ -75,13 +72,16 @@ export class Ext extends Emitter {
     this.d.updatedAt = Date.now();
     this.emit('change', this.d);
     clearTimeout(this.localT);
-    this.localT = setTimeout(() => safe.set(this.key, this.d), 150);
+    if (this.frozen) return;
+    this.localT = setTimeout(() => writeJSON(this.key, this.d), 150);
     if (this.save?.saveExt) {
       clearTimeout(this.cloudT);
       this.cloudT = setTimeout(() => this.save.saveExt(this.d), 4000);
     }
   }
 
-  flush() { clearTimeout(this.localT); if (this.key) safe.set(this.key, this.d); }
+  flush() { clearTimeout(this.localT); if (this.key && !this.frozen) writeJSON(this.key, this.d); }
+  /** v1.17.18: stop writing (a save is being imported over this one; the game restarts straight after). */
+  freeze(on = true) { this.frozen = on; clearTimeout(this.localT); clearTimeout(this.cloudT); }
   bump(stat, n = 1) { this.change((d) => { d.stats[stat] = (d.stats[stat] || 0) + n; }); }
 }

@@ -84,12 +84,13 @@ export class LocalNet extends BaseNet {
     this.bc.onmessage = (e) => this._handle(e.data);
     this._send({ t: 'hello', id: me.id, meta: me });
     this.sweepTimer = setInterval(() => this.sweep(), 2000);
-    window.addEventListener('beforeunload', () => this.leave());
+    this.onUnload = () => this.leave(); // (removed in leave(): a side room is a new LocalNet every time a group forms)
+    window.addEventListener('beforeunload', this.onUnload);
     this.connected = true;
     return true;
   }
   _send(msg) { try { this.bc?.postMessage(msg); } catch { /* ignore */ } }
-  leave() { this._send({ t: 'bye', id: this.me?.id }); clearInterval(this.sweepTimer); this.bc?.close(); this.connected = false; this.left = true; }
+  leave() { this._send({ t: 'bye', id: this.me?.id }); clearInterval(this.sweepTimer); if (this.onUnload) { window.removeEventListener?.('beforeunload', this.onUnload); this.onUnload = null; } this.bc?.close(); this.connected = false; this.left = true; }
   _subNet(name) { return new LocalNet(`${this.room}~${name}`); }
 }
 

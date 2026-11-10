@@ -9,8 +9,13 @@ import { optionThumb } from './thumbs.js';
 
 const CATS = [
   { id: 'body', label: 'Body', icon: 'user' }, { id: 'hair', label: 'Hair', icon: 'sparkles' }, { id: 'face', label: 'Face', icon: 'smile' },
-  { id: 'top', label: 'Top', icon: 'shirt' }, { id: 'bottom', label: 'Bottom', icon: 'tag' }, { id: 'country', label: 'Country', icon: 'flag' },
+  { id: 'top', label: 'Top', icon: 'shirt' }, { id: 'bottom', label: 'Bottom', icon: 'tag' }, { id: 'country', label: 'Flag', icon: 'flag' },
 ];
+// Your country is optional. With none picked you fly 'XX', the plain lake pennant (src/data/flags.js).
+const NO_FLAG = 'XX';
+const flagNote = (code) => (code && code !== NO_FLAG
+  ? `${COUNTRY_BY_CODE[code]?.name || ''}. The angler holding the Frostpine Lake record each week gets their flag on the cairn there.`
+  : 'Optional. Whoever holds the Frostpine Lake record each week gets their flag planted on the cairn there. Pick your country to fly its flag, or skip this and fly the plain lake pennant. You can change it here any time.');
 
 /** v1.9.3: the country grid (your flag flies over Frostpine when you hold its record). */
 export function countryGrid(current, onPick) {
@@ -26,6 +31,19 @@ export function countryGrid(current, onPick) {
   const search = h('input.flag-search', { type: 'search', placeholder: 'Search countries', 'aria-label': 'Search countries', on: { input: (e) => { q = e.target.value.trim().toLowerCase(); fill(); } } });
   fill();
   return h('div.flag-pick', search, grid);
+}
+
+// One small WebGL renderer for every time the creator opens (as the fish viewer does). A browser keeps only about 16
+// WebGL contexts alive and drops the oldest when a new one is made: a fresh renderer per visit would in time take the
+// game's own context away.
+let previewRenderer = null;
+function getPreviewRenderer() {
+  if (previewRenderer) return previewRenderer;
+  previewRenderer = new THREE.WebGLRenderer({ antialias: false, alpha: true });
+  previewRenderer.outputColorSpace = THREE.SRGBColorSpace;
+  // (should the browser take this little context away, the next visit starts a new one)
+  previewRenderer.domElement.addEventListener('webglcontextlost', () => { previewRenderer = null; });
+  return previewRenderer;
 }
 
 export function openCreator(root, { avatar, owned = [], name = '', firstRun = false, audio } = {}) {
@@ -48,13 +66,12 @@ export function openCreator(root, { avatar, owned = [], name = '', firstRun = fa
           (undoBtn = h('button.btn.ghost.on-dark', { disabled: true, on: { click: () => { if (history.length) { cfg = history.pop(); audio?.sfx('click'); rebuild(); } } } }, icon('undo'), 'Undo'))),
         h('div', { style: { display: 'flex', gap: '6px' } },
           firstRun ? null : h('button.btn.ghost.on-dark', { on: { click: () => done(null) } }, 'Cancel'),
-          h('button.btn.primary', { on: { click: () => { if (!cfg.country) { cat = 'country'; audio?.sfx('miss'); renderOpts(); opts.querySelector('.flag-need')?.classList.add('shake'); return; } done(cfg); } } }, icon('check'), firstRun ? "Let's fish" : 'Save look'))));
+          h('button.btn.primary', { on: { click: () => done({ ...cfg, country: cfg.country || NO_FLAG }) } }, icon('check'), firstRun ? "Let's fish" : 'Save look'))));
     root.append(el);
 
     // Preview renderer
-    const renderer = new THREE.WebGLRenderer({ antialias: false, alpha: true });
+    const renderer = getPreviewRenderer();
     renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
-    renderer.outputColorSpace = THREE.SRGBColorSpace;
     canvasWrap.append(renderer.domElement);
     canvasWrap.append(
       h('div.drag-hint', 'Drag to turn'),
@@ -103,12 +120,13 @@ export function openCreator(root, { avatar, owned = [], name = '', firstRun = fa
       camera.updateProjectionMatrix();
     }
     let alive = true;
-    let t = 0;
+    let t = 0, lastT = performance.now();
     function loop() {
       if (!alive) return;
       requestAnimationFrame(loop);
-      t += 1 / 60;
-      holder.rotation.y += (turn - holder.rotation.y) * 0.15;
+      const now = performance.now(), dt = Math.min(0.05, Math.max(0, (now - lastT) / 1000)); lastT = now; // (by the clock: the same on a 60 or a 144 Hz screen)
+      t += dt;
+      holder.rotation.y += (turn - holder.rotation.y) * (1 - Math.exp(-9.75 * dt)); // (0.15 a frame at 60 fps)
       if (av) animateAvatar(av, 'idle', t);
       hemi.intensity = night ? 0.45 : 1.0; sun.intensity = night ? 0.25 : 1.2;
       hemi.color.set(night ? '#8090d0' : '#ffffff');
@@ -182,9 +200,9 @@ export function openCreator(root, { avatar, owned = [], name = '', firstRun = fa
           opts.append(H('Pants'), chooser('pants', O.PANTS), H('Pants colour'), swatches('pantsColor', O.PANT_COLORS), H('Shoes'), chooser('shoes', O.SHOES));
           break;
         case 'country':
-          opts.append(H('Country of origin'),
-            h(`div.muted${cfg.country ? '' : '.flag-need'}`, { style: { margin: '4px 0 8px' } }, cfg.country ? `${COUNTRY_BY_CODE[cfg.country]?.name || ''}. The angler holding the Frostpine Lake record each week gets their flag on the cairn there.` : 'Pick your country before you head out. Whoever holds the Frostpine Lake record each week gets their flag planted on the cairn there.'),
-            countryGrid(cfg.country, (code) => { push(); cfg = { ...cfg, country: code }; audio?.sfx('click'); const m = opts.querySelector('.muted'); if (m) { m.classList.remove('flag-need'); m.textContent = `${COUNTRY_BY_CODE[code].name}. The angler holding the Frostpine Lake record each week gets their flag on the cairn there.`; } if (undoBtn) undoBtn.disabled = false; }));
+          opts.append(H('Your flag'),
+            h('div.muted', { style: { margin: '4px 0 8px' } }, flagNote(cfg.country)),
+            countryGrid(cfg.country, (code) => { push(); cfg = { ...cfg, country: code }; audio?.sfx('click'); const m = opts.querySelector('.muted'); if (m) m.textContent = flagNote(code); if (undoBtn) undoBtn.disabled = false; }));
           break;
         default: break;
       }
@@ -195,7 +213,11 @@ export function openCreator(root, { avatar, owned = [], name = '', firstRun = fa
       thumbJobs = []; if (thumbTimer) cancelAnimationFrame(thumbTimer);
       window.removeEventListener('resize', resize);
       ro?.disconnect();
-      renderer.dispose();
+      // the renderer is kept for next time; what this visit made is let go
+      if (av) { holder.remove(av.group); av.dispose?.(); av = null; }
+      ground.geometry.dispose(); ground.material.dispose();
+      renderer.renderLists.dispose();
+      renderer.domElement.remove();
       el.remove();
       audio?.sfx(result ? 'open' : 'close');
       resolve(result);
@@ -210,12 +232,15 @@ export function openCreator(root, { avatar, owned = [], name = '', firstRun = fa
 export function openCountryPicker(root, { audio } = {}) {
   return new Promise((resolve) => {
     let pick = null;
-    const go = h('button.btn.primary', { disabled: true, on: { click: () => { el.remove(); audio?.sfx('open'); resolve(pick); } } }, icon('check'), "Let's fish");
+    const close = (code) => { el.remove(); audio?.sfx('open'); resolve(code); };
+    const go = h('button.btn.primary', { disabled: true, on: { click: () => close(pick) } }, icon('check'), "Let's fish");
+    // (skipping saves the plain pennant, so this sheet never comes back)
+    const skip = h('button.btn.ghost', { on: { click: () => close(NO_FLAG) } }, 'Skip for now');
     const el = h('div.country-sheet', h('div.plank.country-card', { role: 'dialog', 'aria-label': 'Pick your country' },
       h('h3', 'Where are you fishing from?'),
-      h('div.muted', 'New at Frostpine Lake: whoever holds the lake record each week gets their flag planted on the cairn. Pick your country to join in. You can change it any time under Customise angler.'),
+      h('div.muted', 'New at Frostpine Lake: whoever holds the lake record each week gets their flag planted on the cairn. Pick your country to join in, or skip it and fly the plain lake pennant. You can change it any time under Customise angler.'),
       countryGrid(null, (code) => { pick = code; go.disabled = false; audio?.sfx('click'); }),
-      h('div.country-foot', go)));
+      h('div.country-foot', skip, go)));
     root.append(el);
   });
 }

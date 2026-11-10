@@ -3,6 +3,7 @@
 // picks, Esc / B backs out.
 import { h, clear } from './dom.js';
 import { STANDALONE } from '../standalone.js';
+import { TAGLINE } from './edition.js';
 import { icon } from './icons.js';
 import { randomFact } from '../data/facts.js';
 import { CHANGELOG, CHANGE_KINDS, GAME_VERSION } from '../data/changelog.js';
@@ -81,15 +82,16 @@ export class Menus {
         item('Play with friends', 'users', () => this.friends({ fromTitle: true })),
         item('Customise angler', 'shirt', async () => { g.prepareMenus?.(); el.classList.add('away'); await g.openCreator(); el.classList.remove('away'); menu.querySelector('.title-item.main')?.focus(); }),
         item('Settings', 'gear', () => { g.prepareMenus?.(); g.ui.sheets.open('settings'); }),
-        item('Changelog', 'history', () => this.changelog({ fromTitle: true })),
-        item('Credits', 'star', () => this.credits()),
-        item('Feedback', 'chat', () => { g.prepareMenus?.(); import('../game/reports.js').then((m) => m.openFeedback(g)); }),
-        item('Report a bug', 'bug', () => { g.prepareMenus?.(); import('../game/reports.js').then((m) => m.openBugReport(g)); }),
-        item('Privacy', 'eye', () => { g.prepareMenus?.(); import('./privacy.js').then((m) => m.showPrivacy(g)); }));
+        // (the rest are a column on a tall window and a row of small links on a short one: see .title-minor)
+        h('div.title-minor',
+          item('Changelog', 'history', () => this.changelog({ fromTitle: true })),
+          item('Credits', 'star', () => this.credits()),
+          item('Feedback', 'chat', () => { g.prepareMenus?.(); import('../game/reports.js').then((m) => m.openFeedback(g)); }),
+          item('Report a bug', 'bug', () => { g.prepareMenus?.(); import('../game/reports.js').then((m) => m.openBugReport(g)); }),
+          item('Privacy', 'eye', () => { g.prepareMenus?.(); import('./privacy.js').then((m) => m.showPrivacy(g)); })));
       const el = h('div.title-screen',
         h('div.title-col',
-          logo('brand.title-logo'),
-          h('div.title-tag', 'A cozy lake for the wait.'),
+          h('div.title-head', logo('brand.title-logo'), h('div.title-tag', TAGLINE)),
           menu,
           h('div.title-foot', h('div.title-sub', name ? (first ? `Welcome to the lake, ${name}.` : `Welcome back, ${name}.`) : 'Welcome to the lake.'), fact)),
         h('button.title-ver', { 'aria-label': `Version ${VERSION}: open the changelog`, on: { click: () => this.changelog({ fromTitle: true }) } }, VERSION));

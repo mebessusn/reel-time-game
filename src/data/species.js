@@ -218,6 +218,33 @@ export const SPECIES = [
     { base: '#2a1a40', belly: '#5a3a80', accent: '#ffd060', fin: '#4a2a70' }, 'glow', { glow: '#ffd060' }),
 ];
 
+// Signature fights: how the top fish fight (the moves and their counters are in src/game/tug.js, MOVES).
+//   open: the moves it cycles through, in order; tired: what it switches to once worn down (the phase change);
+//   k: how hard they hit (1 if left out); every: seconds between moves (6.5 if left out).
+// Every legendary and mythic has a pattern of its own, written for the animal. Epics get one mild move, so the step
+// up is felt. Commons to rares have none and fight exactly as they always did. Shellfish only come up in traps.
+const MILD = { k: 0.6, every: 8 };
+const FIGHTS = {
+  // legendary
+  oldwhiskers: { open: ['sulk', 'run'], tired: ['sulk', 'shake'] }, // a catfish: sits on the bottom, then bulldozes off
+  crystalpike: { open: ['feint', 'feint', 'shake'], tired: ['feint', 'run'] }, // a pike: ambush darts, then a head shake
+  stormsturgeon: { open: ['sulk', 'run'], tired: ['tailwalk', 'run'] }, // a sturgeon: sulks and runs, and leaps when it is beaten
+  echoeel: { open: ['dive', 'shake'], tired: ['feint', 'dive'] }, // an eel: winds back under you and knots itself
+  crimsonwolf: { open: ['feint', 'tailwalk'], tired: ['shake', 'feint'] }, // a night hunter: all snap and air
+  pondsage: { open: ['sulk', 'dive'], tired: ['run', 'sulk'] }, // old and patient: it waits you out
+  bogking: { open: ['sulk', 'feint'], tired: ['shake', 'run'] }, // a gar: lies like a log, then thrashes
+  mossback: { open: ['dive', 'shake'], tired: ['tailwalk', 'dive'] }, // an old bass: under the roots, then up on its tail
+  // mythic: three moves long, and a little quicker
+  heir: { open: ['tailwalk', 'dive', 'shake'], tired: ['run', 'feint', 'tailwalk'], every: 5.5 },
+  lanternfish: { open: ['feint', 'dive', 'feint'], tired: ['shake', 'run', 'feint'], every: 5.5 },
+  // epic: one mild move each
+  paddlefish: { open: ['run'], ...MILD }, gloweel: { open: ['dive'], ...MILD }, moonfin: { open: ['tailwalk'], ...MILD },
+  ghostkoi: { open: ['sulk'], ...MILD }, geodecarp: { open: ['sulk'], ...MILD }, vampirefish: { open: ['feint'], ...MILD },
+  wreckeel: { open: ['dive'], ...MILD }, burbot: { open: ['shake'], ...MILD }, pitlurker: { open: ['sulk'], ...MILD },
+  grottoghost: { open: ['feint'], ...MILD }, cutthroat: { open: ['shake'], ...MILD },
+};
+for (const s of SPECIES) if (FIGHTS[s.id]) s.fight = FIGHTS[s.id];
+
 // Another map's fish (an expansion's, added with addSpecies) are looked up like any other, but stay out of SPECIES,
 // the valley's list: its Fishpedia, collections and "catch every fish" goals count only those.
 export const SPECIES_BY_ID = Object.fromEntries(SPECIES.map((s) => [s.id, s]));

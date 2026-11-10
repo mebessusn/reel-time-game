@@ -1,4 +1,4 @@
-import { defineConfig } from 'vite';
+import { defineConfig, loadEnv } from 'vite';
 import { viteSingleFile } from 'vite-plugin-singlefile';
 import fs from 'node:fs';
 
@@ -21,12 +21,38 @@ const base64Import = {
   },
 };
 
+// Fonts. src/ui/style.css asks Google Fonts for them, which is what the Claude artifact does (--mode single: nothing
+// binary may be embedded in that one file, and fonts.googleapis.com is one of its three allowed hosts). Every other
+// build (npm run build for Steam and the phones, and the dev server) swaps that line for src/ui/fonts.css, the same
+// fonts shipped inside the game: no request to Google, and the game looks right with no internet.
+const GOOGLE_FONTS = /@import url\('https:\/\/fonts\.googleapis\.com[^']*'\);/;
+const selfHostedFonts = {
+  name: 'self-hosted-fonts',
+  enforce: 'pre',
+  transform(code, id) {
+    if (!/[\\/]src[\\/]ui[\\/]style\.css(\?|$)/.test(id)) return null;
+    if (!GOOGLE_FONTS.test(code)) this.error('src/ui/style.css: the Google Fonts @import line was not found (vite.config.js swaps it for fonts.css)');
+    return { code: code.replace(GOOGLE_FONTS, "@import './fonts.css';"), map: null };
+  },
+};
+
+// The standalone build says which server it talks to in dist/server.json, so the desktop shell (desktop/main.cjs) can
+// allow exactly that address in its Content-Security-Policy. Never in the artifact build.
+const serverInfo = (mode) => ({
+  name: 'server-info',
+  apply: 'build',
+  generateBundle() {
+    const env = loadEnv(mode, process.cwd(), 'VITE_');
+    this.emitFile({ type: 'asset', fileName: 'server.json', source: `${JSON.stringify({ server: env.VITE_SERVER_URL || null })}\n` });
+  },
+});
+
 // `npm run build` -> normal static site in dist/ (deploy to GitHub Pages / Cloudflare Pages).
 // `npm run build:single` -> one self-contained HTML file in dist-single/ (offline / guest demo).
 export default defineConfig(({ mode }) => ({
   base: './',
   define: { __RT_TESTKIT__: JSON.stringify(process.env.RT_TESTKIT === '1') },
-  plugins: mode === 'single' ? [base64Import, viteSingleFile()] : [base64Import],
+  plugins: mode === 'single' ? [base64Import, viteSingleFile()] : [base64Import, selfHostedFonts, serverInfo(mode)],
   build: {
     outDir: mode === 'single' ? 'dist-single' : 'dist',
     target: 'es2020',

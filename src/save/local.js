@@ -2,6 +2,7 @@
 // Feed, board and lake records are shared between tabs on this device (handy for testing multiplayer locally).
 import * as R from '../game/rules.js';
 import { SPECIES_BY_ID } from '../data/species.js';
+import { loadSafe, writeJSON } from './store.js';
 
 const safe = {
   get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } },
@@ -26,7 +27,9 @@ export class LocalSave {
   }
 
   async init(defaultName = 'Guest') {
-    const stored = safe.get(this.key);
+    // v1.17.18: a save that won't read is never written over (store.js keeps it and loads the last good copy)
+    const { value: stored, status } = loadSafe(this.key);
+    this.loadStatus = status;
     this.isNew = !stored;
     this.profile = R.ensureProfileShape(stored || R.newProfile(defaultName));
     this.persist();
@@ -35,8 +38,9 @@ export class LocalSave {
 
   persist() {
     this.profile.updatedAt = Date.now();
-    safe.set(this.key, this.profile);
+    const ok = writeJSON(this.key, this.profile); // (a failure is reported to the player through store.js)
     this.updateBoard();
+    return ok;
   }
 
   reset() { safe.del(this.key); }

@@ -2,7 +2,7 @@
   "name": "reel-time",
   "version": "0.1.0",
   "private": true,
-  "description": "Reel Time: a cozy multiplayer voxel fishing game to play while Claude works.",
+  "description": "Reel Time: a cozy fishing game to play alone or with friends.",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -26,7 +26,10 @@
     "three": "0.187.0"
   },
   "devDependencies": {
+    "electron": "^45.2.1",
+    "electron-builder": "^26.18.0",
     "playwright": "^1.56.0",
+    "three-mesh-bvh": "^0.9.1",
     "vite": "5.4.8",
     "vite-plugin-singlefile": "2.0.2"
   }

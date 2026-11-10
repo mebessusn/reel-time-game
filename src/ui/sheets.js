@@ -10,7 +10,8 @@ import { baitThumb, upgradeThumb, gearThumb, decorThumb, petThumb, wearThumb, em
 const anyThumb = (it, av) => itemThumb(it) || (it.kind === 'emote' ? emoteThumb(it, av) : wearThumb(it, av));
 import { SPECIES, SPECIES_BY_ID, TIER_INFO, ZONES, TIERS, BOTTLE_MESSAGES, PEDIA_SLOTS, tierOf, zoneName } from '../data/species.js';
 import { ITEMS, ITEMS_BY_ID, PERK_TEXT, SOURCE_LABEL, featuredItems } from '../data/items.js';
-import { ACHIEVEMENTS, ACH_TIER_COLOR } from '../data/achievements.js';
+import { ACHIEVEMENTS, ACH_TIER_COLOR, achievementsFor } from '../data/achievements.js';
+import { IN_CLAUDE } from './edition.js';
 import { catchValue, canTrade, tradePearls, creelMax, STORAGE_MAX, achievementProgress, countSlots, BOAT_LEVEL } from '../game/rules.js';
 import { BAITS, UPGRADES, MAX_UPGRADE, ROD_LB, lineRating } from '../data/bait.js';
 import { GEAR, PER_LAKE, OWN_MAX, gearCount, gearEnds } from '../game/awaygear.js';
@@ -42,10 +43,14 @@ import { aan } from '../core/text.js';
 const priceEl = (price) => price ? h('span.price', h('img', { src: iconURL(price.coins ? 'coin' : 'pearl') }), fmt(price.coins || price.pearls)) : null;
 // Shop rarity frame, from how the item is earned and what it costs.
 const itemRarity = (it) => it.source === 'achievement' ? 'epic' : !it.price ? 'common' : it.price.pearls ? (it.price.pearls > 70 ? 'legendary' : it.price.pearls > 30 ? 'epic' : 'rare') : it.price.coins >= 1000 ? 'rare' : it.price.coins >= 300 ? 'uncommon' : 'common';
-const perkText = (item) => {
+// Pearls are the game's rare currency, not a paid one: said wherever they're spent or explained.
+export const PEARL_NOTE = 'Pearls are earned by playing (diamond fish, weekly quests, achievements). They are never sold.';
+// What a rod is really for: the heaviest fish it lands (ROD_LB, times your braided line upgrades), or null for no rod.
+const rodCap = (id, up) => (ROD_LB[id] ? lineRating(id, up) : null);
+const perkText = (item, { up, cap = true } = {}) => {
   const perks = item.perk ? Object.entries(item.perk).map(([k, v]) => PERK_TEXT[k]?.(v) || k) : [];
-  if (item.kind === 'rod' && ROD_LB[item.id]) perks.unshift(`Lands fish up to ${ROD_LB[item.id]} lb`);
-  return perks.length ? perks.join(', ') : 'Cosmetic';
+  if (cap && item.kind === 'rod' && ROD_LB[item.id]) perks.unshift(`Lands fish up to ${rodCap(item.id, up)} lb`);
+  return perks.length ? perks.join(', ') : cap || item.kind !== 'rod' ? 'Cosmetic' : '';
 };
 const SHEET_ICON = { fieldguide: 'camera', valleyjournal: 'scroll', wagon: 'shop', loop: 'bike', social: 'users', admin: 'shield', settings: 'gear', creel: 'backpack', tackle: 'package', fishpedia: 'book', shop: 'shop', board: 'scroll', journal: 'star', map: 'map', legends: 'trophy', album: 'camera', bikes: 'bike' };
 const TIME_LABEL = { any: 'Any time', dawn: 'Dawn', day: 'Day', dusk: 'Dusk', night: 'Night' };
@@ -72,6 +77,7 @@ export class Sheets {
 
   open(name) {
     this.game.x?.each('sheetOpened', name);
+    this.ui.hotbar?.sheetOpened(name); // (a new angler's hotbar: opening a sheet by key counts as using its button)
     if (this.current?.name === name) { this.close(); return; }
     const had = !!this.current;
     this.close(true);
@@ -478,7 +484,7 @@ export class Sheets {
     else c.body.append(h('div.muted', { style: { marginBottom: '8px' } }, '“Welcome in! Prized fish make for prized gear,” says Gus the heron.'));
     const featured = featuredItems(dayIndex());
     const kind = this.state.shopTab;
-    c.foot.append(h('div.foot-wallet', h('span', h('img', { src: iconURL('coin'), alt: '' }), h('span.num', fmt(p.coins)), ' coins'), h('span', h('img', { src: iconURL('pearl'), alt: '' }), h('span.num', fmt(p.pearls)), ' pearls')));
+    c.foot.append(h('div.foot-wallet', h('span', h('img', { src: iconURL('coin'), alt: '' }), h('span.num', fmt(p.coins)), ' coins'), h('span', { title: PEARL_NOTE }, h('img', { src: iconURL('pearl'), alt: '' }), h('span.num', fmt(p.pearls)), ' pearls'), h('span.muted.foot-note', PEARL_NOTE)));
     if (['bait', 'upgrade', 'gear', 'decor', 'box', 'pets'].includes(kind)) { this.renderTackle(c, kind, near); return; }
     if (kind === 'boat') {
       const ready = p.level >= BOAT_LEVEL;
@@ -512,18 +518,21 @@ export class Sheets {
     this.state[selKey] = selId;
     const it = items.find((i) => i.id === selId);
     c.body.append(this.itemDetail(it, { near, featured: featured.includes(it.id), owns: owns(it), afford: afford(it) }));
+    const up = g.ext?.d?.upgrades, myCap = rodCap(p.equipped.rod, up);
     c.body.append(h('div.shop-grid', items.map((x) => {
       const r = itemRarity(x), eq = p.equipped[x.kind] === x.id, th = anyThumb(x, p.avatar);
+      const cap = x.kind === 'rod' ? rodCap(x.id, up) : null; // (rods: the weight they land, green when it beats yours)
       return h(`button.item-card${x.id === selId ? '.sel' : ''}${owns(x) ? '.owned' : ''}`, { style: { '--c': TIER_INFO[r].color }, 'aria-pressed': String(x.id === selId), title: x.name, on: { click: () => { this.state[selKey] = x.id; this.game.audio.sfx('page'); this.render(); } } },
         h('span.ic-frame', th ? h('img', { src: th, alt: '' }) : icon(x.kind === 'emote' ? 'smile' : 'shirt')),
         h('span.ic-name', x.name),
+        cap ? h(`span.card-cap${myCap && cap > myCap ? '.up' : myCap && cap < myCap ? '.down' : ''}`, `Up to ${cap} lb`) : null,
         eq ? h('span.ic-tag.eq', 'Equipped') : owns(x) ? h('span.ic-tag', 'Owned') : x.source !== 'shop' ? h('span.ic-tag', SOURCE_LABEL[x.source]?.tag || 'Achievement') : x.level && p.level < x.level ? h('span.ic-tag', icon('lock'), `Lv ${x.level}`) : priceEl(x.price),
         featured.includes(x.id) ? h('span.ic-flag', 'Featured') : null);
     })));
   }
 
   itemDetail(it, { near, featured, owns, afford }) {
-    const g = this.game, p = g.profile;
+    const g = this.game, p = g.profile, up = g.ext?.d?.upgrades;
     const equipped = p.equipped[it.kind] === it.id;
     const r = itemRarity(it);
     let btn;
@@ -542,15 +551,27 @@ export class Sheets {
     let compare = null;
     if (['rod', 'lure', 'boat'].includes(it.kind) && !equipped) {
       const cur = ITEMS_BY_ID[p.equipped[it.kind]];
-      if (cur) compare = h('div.compare', h('div.cmp-col', h('span.cmp-l', 'You use now'), h('b', cur.name), h('span', perkText(cur))), icon('right'), h('div.cmp-col.new', h('span.cmp-l', 'This one'), h('b', it.name), h('span', perkText(it))));
+      if (cur) compare = h('div.compare', h('div.cmp-col', h('span.cmp-l', 'You use now'), h('b', cur.name), h('span', perkText(cur, { up }))), icon('right'), h('div.cmp-col.new', h('span.cmp-l', 'This one'), h('b', it.name), h('span', perkText(it, { up }))));
     }
+    // a rod leads with the one number that changes what you can catch, set against the rod in your hands
+    let capRow = null;
+    const cap = it.kind === 'rod' ? rodCap(it.id, up) : null;
+    if (cap) {
+      const cur = ITEMS_BY_ID[p.equipped.rod], curCap = rodCap(p.equipped.rod, up), d = curCap ? cap - curCap : 0;
+      capRow = h('div.rod-cap', h('span', `Lands fish up to ${cap} lb`),
+        equipped ? h('span.rc-diff', 'The rod in your hands') : !curCap ? null
+          : d > 0 ? h('span.rc-diff.up', `+${d} lb over your ${cur.name}`) : d < 0 ? h('span.rc-diff.down', `${-d} lb less than your ${cur.name}`) : h('span.rc-diff', `Same as your ${cur.name}`),
+        up?.line ? h('span.rc-diff', 'with your braided line') : null);
+    }
+    const perkLine = cap ? perkText(it, { cap: false }) : perkText(it);
     const th = anyThumb(it, p.avatar);
     return h('div.item-detail', { style: { '--c': TIER_INFO[r].color } },
       h('div.id-pic', th ? h('img', { src: th, alt: '' }) : icon(it.kind === 'emote' ? 'smile' : 'shirt')),
       h('div.id-main',
         h('div.id-name', it.name),
         h('div.id-tags', h('span.pill', { style: { '--c': TIER_INFO[r].color }, 'data-mark': TIER_MARK[r] }, TIER_INFO[r].name), featured ? h('span.pill', { style: { '--c': '#c8503a' } }, 'Featured today') : null, equipped ? h('span.pill', { style: { '--c': '#2f7f86' } }, 'Equipped') : null),
-        h('div.id-perk', perkText(it)),
+        capRow,
+        perkLine ? h('div.id-perk', perkLine) : null,
         compare,
         h('div.id-buy', !owns && it.price ? h('span.id-price', priceEl(it.price)) : null, btn)));
   }
@@ -977,13 +998,15 @@ export class Sheets {
     }
 
     if (cur === 'ach') {
-      const done = Object.keys(p.achievements).length;
-      B.append(h('div.j-head', h('span.muted', `${done}/${ACHIEVEMENTS.length} achievements`),
+      // (an achievement that needs Claude linked isn't listed or counted where that can't happen: the standalone game)
+      const ACH = achievementsFor(p, IN_CLAUDE || g.claude?.source === 'artifact');
+      const done = ACH.filter((a) => p.achievements[a.id]).length;
+      B.append(h('div.j-head', h('span.muted', `${done}/${ACH.length} achievements`),
         claimable.length ? h('button.btn.gold.small', { on: { click: () => this.act(() => g.claimAll()) } }, `Claim ${claimable.length} reward${claimable.length > 1 ? 's' : ''}`) : null));
-      const cats = [...new Set(ACHIEVEMENTS.map((a) => a.category))];
+      const cats = [...new Set(ACH.map((a) => a.category))];
       if (!this.state.journalCat) this.state.journalCat = cats[0];
       B.append(this.chips('journalCat', cats.map((x) => [x, x]), (cat) => claimable.some((a) => a.category === cat)));
-      const list = ACHIEVEMENTS.filter((a) => a.category === this.state.journalCat);
+      const list = ACH.filter((a) => a.category === this.state.journalCat);
       const { slice, nav } = this.pager('journalCatPage', list, 4);
       B.append(h('div.row-list', slice.map((a) => {
         const got = p.achievements[a.id];
@@ -1070,6 +1093,8 @@ export class Sheets {
     if (cur === 'graphics') {
       B.append(h('div.set-group', h('h3', 'Graphics'),
         choice('graphics', 'Quality', 'Low runs smoothly in a side panel. High adds shadows, reflections and more trees.', [['low', 'Low'], ['medium', 'Medium'], ['high', 'High']]),
+        choice('fps', 'Frame rate', '60 is smooth and easy on your computer. 30 saves battery. Unlimited draws as fast as your screen can show.', [[30, '30'], [60, '60'], [0, 'Unlimited']], 60),
+        g.engine.desktop ? toggle('aa', 'Smooth edges', 'Anti-aliasing on High quality: softens jagged edges. A change takes effect the next time you start the game.', true) : null,
         fovRow(),
         toggle('autoRes', 'Smooth frame rate', 'If the game starts to stutter, it draws at a slightly lower resolution until it runs smoothly again.', true),
         toggle('reducedMotion', 'Reduced motion', 'Calms camera shake, pop-ups and animated menus.'),
@@ -1106,6 +1131,7 @@ export class Sheets {
     } else if (cur === 'play') {
       B.append(h('div.set-group', h('h3', 'Fishing'),
         toggle('relaxedReel', 'Relaxed reel', 'Skips the Tug & Turn mini-game: hold to reel and the fish comes in.'),
+        toggle('vibration', 'Controller rumble', 'A controller rumbles as the line tightens and when a big fish makes its move.', true),
         toggle('tips', 'Tips from Gus', 'Short hints while you learn the ropes.', true),
         toggle('crashReports', 'Send crash reports', 'If something breaks, the game sends the error and its version, browser and screen so it can be fixed. Nothing personal.', true),
         toggle('realWeather', 'Use my real weather', 'Matches the lake’s weather to yours. Asks for your location, rounds it to about 10 km and doesn’t save it.', false, async (e) => { if (e.target.checked) { const ok = await g.realWeather.enable(); save({ realWeather: ok }); if (!ok) e.target.checked = false; } else { g.realWeather.disable(); save({ realWeather: false }); } })),
@@ -1141,8 +1167,14 @@ export class Sheets {
       const when = r.at ? ` from ${new Date(r.at).toLocaleDateString()}` : '';
       this.close(); // the confirm card sits under an open sheet
       if (!(await g.menus.confirm({ title: 'Load this save?', text: `The save${when} replaces the progress in this browser, and the game restarts.`, ok: 'Load save', icon: 'upload' }))) return;
-      g.save.persist = () => {}; // the running game must not write its old progress back over the new save
-      try { applySave(r.keys); } catch { status.textContent = "This browser wouldn't store the save (storage may be blocked)."; return; }
+      // the running game must not write its old progress (profile or ext) back over the new save
+      const persist = g.save.persist;
+      g.save.persist = () => {}; g.ext.freeze();
+      try { applySave(r.keys); } catch {
+        g.save.persist = persist; g.ext.freeze(false); // (applySave put the old save back: carry on with it)
+        g.ui.toast("This browser wouldn't store that save (storage may be full or blocked). Your current progress is unchanged.", { icon: 'alert' });
+        return;
+      }
       location.reload();
     } } });
     const exportBtn = h('button.btn.small', { on: { click: async () => {

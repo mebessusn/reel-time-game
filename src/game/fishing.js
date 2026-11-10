@@ -17,6 +17,15 @@ import { biteDelay, rollBite, effectiveZone, eligibleSpecies, rollWeight, easeOv
 import { spotAt, gateAt } from './spots.js';
 import { swirlAt } from '../world/swirls.js';
 import { newTug, stepTug, tugWon, tugLost } from './tug.js';
+import { fightHaptic } from './controls.js';
+import { addTugCues } from '../ui/ui.js';
+
+// What a top fish's signature moves call out over the reel (the moves are in tug.js): each says what to do about it.
+const SIG_CUES = {
+  'sig-feint': 'A feint! Don\'t chase it!', 'sig-shake': 'Head shake! Ease off!', 'sig-run': 'It\'s running! Let it go!',
+  'sig-dive': 'It\'s coming under! Swing across!', 'sig-sulk': 'It\'s gone heavy. Wait for it...', 'sig-tailwalk': 'Tail-walk! Off the reel!',
+  'sig-give': 'It gives! Reel now!', 'sig-tired': 'It\'s tiring: watch for new tricks!',
+};
 import { lineRating } from '../data/bait.js';
 import { WEATHER_FISHING } from '../core/clock.js';
 import { buildFish, buildJunk } from '../entities/fish.js';
@@ -40,6 +49,7 @@ export function answerDiamondChance(secs) { return secs >= 3600 ? 0.25 : secs >=
 
 export class Fishing {
   constructor(game) {
+    addTugCues(SIG_CUES);
     this.game = game;
     this.state = 'idle';
     this.power = 0; this.powerDir = 1;
@@ -389,6 +399,21 @@ export class Fishing {
     g.x.each('fightStep', r, dt);
     g.ui.updateReel(r);
     g.audio.reelLoop(this.holding, r.good ? 1 : 0.4);
+    // a signature move called out (tug.js MOVES): the words over the reel, a splash where the fish is, a thump in the hands
+    if (r.cue) {
+      g.ui.tugCue(`sig-${r.cue}`); // (breaking a sulk has no words: the line jumping in says it)
+      g.audio.sfx(r.cue === 'heave' ? 'flop' : 'pop');
+      fightHaptic(r.cue === 'tired' || r.cue === 'heave' ? 0.5 : 0.85, r.cue === 'heave' ? 120 : 220);
+      if (r.cue !== 'give' && r.cue !== 'heave') { g.fx.splash(new THREE.Vector3(this.bobber.x, WATER_Y, this.bobber.z), 0.9); g.engine.water.ripple(this.bobber.x, this.bobber.z, 1); }
+    }
+    // the line: a creak as it goes into the red, and a rumble that grows with the tension while you reel
+    const red = r.tension >= (r.goodHi ?? 0.82);
+    if (red && !this.wasRed && t - (this.creakT || 0) > 0.9) { this.creakT = t; g.audio.sfx('creak'); }
+    this.wasRed = red;
+    if ((this.hapticT = (this.hapticT || 0) + dt) > 0.1) {
+      this.hapticT = 0;
+      if (this.holding && r.tension > 0.55) fightHaptic((r.tension - 0.55) / 0.45 * 0.55 + (red ? 0.2 : 0), 130);
+    }
     // Where the fish is: along the line (closer as you win line) and off to the side it pulls toward.
     const f = this.fight, p = g.player.pos;
     // "right" is screen-right: flip the side axis to match where the camera looks from
@@ -397,21 +422,37 @@ export class Fishing {
     if (Math.abs(dot) > 0.2) f.side = Math.sign(dot);
     const side = f.side || 1;
     f.lat += (r.pull * Math.min(4, f.dist * 0.45) - f.lat) * Math.min(1, dt * 2.5);
-    const along = 1.6 + (f.dist - 1.6) * (1 - r.progress * 0.88);
+    // a signature move shows in the water before it lands (the telegraph): a dive comes at you, a run heads out
+    const mv = r.move, mk = mv?.kind;
+    const reach = (f.dist - 1.6) * (1 - r.progress * 0.88);
+    f.push = (f.push || 0) + ((mk === 'dive' ? -Math.min(1.6, reach * 0.45) : mk === 'run' ? Math.min(1.4, f.dist * 0.2) : 0) - (f.push || 0)) * Math.min(1, dt * 4);
+    const along = 1.6 + reach + f.push;
     let bx = p.x + f.ux * along - f.uz * f.lat * side, bz = p.z + f.uz * along + f.ux * f.lat * side;
     if (!openWater(bx, bz)) { bx = p.x + f.ux * along; bz = p.z + f.uz * along; f.lat *= 0.5; }
     if (openWater(bx, bz)) { this.bobber.x += (bx - this.bobber.x) * Math.min(1, dt * 6); this.bobber.z += (bz - this.bobber.z) * Math.min(1, dt * 6); }
-    this.bobber.dunk = 0.5 + r.tension * 0.4 + Math.sin(t * 22) * 0.12;
+    // the bobber: jittering through a head shake, dragged under and held there by a sulk
+    this.bobber.dunk = mk === 'shake' ? 0.6 + Math.sin(t * 46) * 0.4 : mk === 'sulk' && !mv.give ? 1.15 : 0.5 + r.tension * 0.4 + Math.sin(t * 22) * 0.12;
     // the fish under the bobber, nose away from you and toward its pull
     const fish = this.fightFish;
     if (fish) {
       const fy = Math.atan2(-(f.uz + f.ux * r.pull * side * 0.8), f.ux - f.uz * r.pull * side * 0.8);
-      fish.rotation.set(0, fy, Math.sin(t * 16) * 0.12);
-      const leap = r.jump > 0 ? Math.sin(Math.PI * (1 - r.jump / 0.95)) * 1.7 : 0;
-      fish.position.set(this.bobber.x + f.ux * 0.6, WATER_Y - 0.45 + leap * 1.2, this.bobber.z + f.uz * 0.6);
+      // its body tells the move: thrashing side to side (shake), lying still and deep (sulk), up at the surface before it walks
+      const roll = mk === 'shake' ? Math.sin(t * 46) * (mv.on ? 0.75 : 0.4) : mk === 'sulk' && !mv.give ? 0 : Math.sin(t * 16) * 0.12;
+      const depth = mk === 'sulk' && !mv.give ? -0.5 : mk === 'dive' ? -0.3 : mk === 'tailwalk' ? 0.3 : 0;
+      f.depth = (f.depth || 0) + (depth - (f.depth || 0)) * Math.min(1, dt * 5);
+      fish.rotation.set(0, fy + (mk === 'shake' ? Math.sin(t * 46) * 0.35 : 0), roll);
+      if (r.jump > 0 && !wasJump) this.leapLen = Math.max(0.3, r.jump + dt); // (a tail-walk's hops are shorter than a leap)
+      const leap = r.jump > 0 ? Math.sin(Math.PI * Math.max(0, 1 - r.jump / (this.leapLen || 0.95))) * (mk === 'tailwalk' ? 1.2 : 1.7) : 0;
+      fish.position.set(this.bobber.x + f.ux * 0.6, WATER_Y - 0.45 + f.depth + leap * 1.2, this.bobber.z + f.uz * 0.6);
+      if (leap > 0 && mk === 'tailwalk') fish.rotation.z = -0.9; // up on its tail
       fish.material.opacity = leap > 0.2 ? 1 : 0.75;
-      if (r.jump > 0 && !wasJump) { g.fx.splash(new THREE.Vector3(this.bobber.x, WATER_Y, this.bobber.z), 1.1); g.audio.sfx('splashRemote'); g.ui.tugCue('leap'); }
+      if (r.jump > 0 && !wasJump) {
+        g.fx.splash(new THREE.Vector3(this.bobber.x, WATER_Y, this.bobber.z), 1.1); g.audio.sfx('splashRemote'); fightHaptic(0.6, 160);
+        if (mk !== 'tailwalk') g.ui.tugCue('leap'); // (a tail-walk was called when it began)
+      }
     }
+    if (mv && (mk === 'shake' || mk === 'run' || mk === 'feint') && Math.random() < dt * 9) g.fx.splash(new THREE.Vector3(this.bobber.x, WATER_Y, this.bobber.z), 0.35);
+    if (mk === 'sulk' && !mv.give && Math.random() < dt * 5) g.fx.bubbles(new THREE.Vector3(this.bobber.x, WATER_Y, this.bobber.z));
     if (Math.random() < dt * (2 + r.strength * 6)) g.fx.splash(new THREE.Vector3(this.bobber.x, WATER_Y, this.bobber.z), 0.2 + r.surge * 0.4);
     if (r.surge > 0.35 && Math.random() < dt * 4) g.engine.water.ripple(this.bobber.x, this.bobber.z, 0.6);
     if (r.overweight && (r.heavyT = (r.heavyT || 0) + dt) > 0.6) { r.snapped = true; this.escape(true, 'heavy'); return; } // a moment to feel the weight, then snap

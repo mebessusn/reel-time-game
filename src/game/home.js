@@ -506,7 +506,7 @@ export class HomeScene {
       const av = this.avatar.group.position;
       const cy = this.walkYaw ?? 0, cp = this.walkPitch ?? 0.55, d = this.walkDist ?? 4.6;
       const want = new THREE.Vector3(av.x + Math.sin(cy) * Math.cos(cp) * d, 1.15 + Math.sin(cp) * d, av.z + Math.cos(cy) * Math.cos(cp) * d);
-      if (!this.camInit) { this.camera.position.copy(want); this.camInit = true; } else this.camera.position.lerp(want, 0.25);
+      if (!this.camInit) { this.camera.position.copy(want); this.camInit = true; } else this.camera.position.lerp(want, 1 - Math.exp(-17.26 * dt)); // (a quarter of the way each frame at 60 fps, the same at any frame rate)
       this.camera.lookAt(av.x, 1.05, av.z);
       const c = this.camera.position, W = this.walls;
       if (this.cut) this.cut.visible = true;

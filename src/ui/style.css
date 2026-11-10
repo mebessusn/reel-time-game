@@ -1,7 +1,9 @@
 /* Reel Time interface.
    Design system "Pine & Bobber": deep pine glass for anything that sits over the world, birch paper for
    things you read, bobber red for the one thing to press, brass for money. Baloo 2 for headings, Nunito
-   for reading, Silkscreen only for numbers and badges. Sizes in rem so Settings > Text size scales them. */
+   for reading, Silkscreen only for numbers and badges. Sizes in rem so Settings > Text size scales them.
+   The next line is the Claude artifact's fonts (--mode single). Every other build swaps it for fonts.css, the same
+   fonts shipped inside the game (vite.config.js, selfHostedFonts): keep it one line, in this form. */
 @import url('https://fonts.googleapis.com/css2?family=Baloo+2:wght@700;800&family=Nunito:wght@600;700;800&family=Silkscreen&display=swap');
 
 :root {
@@ -1595,3 +1597,72 @@ body.photo-clean .nameplate, body.photo-clean .labels { visibility: hidden !impo
 .fl-stamp .ico { width: 24px; height: 24px; }
 .fl-actions { display: flex; justify-content: flex-end; margin-top: 8px; }
 @keyframes fl-in { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: none; } }
+
+/* ---------- first hour: a title screen that fits small windows, a hotbar that grows, single player without chat ---------- */
+/* The title column never loses its top: it centres when there's room and scrolls when there isn't. */
+.title-col { justify-content: safe center; overflow-y: auto; scrollbar-width: none; }
+.title-col::-webkit-scrollbar { display: none; }
+.title-col > * { flex: none; }
+.title-minor { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; }
+/* Under 900 px tall (1280x800, a Steam Deck) the five small items become one row of links. */
+@media (max-height: 900px) {
+  .title-col { padding-top: 3vh; padding-bottom: 3vh; }
+  .title-logo { font-size: clamp(2.6rem, min(8.5vw, 11vh), 6.4rem); }
+  .title-tag { margin-bottom: 20px; }
+  .title-minor { flex-direction: row; flex-wrap: wrap; gap: 0 16px; margin-top: 8px; max-width: 460px; }
+  .title-minor .title-item { font-size: 0.95rem; padding: 5px 0; gap: 6px; }
+  .title-minor .title-item .ico { width: 16px; height: 16px; }
+  .title-minor .title-mark { display: none; }
+  .title-minor .title-item:hover, .title-minor .title-item:focus-visible { transform: none; text-decoration: underline; }
+  .title-foot { margin-top: 20px; }
+}
+@media (max-height: 640px) {
+  .title-tag { font-size: var(--t-m); margin-bottom: 14px; }
+  .title-item { font-size: 1.2rem; padding-top: 6px; padding-bottom: 6px; }
+  .title-item.main { font-size: 1.5rem; }
+  .title-foot { margin-top: 12px; }
+  .title-fact { display: none; }
+}
+/* A phone on its side (844x390): the logo on the left, the menu on the right. */
+@media (max-height: 480px) and (min-width: 640px) {
+  .title-screen { background: linear-gradient(90deg, rgba(10, 26, 22, 0.9) 0%, rgba(10, 26, 22, 0.62) 100%); }
+  .title-col { width: 100%; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-content: safe center; align-items: center; column-gap: 28px; padding: 10px clamp(20px, 6vw, 72px); }
+  .title-head { grid-column: 1; grid-row: 1; }
+  .title-menu { grid-column: 2; grid-row: 1 / 3; }
+  .title-foot { grid-column: 1; grid-row: 2; margin-top: 10px; align-self: start; }
+  .title-logo { font-size: clamp(2.4rem, 17vh, 4rem); }
+  .title-tag { margin: 6px 0 0 4px; }
+  .title-item { font-size: 1.05rem; padding-top: 4px; padding-bottom: 4px; }
+  .title-item.main { font-size: 1.3rem; }
+  .title-mode-note { margin-bottom: 4px; }
+  .title-minor { margin-top: 4px; }
+  .title-minor .title-item { font-size: 0.85rem; padding: 3px 0; }
+}
+/* The creator's tabs always fit their panel: in a narrow one the icons step aside and the six labels share the row. */
+.creator .panel { container-type: inline-size; }
+@container (max-width: 500px) {
+  .creator .cats { padding: 8px 6px 0; gap: 0; }
+  .creator .cats button { flex: 1 1 auto; justify-content: center; padding: 8px 6px 10px; }
+  .creator .cats button .ico { display: none; }
+  .creator .cats button.on::after { left: 6px; right: 6px; }
+}
+.country-foot { gap: 8px; }
+/* The hotbar grows with the angler (src/ui/hotbar.js): buttons still to come, and the pulse on one that just arrived. */
+.icon-btn.hb-wait, .hb-group.hb-empty { display: none !important; }
+.hotbar .icon-btn.hb-new, .compact-bar .icon-btn.hb-new { position: relative; animation: hbNew 1.6s ease-in-out infinite; }
+.icon-btn.hb-new::after { content: ''; position: absolute; top: 3px; right: 3px; width: 8px; height: 8px; border-radius: 50%; background: var(--bobber); box-shadow: 0 0 0 2px rgba(13, 31, 27, 0.9); }
+@keyframes hbNew { 0%, 100% { box-shadow: 0 0 0 0 rgba(255, 212, 106, 0); } 50% { box-shadow: 0 0 0 3px rgba(255, 212, 106, 0.7), 0 0 12px 3px rgba(255, 212, 106, 0.45); } }
+body.reduced .icon-btn.hb-new { animation: none; }
+@media (prefers-reduced-motion: reduce) { .icon-btn.hb-new { animation: none !important; } }
+/* Single player: nobody to talk to, so no "Press Enter to chat" bar and no typing row (the log still opens with Enter). */
+.chat-layer.solo .chat-bar, .chat-layer.solo .chat-row, .chat-layer.solo .chat-emoji { display: none !important; }
+/* The rod shop's "what does this rod do for me" line, against the rod in your hands. */
+.rod-cap { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; font-weight: 800; }
+.rod-cap .rc-diff { font-size: var(--t-xs); font-weight: 800; padding: 1px 7px; border-radius: var(--r-pill); background: rgba(0, 0, 0, 0.07); color: var(--ink-700); }
+.rod-cap .rc-diff.up { background: rgba(70, 150, 80, 0.18); color: #2f6b34; }
+.rod-cap .rc-diff.down { background: rgba(190, 80, 60, 0.16); color: #9a3a26; }
+.foot-wallet:has(.foot-note) { flex-wrap: wrap; row-gap: 2px; }
+.foot-wallet > .foot-note { display: block; flex-basis: 100%; font-size: 11px; font-weight: 600; color: var(--on-dark-3); }
+.card-cap { font-size: var(--t-xs); font-weight: 800; color: var(--ink-700); }
+.card-cap.up { color: #2f6b34; }
+.card-cap.down { color: #9a3a26; }

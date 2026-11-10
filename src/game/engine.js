@@ -16,14 +16,45 @@ const QUALITY = {
   high: { scale: 1.0, shadows: true },
 };
 
+// The desktop game (Electron: desktop/main.cjs serves the build from app://game/, the dev run loads the Vite server).
+export const DESKTOP = typeof navigator !== 'undefined' && (/\bElectron\//.test(navigator.userAgent || '') || globalThis.location?.protocol === 'app:');
+const query = () => { try { return new URLSearchParams(globalThis.location?.search || ''); } catch { return new URLSearchParams(); } };
+
+// Anti-aliasing (smooth edges) is the graphics card's own multisampling, asked for when the WebGL context is made, so it
+// can't be switched while the game runs: the desktop game reads the saved settings here, before the save is loaded, and
+// turns it on for High quality (Settings > Graphics > Smooth edges). ?aa=1 / ?aa=0 forces it (tests, the browser).
+function wantAntialias() {
+  const q = query();
+  if (q.has('aa')) return q.get('aa') !== '0';
+  if (!DESKTOP) return false;
+  let s = null;
+  try { s = JSON.parse(localStorage.getItem(`rt_profile_${q.get('as') || 'guest'}`))?.settings; } catch { /* no save yet */ }
+  return (q.get('gfx') || s?.graphics) === 'high' && s?.aa !== false;
+}
+
 export class Engine {
   constructor(container) {
     this.container = container;
-    this.renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: 'low-power', preserveDrawingBuffer: false });
+    // The desktop game asks for the fast graphics card (a laptop with two would otherwise draw on the slow built-in one);
+    // the Claude artifact and phones keep the battery-friendly one.
+    this.desktop = DESKTOP;
+    this.antialias = wantAntialias();
+    this.renderer = new THREE.WebGLRenderer({ antialias: this.antialias, powerPreference: DESKTOP ? 'high-performance' : 'low-power', preserveDrawingBuffer: false });
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFShadowMap;
     container.appendChild(this.renderer.domElement);
+    // A lost graphics context (a driver reset, the GPU process restarting, a laptop switching cards, too many contexts)
+    // would leave a black screen. The game saves at once (onContextLost, set in main.js), stops drawing, and reloads
+    // when the context is back, or after a moment if it doesn't come back: a fresh page gets a fresh context.
+    this.renderer.domElement.addEventListener('webglcontextlost', (e) => {
+      e.preventDefault();
+      if (this.contextLost) return;
+      this.contextLost = true;
+      try { this.onContextLost?.(); } catch { /* the reload still happens */ }
+      this.lostTimer = setTimeout(() => this.recoverContext(), 2500);
+    });
+    this.renderer.domElement.addEventListener('webglcontextrestored', () => this.recoverContext());
 
     this.scene = new THREE.Scene();
     this.camera = new THREE.PerspectiveCamera(50, 1, 0.1, 520);
@@ -45,8 +76,41 @@ export class Engine {
     this.setQuality('medium');
     this.resize();
     window.addEventListener('resize', () => this.resize());
-    this.hidden = false;
-    document.addEventListener('visibilitychange', () => { this.hidden = document.hidden; });
+    // Hidden: the tab is in the background, or (desktop game, where the page never sees itself hidden) the window is
+    // minimised or hidden: desktop/main.cjs sends 'rt:window'. The loop then ticks about once a second and draws nothing.
+    this.windowHidden = !!window.__rtWindowHidden;
+    const seen = () => { this.hidden = document.hidden || this.windowHidden; };
+    seen();
+    document.addEventListener('visibilitychange', seen);
+    window.addEventListener('rt:window', (e) => { this.windowHidden = !!e.detail?.hidden; seen(); });
+    this.fps = 0; // smoothed frames a second actually drawn (crash reports, tests)
+    this.fpsCap = 60; // Settings > Graphics > Frame rate: 30, 60 or 0 (unlimited)
+    this.settings = null; // () => profile.settings, set in main.js: the frame-rate cap is read from it
+  }
+
+  /** The frame-rate cap in force: ?fps= (tests), else the saved setting, else 60. 0 = as fast as the screen refreshes. */
+  frameCap() {
+    if (this.urlCap === undefined) { const v = query().get('fps'); this.urlCap = v == null ? null : Math.max(0, +v || 0); }
+    if (this.urlCap != null) return this.urlCap;
+    const v = this.settings?.()?.fps;
+    return v === 0 || v === 30 || v === 60 ? v : this.fpsCap;
+  }
+
+  /** After a lost context: save again and reload (never more than three times in two minutes: a dying driver would loop). */
+  recoverContext() {
+    if (this.recovering) return;
+    this.recovering = true; clearTimeout(this.lostTimer);
+    try { this.onContextLost?.(); } catch { /* */ }
+    let recent = [];
+    try { recent = (JSON.parse(sessionStorage.getItem('rt_ctx_reloads')) || []).filter((t) => Date.now() - t < 120000); } catch { /* */ }
+    if (recent.length >= 3) {
+      const d = document.createElement('div'); d.className = 'loading';
+      d.textContent = 'The graphics card keeps resetting. Your game is saved: please close Reel Time and open it again.';
+      document.getElementById('ui')?.append(d);
+      return;
+    }
+    try { sessionStorage.setItem('rt_ctx_reloads', JSON.stringify([...recent, Date.now()])); } catch { /* */ }
+    setTimeout(() => location.reload(), 50);
   }
 
   setQuality(q) {
@@ -145,8 +209,10 @@ export class Engine {
     if (dt <= 0 || dt >= 0.1) return; // stalls (tab switches, loading) say nothing about steady speed
     this.ftAvg = this.ftAvg == null ? dt : this.ftAvg + (dt - this.ftAvg) * 0.05;
     this.resT = (this.resT || 0) + dt;
-    if (this.ftAvg > 1 / 40 && this.resT > 3 && this.resScale > 0.7) { this.applyResScale(Math.max(0.7, this.resScale - 0.1)); this.resT = 0; }
-    else if (this.ftAvg < 1 / 55 && this.resT > 8 && this.resScale < 1) { this.applyResScale(Math.min(1, this.resScale + 0.1)); this.resT = 0; }
+    // (against the frame rate asked for: capped at 30, a steady 30 is smooth, not slow)
+    const goal = Math.min(60, this.frameCap() || 60), slow = goal * (40 / 60), smooth = goal * (55 / 60);
+    if (this.ftAvg > 1 / slow && this.resT > 3 && this.resScale > 0.7) { this.applyResScale(Math.max(0.7, this.resScale - 0.1)); this.resT = 0; }
+    else if (this.ftAvg < 1 / smooth && this.resT > 8 && this.resScale < 1) { this.applyResScale(Math.min(1, this.resScale + 0.1)); this.resT = 0; }
   }
 
   applyResScale(k) {
@@ -167,23 +233,42 @@ export class Engine {
     this.running = true;
     let last = performance.now();
     let acc = 0;
+    let due = last; // frame-rate cap: when the next frame is due
+    let shadowT = 0;
     const loop = (now) => {
       requestAnimationFrame(loop);
-      // rAF timestamps can trail performance.now(): never let a step go negative.
-      let dt = Math.max(0, Math.min(0.1, (now - last) / 1000));
-      if (this.hidden) {
-        acc += dt; last = now;
+      if (this.contextLost) { last = due = now; return; } // (saved; the page reloads in a moment: recoverContext)
+      const hidden = this.hidden;
+      if (hidden) {
+        // rAF timestamps can trail performance.now(): never let a step go negative.
+        acc += Math.max(0, Math.min(0.1, (now - last) / 1000)); last = due = now;
         if (acc < 1) return; // ~1 Hz while hidden
-        dt = Math.max(0, Math.min(1, acc)); acc = 0;
+      } else {
+        // Frame-rate cap (30 / 60 / unlimited). The screen calls this at its own rate (60, 144, 240 Hz...); a frame is
+        // drawn when one is due, and the due time then moves on by exactly one frame, not to "now", so the rate
+        // averages the cap with no drift (60 on a 144 Hz screen is 2-3-2-3 refreshes, not every third: 48). The 2 ms
+        // of slack is for a screen at the cap's own rate, whose refreshes land a hair early or late.
+        const cap = this.frameCap();
+        if (cap > 0) {
+          const step = 1000 / cap;
+          if (now - due < step - 2) return;
+          due += step;
+          if (now - due > step) due = now; // (fell behind: a slow frame or a stall; don't try to catch up)
+        } else due = now;
       }
+      let dt = Math.max(0, Math.min(0.1, (now - last) / 1000));
+      if (hidden) { dt = Math.max(0, Math.min(1, acc)); acc = 0; }
+      else if (dt > 0 && dt < 0.1) { this.frameT = this.frameT ? this.frameT + (dt - this.frameT) * 0.05 : dt; this.fps = 1 / this.frameT; } // (the average frame time, turned over: uneven frames don't flatter it)
       last = now;
       this.time += dt;
-      if (!this.hidden) this.autoResolution(dt);
-      // v1.13.19: the sun's shadow map is redrawn every frame on high, every other frame on medium (about a third of
+      if (!hidden) this.autoResolution(dt);
+      // v1.13.19: the sun's shadow map is redrawn every frame on high, 30 times a second on medium (about a third of
       // the frame went on it). The sun only follows you on those frames (sky.js), so shadows of still things never
-      // slip; moving things' shadows simply update at half rate.
-      this.frameNo = (this.frameNo || 0) + 1;
-      const shadowNow = this.quality === 'high' || this.frameNo % 2 === 0;
+      // slip; moving things' shadows simply update at that rate. (By the clock, not every other frame: the same on
+      // a 30, 60 or 144 Hz screen.)
+      shadowT += dt;
+      const shadowNow = this.quality === 'high' || shadowT >= 1 / 30 - 0.004;
+      if (shadowNow) shadowT = 0;
       this.renderer.shadowMap.autoUpdate = false;
       this.renderer.shadowMap.needsUpdate = shadowNow;
       this.sky.shadowNow = shadowNow;

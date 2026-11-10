@@ -80,6 +80,7 @@ import { ITEMS_BY_ID as PUBLIC_ITEMS } from '../data/items.js';
 import { EXPANSIONS } from '../expansions.js';
 import { onDock, heightAt } from '../world/terrain.js';
 import { aan } from '../core/text.js';
+import { onSaveNotice } from '../save/store.js';
 
 export class Game {
   constructor({ stage, uiRoot, save = null, net = null }) {
@@ -273,6 +274,20 @@ export class Game {
     if (p.settings.realWeather) this.realWeather.enable();
     if (!this.tutorial.maybeStart()) this.ui.tips.welcome((p.catchCount || 0) === 0);
     window.addEventListener('beforeunload', () => this.ext.flush());
+    // v1.17.18 save safety: phones and the desktop shell don't always fire beforeunload, so also save when the page is
+    // hidden or put away; and say so when a save was damaged or can't be written (src/save/store.js)
+    window.addEventListener('pagehide', () => this.ext.flush());
+    document.addEventListener('visibilitychange', () => { if (document.hidden) this.ext.flush(); });
+    let lastFail = -Infinity;
+    onSaveNotice((n) => {
+      if (n.kind === 'evicted') { this.ui.toast(`Storage was full, so ${n.what} was removed to keep your progress safe.`, { icon: 'info', ms: 7000 }); return; }
+      if (performance.now() - lastFail < 60000) return;
+      lastFail = performance.now();
+      this.ui.toast(n.quota ? "Couldn't save: this device's storage for the game is full. Export your save from Settings to keep it safe." : "Couldn't save your progress (storage is blocked). Export your save from Settings to keep it safe.", { icon: 'info', ms: 9000 });
+    });
+    const st = [this.save?.loadStatus, this.ext.loadStatus];
+    if (st.includes('lost')) this.ui.toast("Part of your save couldn't be read, so it started fresh. The damaged copy is kept: Export save in Settings includes it, and Report a bug can send it to us.", { icon: 'info', ms: 15000 });
+    else if (st.includes('restored')) this.ui.toast('Your save was damaged, so the last good copy (from the last time you started the game) was loaded.', { icon: 'info', ms: 12000 });
     this.claude.init().catch((e) => console.warn('[claude link]', e));
     window.addEventListener('blur', () => this.applyFocusMute(true));
     window.addEventListener('focus', () => this.applyFocusMute(false));

@@ -10,6 +10,12 @@ import { CAUSTICS } from './caustics.js';
 import { RIPPLES_GLSL, bakePresetTextures, SWASH } from './waterfx.js';
 
 const MAX_RIPPLES = 12;
+// The shaders' clock. A float on the graphics card loses precision as it grows (after a day of play the waves would
+// step, not flow), so the time sent wraps every WRAP seconds (about 9 hours). Every sin() in the water shader runs at
+// a multiple of 0.05 rad/s, so at 40*pi*n seconds they are all back where they started and the swell, the waves and
+// the foam's breathing carry straight on; only the small drifting ripple noise changes pattern, once, on that frame.
+// Splash rings keep their age (their start times step back too). waveAt() reads the same value, so floats agree.
+const WRAP = 40 * Math.PI * 256;
 
 // Shared so boats, bobbers and floating things can ride the same swell the shader draws.
 export const WAVES = { uniforms: null };
@@ -217,7 +223,7 @@ export function buildWater() {
   mesh.renderOrder = 2;
   mesh.name = 'water';
 
-  let rippleIdx = 0;
+  let rippleIdx = 0, epoch = 0;
   WAVES.uniforms = uniforms;
   return {
     mesh, uniforms,
@@ -225,7 +231,9 @@ export function buildWater() {
       const r = uniforms.uRipples.value[rippleIdx++ % MAX_RIPPLES];
       r.set(x, z, uniforms.uTime.value, speed);
     },
-    update(t) {
+    update(time) {
+      const k = Math.floor(time / WRAP), t = time - k * WRAP; // (time itself stays a double on this side)
+      if (k !== epoch) { for (const r of uniforms.uRipples.value) r.z -= (k - epoch) * WRAP; epoch = k; }
       uniforms.uTime.value = t;
       SWASH.uSwT.value = t; SWASH.uSwH.value = 0.09 + 0.16 * smooth(0.2, 1.3, uniforms.uWind.value); // (lapping in a calm, running well up the sand in a blow)
       CAUSTICS.uCTime.value = t;

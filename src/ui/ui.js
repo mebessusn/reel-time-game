@@ -10,6 +10,8 @@ import { xpForLevel, MAX_LEVEL, canTrade, tradePearls } from '../game/rules.js';
 import { Sheets } from './sheets.js';
 import { keyName } from '../game/controls.js';
 import { Chat } from './chat.js';
+import { HotbarReveal } from './hotbar.js';
+import { conductCheck } from './conduct.js';
 import { Tips } from './tips.js';
 import { Captions } from './captions.js';
 import { openCatchCard } from './catchcard.js';
@@ -105,7 +107,7 @@ export class UI {
     this.baitChip = h('button.chip.bait-chip.plank.hidden', { title: 'Bait on your hook (V to switch)', on: { click: () => this.game.tackle.cycle() } });
     // ---- wallet (top right): one pill for both currencies
     this.coinChip = h('div.money', { title: 'Coins' }, icon('coin'), h('span.v.num', '0'));
-    this.pearlChip = h('div.money', { title: 'Pearls' }, icon('pearl'), h('span.v.num', '0'));
+    this.pearlChip = h('div.money', { title: 'Pearls: earned by playing (diamond fish, weekly quests, achievements), never sold' }, icon('pearl'), h('span.v.num', '0'));
     this.wallet = h('div.wallet.plank', this.coinChip, h('i.sep'), this.pearlChip);
     this.goalEl = h('button.goal-chip.paper.hidden', { on: { click: () => this.game.ladder.claim() } });
     this.top = h('div.hud-top',
@@ -202,6 +204,7 @@ export class UI {
     // ---- world prompt: the E action floats over the thing it acts on
     this.contextBox = h('div.context-btn', { on: { pointerenter: () => { this.promptHover = true; }, pointerleave: () => { this.promptHover = false; } } });
     this.bottom = h('div.hud-bottom', this.iconRow, this.compactBar);
+    this.hotbar = new HotbarReveal(this.game, [this.iconRow, this.compactBar]); // which buttons a new angler has so far
 
     this.power = h('div.power.plank.hidden', h('i'), h('div.sweet'), h('div.super'));
     this.reelEl = buildTugHud();
@@ -315,6 +318,12 @@ export class UI {
     this.updateRide();
     const g = this.game, p = g.profile, wt = g.engine.sky.state;
     if (!p) return;
+    if (g.started) {
+      this.hotbar.update();
+      if (this.chat.solo !== g.solo) this.chat.setSolo(g.solo); // single player: a log to read, nothing to type into
+      // the lake rules, the first time this angler is on a lake with other people (looked at about twice a second)
+      if (!this.rulesAgreed && (this.rulesTick = (this.rulesTick || 0) + 1) % 30 === 0) this.rulesAgreed = conductCheck(g);
+    }
     const own = g.x?.first('timeText', wt) || ''; // another map's own season
     const season = own ? null : g.living?.season;
     const key = `${wt.phase}|${wt.weather}|${wt.fullMoon}|${wt.bloodMoon}|${season}|${own}`;
@@ -346,9 +355,10 @@ export class UI {
     // Claude status chip
     const cl = g.claude;
     // v1.13.2: until this angler's Claude has ever signalled, a quiet "Link Claude" chip explains how (after a minute
-    // on the lake, and not for a week once they hide it)
+    // on the lake, and not for a week once they hide it). v1.17.17: only where linking can work (the Claude artifact),
+    // never in the Steam or phone game.
     const xd = g.ext?.d || {};
-    const unlinked = (!cl || cl.state === 'idle') && !xd.claudeLinkedAt && !(xd.claudeHintHiddenUntil > Date.now()) && (performance.now() - (this.bootAt ??= performance.now())) > 60000;
+    const unlinked = cl?.source === 'artifact' && cl.state === 'idle' && !xd.claudeLinkedAt && !(xd.claudeHintHiddenUntil > Date.now()) && (performance.now() - (this.bootAt ??= performance.now())) > 60000;
     const ck = unlinked ? 'unlinked' : cl ? (cl.state === 'working' ? `w${Math.floor(cl.elapsed())}|${cl.waitFish || 0}` : cl.state) : 'idle';
     if (ck !== this.last.claude) {
       this.last.claude = ck;
@@ -408,7 +418,10 @@ export class UI {
     if (zone !== this.last.zone) { this.zoneLabel.textContent = zone; this.last.zone = zone; }
 
     // World prompt: the E action floats over whatever it acts on (or over your head)
-    const acts = g.contextActions();
+    // v1.17.18: what you can do here is worked out 15 times a second, not every frame (it walks every system)
+    const actNow = performance.now();
+    if (!this.actsCache || actNow - this.actsAt > 66) { this.actsCache = g.contextActions(); this.actsAt = actNow; }
+    const acts = this.actsCache;
     const ak = acts.map((a) => `${a.id}:${a.label}`).join('|');
     if (ak !== this.last.acts) {
       clear(this.contextBox);

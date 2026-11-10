@@ -34,8 +34,10 @@ export class Clips {
   constructor(game) {
     this.game = game; this.open = null; this.rest = 0;
     const q = new URLSearchParams(location.search); this.skip = q.has('autoplay') || q.has('notutorial'); // (dev and the browser tests drive the game themselves)
-    if (!this.skip) setInterval(() => this.watch(), 500);
+    this.timer = this.skip ? 0 : setInterval(() => this.watch(), 500);
   }
+  /** Stop watching for moments (the game being torn down: a reload into another save, tests). */
+  dispose() { clearInterval(this.timer); this.timer = 0; this.close(); }
   /** Is it a good moment? Nothing on top, in the game, not mid-trip. */
   calm() { const g = this.game; return g.started && !document.querySelector('.title-screen, .loading') && !document.hidden && !this.open && !g.dialogue?.active && !g.ui?.sheets?.current && !document.querySelector('.ow-modal, .creator, .tut-welcome'); }
   /** Twice a second: the first clip whose moment has come. */

@@ -90,8 +90,27 @@ export class Keymap {
 const DEAD = 0.22;
 const dz = (v) => (Math.abs(v) < DEAD ? 0 : (v - Math.sign(v) * DEAD) / (1 - DEAD));
 
+// ---- haptics: what the fight feels like in the hands
+// fightHaptic(strength 0..1, ms) is the one door: it rumbles the controller in use, and calls whatever a platform
+// build has hooked in with setFightHaptic (the phone build's own haptics). Off when settings.vibration is false
+// (there is no toggle in Settings yet, so it is on).
+let padsInUse = null, hapticHook = null;
+/** A platform's own haptics: fn(strength 0..1, ms). */
+export function setFightHaptic(fn) { hapticHook = fn; }
+export function fightHaptic(strength, ms = 120) {
+  const k = Math.max(0, Math.min(1, +strength || 0));
+  if (k < 0.03 || padsInUse?.game.profile?.settings?.vibration === false) return;
+  try { hapticHook?.(k, ms); } catch { /* a platform's haptics must never break a fight */ }
+  if (!padsInUse?.active) return; // (a controller lying on the desk stays still while you play with the mouse)
+  try {
+    const p = padsInUse.pad();
+    p?.vibrationActuator?.playEffect?.('dual-rumble', { startDelay: 0, duration: ms, weakMagnitude: k, strongMagnitude: k * k })?.catch?.(() => {});
+  } catch { /* no rumble on this controller or browser */ }
+}
+
 export class Gamepads {
   constructor(game) {
+    padsInUse = this;
     this.game = game;
     this.prev = {};
     this.keysDown = new Set(); // actions a button is holding down

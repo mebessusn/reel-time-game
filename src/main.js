@@ -9,6 +9,7 @@ import { showSplash, showLoading } from './ui/login.js';
 import { randomAvatar } from './data/avatarOptions.js';
 import { bindKeyboardMode } from './ui/nav.js';
 import { openCountryPicker } from './ui/creator.js';
+import { IN_CLAUDE } from './ui/edition.js';
 
 bindKeyboardMode();
 
@@ -33,6 +34,9 @@ async function boot() {
   await new Promise((r) => setTimeout(r, 30));
   await Promise.race([loadGear(), new Promise((r) => setTimeout(r, 4000))]); // detailed rods and lures
   const game = new Game({ stage, uiRoot });
+  // the engine reads the frame-rate cap from the settings, and saves through here if the graphics context is lost
+  game.engine.settings = () => game.save?.profile?.settings;
+  game.engine.onContextLost = () => { try { game.ext?.flush?.(); } catch { /* */ } try { game.save?.persist?.(); } catch { /* */ } };
   hideLoading.step(0.6, 'Lighting the lamps');
   await game.engine.precompile().catch(() => {}); // v1.13.19: no shader compiles later (dusk, new areas)
   hideLoading.step(0.75, 'Filling the lake');
@@ -46,7 +50,9 @@ async function boot() {
   const slot = params.get('as') || 'guest';
   if (!save) {
     const seen = safe.get(`rt_profile_${slot}`);
-    if (!params.has('autoplay') && !seen) {
+    // The splash card is the Five Lakes' front door inside Claude. The standalone game goes straight to its title
+    // screen, so a new angler meets one "Start fishing", not two.
+    if (!params.has('autoplay') && !seen && IN_CLAUDE) {
       await showSplash(uiRoot);
       safe.set('rt_seen_splash', true);
     }
@@ -75,7 +81,8 @@ async function boot() {
     if (params.get('avatar') === 'random') await save.saveAvatar({ ...randomAvatar(), country: params.get('country') || 'XX' });
     else await game.openCreator(true);
   }
-  // v1.9.3: everyone has a country now (their flag can fly over Frostpine)
+  // v1.9.3: anglers from before countries are asked once. It's optional: skipping saves 'XX' (the plain lake pennant),
+  // and it can be set any time under Customise angler. A new angler's creator has already saved one or the other.
   if (save.profile.avatar && !save.profile.avatar.country) {
     const code = params.has('autoplay') ? (params.get('country') || null) : await openCountryPicker(uiRoot, { audio: game.audio });
     if (code) await save.saveAvatar({ ...save.profile.avatar, country: code });

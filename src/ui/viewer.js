@@ -13,6 +13,7 @@ function getRenderer() {
   renderer = new THREE.WebGLRenderer({ antialias: false, alpha: true, preserveDrawingBuffer: false });
   renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
   renderer.outputColorSpace = THREE.SRGBColorSpace;
+  renderer.domElement.addEventListener('webglcontextlost', () => { renderer = null; }); // (should the browser take this little context away, the next viewer starts a new one)
   return renderer;
 }
 
