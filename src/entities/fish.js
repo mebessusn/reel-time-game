@@ -7,6 +7,7 @@ import { softFishModel } from './softfish.js';
 import { SHELL_MATS, SHELL_NODES } from '../data/shellfishMesh.js';
 import { CEPH_MATS, CEPH_NODES } from '../data/cephMesh.js'; // v1.15: the giant squid and the octopus
 import { Atlas, softBox, tone, hash, atlasMaterial } from '../render/soft.js';
+import { indexAttr } from '../core/meshpack.js';
 
 // ---------------------------------------------------------------- v1.12 shellfish (art/shellfish.blend)
 // One merged mesh per species (one geometry group per material), nose along +X, centred. Gold and diamond
@@ -25,7 +26,7 @@ export function shellModel(id, variant = 'normal') {
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(p.pos), 3));
     geo.setAttribute('normal', new THREE.BufferAttribute(new Float32Array(Array.from(p.nrm, (v) => v / 127)), 3));
-    geo.setIndex(p.idx);
+    geo.setIndex(indexAttr(p.idx, THREE.BufferAttribute));
     geos.push(geo);
     const m = MATS[p.m];
     let color = lin(m.color);

@@ -19,12 +19,17 @@ export function timeShift() { return shiftMs; }
 export function shiftTo(f, target) { return ((((target - f) % 1) + 1) % 1) * DAY_MS; }
 export function setDebugWeather(w) { forcedWeather = w; }
 
-export function dayFraction(now = Date.now()) {
+// v1.17.19: online, the world clock is the server's (ServerNet.now()); everywhere else, this device's
+let nowFn = () => Date.now();
+export function setClockNow(fn) { nowFn = typeof fn === 'function' ? fn : () => Date.now(); }
+export const clockNow = () => nowFn();
+
+export function dayFraction(now = nowFn()) {
   if (fixedPhase != null && !Number.isNaN(fixedPhase)) return ((((fixedPhase + shiftMs / DAY_MS) % 1) + 1) % 1);
   return (((now + shiftMs) % DAY_MS) + DAY_MS) % DAY_MS / DAY_MS;
 }
 
-export function dayIndex(now = Date.now()) {
+export function dayIndex(now = nowFn()) {
   return Math.floor(now / DAY_MS);
 }
 
@@ -58,7 +63,7 @@ export function bloodMoonDay(day = dayIndex()) {
   return mulberry32(day * 104729 + 71)() < 0.14 && weatherFor(day) !== 'storm';
 }
 
-export function worldTime(now = Date.now()) {
+export function worldTime(now = nowFn()) {
   const f = dayFraction(now);
   const day = dayIndex(now);
   const phase = phaseName(f);
@@ -80,7 +85,7 @@ export const WEATHER_FISHING = {
 };
 
 // Week id for weekly boards (Monday 00:00 America/New_York approximated as UTC-5).
-export function weekId(now = Date.now()) {
+export function weekId(now = nowFn()) {
   const d = new Date(now - 5 * 3600 * 1000);
   const day = (d.getUTCDay() + 6) % 7; // Monday = 0
   const monday = Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() - day);

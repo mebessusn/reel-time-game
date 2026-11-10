@@ -46,6 +46,8 @@ export class LocalSave {
   reset() { safe.del(this.key); }
 
   // ---- catches ----
+  /** What bites, for a cast with these conditions (fishing.js asks the save, so whoever keeps the save rolls the fish). */
+  rollBite(ctx) { return R.rollBite(ctx); }
   async recordCatch(c) {
     const p = this.profile;
     c.id = c.id || newId();

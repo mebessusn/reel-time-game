@@ -90,7 +90,7 @@ export class Engine {
 
   /** The frame-rate cap in force: ?fps= (tests), else the saved setting, else 60. 0 = as fast as the screen refreshes. */
   frameCap() {
-    if (this.urlCap === undefined) { const v = query().get('fps'); this.urlCap = v == null ? null : Math.max(0, +v || 0); }
+    if (this.urlCap === undefined) { const q = query(), v = q.get('fps'); this.urlCap = v == null ? (q.has('autoplay') ? 0 : null) : Math.max(0, +v || 0); } // (browser tests (?autoplay) count frames: uncapped unless they ask)
     if (this.urlCap != null) return this.urlCap;
     const v = this.settings?.()?.fps;
     return v === 0 || v === 30 || v === 60 ? v : this.fpsCap;

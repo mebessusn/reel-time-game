@@ -3,7 +3,7 @@
 //   node scripts/pack-meshes.mjs src/data/islandMesh.js [more ...]
 import fs from 'node:fs';
 import { pathToFileURL } from 'node:url';
-import { packNodes, unpackNodes } from '../src/core/meshpack.js';
+import { packNodes, unpackNodes, plainNodes } from '../src/core/meshpack.js';
 
 export async function packModule(file) {
   const src = fs.readFileSync(file, 'utf8');
@@ -12,7 +12,7 @@ export async function packModule(file) {
   const matsKey = Object.keys(m).find((k) => k.endsWith('_MATS')), nodesKey = Object.keys(m).find((k) => k.endsWith('_NODES'));
   if (!matsKey || !nodesKey) throw new Error(`${file}: not a glb-to-js module`);
   const packed = packNodes(m[nodesKey]);
-  if (JSON.stringify(unpackNodes(packed)) !== JSON.stringify(m[nodesKey])) throw new Error(`${file}: packing is not lossless`);
+  if (JSON.stringify(unpackNodes(packed, { plain: true })) !== JSON.stringify(plainNodes(m[nodesKey]))) throw new Error(`${file}: packing is not lossless`);
   const head = src.slice(0, src.indexOf('export const')).trimEnd();
   const out = `${head ? `${head}\n` : ''}// Packed by scripts/pack-meshes.mjs (src/core/meshpack.js): the same arrays, as compact text.\nimport { unpackNodes } from '../core/meshpack.js';\nexport const ${matsKey} = ${JSON.stringify(m[matsKey])};\nexport const ${nodesKey} = unpackNodes(${JSON.stringify(packed)});\n`;
   fs.writeFileSync(file, out);

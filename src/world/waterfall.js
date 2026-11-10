@@ -7,6 +7,7 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { surfaceY as heightAt, WATER_Y, FALLS_C } from './terrain.js'; // the smooth ground everywhere here
 import { addCircle } from './colliders.js';
+import { shaderTime } from '../render/shadertime.js'; // (the time a shader is sent wraps: a 32-bit float loses its fractions over a long session)
 
 const NOISE = /* glsl */ `
   float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
@@ -209,7 +210,7 @@ export function buildWaterfall() {
     foam: new THREE.Vector3(land.x, WATER_Y + 0.2, land.z),
     land,
     update(t, light) {
-      for (const m of mats) { m.uniforms.uTime.value = t; if (light) m.uniforms.uLight.value.copy(light); }
+      for (const m of mats) { m.uniforms.uTime.value = shaderTime(t); if (light) m.uniforms.uLight.value.copy(light); }
     },
   };
   return group;

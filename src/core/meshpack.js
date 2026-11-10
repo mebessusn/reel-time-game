@@ -43,13 +43,65 @@ export function packNodes(nodes) {
     return q;
   }) }));
 }
-/** Pure: packNodes' output back to the plain NODES list. */
-export function unpackNodes(nodes) {
-  return nodes.map((n) => ({ ...n, prims: n.prims.map((q) => {
-    const p = { m: q.m, pos: unpackInts(q.P, 3).map((v) => v / 1000) };
-    if (q.N) p.nrm = unpackInts(q.N);
-    p.idx = unpackInts(q.I, 1);
-    if (q.C) p.col = unpackInts(q.C, 3);
-    return p;
-  }) }));
+/** How many numbers packInts' text holds (each ends on a letter without the "more follows" bit). */
+function countInts(str) { let n = 0; for (let i = 0; i < str.length; i++) if (!(V[str.charCodeAt(i)] & 32)) n++; return n; }
+/** Pure: unpackInts straight into a typed array (`out`, sized by countInts), each number times `scale`. */
+function unpackInto(str, stride, out, scale = 1) {
+  let n = 0, mul = 1, k = 0;
+  for (let i = 0; i < str.length; i++) {
+    const d = V[str.charCodeAt(i)];
+    n += (d & 31) * mul;
+    if (d & 32) { mul *= 32; continue; }
+    out[k] = unzz(n) * scale + (stride && k >= stride ? out[k - stride] : 0);
+    k++; n = 0; mul = 1;
+  }
+  return out;
+}
+/** One packed prim as typed arrays: pos Float32, nrm Int8, idx Uint16 (or Uint32 past 65535), col Uint8. */
+function unpackPrimTyped(q) {
+  // positions: integer millimetres (deltas summed exactly in a Float64 scratch), then metres in Float32
+  const mm = unpackInto(q.P, 3, new Float64Array(countInts(q.P))), pos = new Float32Array(mm.length);
+  for (let i = 0; i < mm.length; i++) pos[i] = mm[i] / 1000;
+  const p = { m: q.m, pos };
+  if (q.N) p.nrm = unpackInto(q.N, 0, new Int8Array(countInts(q.N)));
+  const ix = unpackInto(q.I, 1, new Uint32Array(countInts(q.I)));
+  let max = 0; for (let i = 0; i < ix.length; i++) if (ix[i] > max) max = ix[i];
+  p.idx = max > 65535 ? ix : Uint16Array.from(ix);
+  if (q.C) p.col = unpackInto(q.C, 3, new Uint8Array(countInts(q.C)));
+  return p;
+}
+const unpackPrimPlain = (q) => {
+  const p = { m: q.m, pos: unpackInts(q.P, 3).map((v) => v / 1000) };
+  if (q.N) p.nrm = unpackInts(q.N);
+  p.idx = unpackInts(q.I, 1);
+  if (q.C) p.col = unpackInts(q.C, 3);
+  return p;
+};
+/**
+ * packNodes' output back to the NODES list. Mobile branch (Nov 7 2026): a node's prims are decoded the first time
+ * something reads them, into typed arrays, so a model that's never built (a map you haven't visited) costs nothing
+ * but its text, and one that is costs a quarter of what plain number arrays did (the phone heap was ~700 MB).
+ * Everything that builds meshes copies these into BufferAttributes, so typed arrays read the same; setIndex wants a
+ * BufferAttribute for a typed array (indexAttr below). `{ plain: true }` gives the old eager plain arrays (the tools in
+ * scripts/ and the round-trip test).
+ */
+export function unpackNodes(nodes, { plain = false } = {}) {
+  if (plain) return nodes.map((n) => ({ ...n, prims: n.prims.map(unpackPrimPlain) }));
+  return nodes.map((n) => {
+    const packed = n.prims, out = { ...n };
+    let prims = null;
+    Object.defineProperty(out, 'prims', { enumerable: true, configurable: true,
+      get: () => (prims ||= packed.map(unpackPrimTyped)), set: (v) => { prims = v; } });
+    return out;
+  });
+}
+/** An index array (plain or typed) as the BufferAttribute geometry.setIndex() wants. */
+export function indexAttr(idx, BA) {
+  if (idx instanceof Uint32Array || idx instanceof Uint16Array) return new BA(idx, 1);
+  let max = 0; for (let i = 0; i < idx.length; i++) if (idx[i] > max) max = idx[i];
+  return new BA(max > 65535 ? Uint32Array.from(idx) : Uint16Array.from(idx), 1);
+}
+/** Nodes (typed or plain) as plain number arrays, positions to the millimetre: for comparing in tools and tests. */
+export function plainNodes(nodes) {
+  return nodes.map((n) => ({ ...n, prims: n.prims.map((p) => Object.fromEntries(Object.entries(p).map(([k, v]) => [k, k === 'm' || v == null ? v : Array.from(v, (x) => (k === 'pos' ? Math.round(x * 1000) / 1000 : x))]))) }));
 }

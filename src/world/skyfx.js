@@ -5,6 +5,7 @@ import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import { mulberry32 } from '../core/rng.js';
 import { HALF, WATER_Y } from './terrain.js';
+import { shaderTime } from '../render/shadertime.js'; // (the time a shader is sent wraps: a 32-bit float loses its fractions over a long session)
 
 // ---------------------------------------------------------------- stars
 export function buildStars(count = 3200, seed = 9) {
@@ -212,7 +213,7 @@ export function fogAmount(f, weather) {
 export function updateGroundFog(group, t, amount, color, cam) {
   group.visible = amount > 0.02;
   for (const m of group.userData.mats) {
-    m.uniforms.uTime.value = t;
+    m.uniforms.uTime.value = shaderTime(t);
     m.uniforms.uAmount.value = amount;
     m.uniforms.uColor.value.copy(color);
     m.uniforms.uCam.value.copy(cam);

@@ -2,6 +2,7 @@
 // additive), a bed of glowing coals that pulse, a warm ground glow, and soft smoke wisps that rise and
 // drift. Sparks come from fx.ember. Everything flickers on the same rhythm as the fire light.
 import * as THREE from 'three';
+import { shaderTime } from '../render/shadertime.js'; // (the time a shader is sent wraps: a 32-bit float loses its fractions over a long session)
 
 const NOISE = /* glsl */ `
   float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
@@ -92,7 +93,7 @@ export function buildFire(pos) {
   }
   g.userData.update = (t, dt, night = 0, wind = 0.3) => {
     const flick = 0.9 + Math.sin(t * 11.3) * 0.05 + Math.sin(t * 6.7) * 0.05;
-    for (const m of mats) { m.uniforms.uTime.value = t; m.uniforms.uK.value = flick; }
+    for (const m of mats) { m.uniforms.uTime.value = shaderTime(t); m.uniforms.uK.value = flick; }
     coalMat.color.setHSL(0.05, 1, 0.45 + 0.1 * Math.sin(t * 2.3) + 0.05 * Math.sin(t * 7.1));
     glow.material.opacity = (0.45 + night * 0.55) * flick;
     for (const s of puffs) {

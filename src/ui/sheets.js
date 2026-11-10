@@ -854,6 +854,7 @@ export class Sheets {
   renderDerby(c) {
     const g = this.game, d = g.derby, st = d.status();
     if (!st) {
+      if (!d.offered) { c.body.append(h('div.empty', 'Derbies are held on the shared lake, against everyone fishing it. In single player there are none: pick Multiplayer on the title screen to enter one.')); c.body.append(h('div.meta', `Derbies won: ${g.ext.d.derby.wins || 0}`)); return; }
       const next = nextDerby();
       c.body.append(h('div.empty', `No derby right now. The next one starts at ${new Date(next).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })} and runs 10 minutes. Derbies start every hour on the hour.`));
       c.body.append(h('div.meta', `Derbies won: ${g.ext.d.derby.wins || 0}`));

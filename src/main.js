@@ -74,9 +74,13 @@ async function boot() {
   game.net = net;
 
   // The title screen (over the live lake) for everyone, then the creator for a brand-new angler.
-  if (!params.has('autoplay')) await game.menus.title({ name: save.profile.name, first: !save.profile.avatar });
+  // A transport's module can keep an angler of its own, apart from the one saved on this device (`anglers`): which
+  // of the two you play goes with the mode picked on the title screen, and they never mix.
+  const anglers = serverAt && online.anglers ? online.anglers({ game, safe, NullNet }) : null;
+  if (!params.has('autoplay')) await game.menus.title(anglers?.title() || { name: save.profile.name, first: !save.profile.avatar });
   // v1.13.7: single player fishes alone (no shared lake, no strangers); chosen on the title screen
   if (game.playMode === 'solo' && !params.has('room')) { game.net = new NullNet(); }
+  if (anglers) { save = await anglers.pick(save, net); net = game.net; }
   if (!save.profile.avatar) {
     if (params.get('avatar') === 'random') await save.saveAvatar({ ...randomAvatar(), country: params.get('country') || 'XX' });
     else await game.openCreator(true);
@@ -88,6 +92,7 @@ async function boot() {
     if (code) await save.saveAvatar({ ...save.profile.avatar, country: code });
   }
   await game.start();
+  anglers?.started();
   prewarmFishSkins(null, { idle: true }); // v1.13.19: off the loading screen (it was half the wait); a fish still unpainted when first needed is painted then
 }
 

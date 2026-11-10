@@ -57,6 +57,12 @@ export default defineConfig(({ mode }) => ({
     outDir: mode === 'single' ? 'dist-single' : 'dist',
     target: 'es2020',
     chunkSizeWarningLimit: 1500,
+    // Each map's models are a chunk of their own, fetched when you travel there (src/<map>/assets.js): name them after
+    // the map. (The one-file artifact build inlines everything.)
+    ...(mode === 'single' ? {} : { rollupOptions: { output: { chunkFileNames: (c) => {
+      const m = /[\\/]src[\\/](ocean|north|air)[\\/]assets\.heavy\.js$/.exec(c.facadeModuleId || '');
+      return m ? `assets/${{ ocean: 'open-waters', north: 'frostmere', air: 'air-races' }[m[1]]}-models-[hash].js` : 'assets/[name]-[hash].js';
+    } } } }),
   },
   server: { port: 5173, host: true },
 }));

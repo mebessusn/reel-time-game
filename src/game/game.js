@@ -1,5 +1,6 @@
 // Game orchestrator: world + player + fishing + saves + multiplayer + audio + UI.
 import * as THREE from 'three';
+import { setClockNow } from '../core/clock.js';
 import { Engine } from './engine.js';
 import { Player } from './player.js';
 import { Fishing } from './fishing.js';
@@ -276,7 +277,7 @@ export class Game {
     window.addEventListener('beforeunload', () => this.ext.flush());
     // v1.17.18 save safety: phones and the desktop shell don't always fire beforeunload, so also save when the page is
     // hidden or put away; and say so when a save was damaged or can't be written (src/save/store.js)
-    window.addEventListener('pagehide', () => this.ext.flush());
+    window.addEventListener('pagehide', (e) => { this.ext.flush(); if (!e.persisted) this.clips?.dispose?.(); }); // (a page kept for Back keeps its clips)
     document.addEventListener('visibilitychange', () => { if (document.hidden) this.ext.flush(); });
     let lastFail = -Infinity;
     onSaveNotice((n) => {
@@ -308,6 +309,7 @@ export class Game {
   get playMode() { try { return localStorage.getItem('rt_play_mode') === 'solo' ? 'solo' : 'multi'; } catch { return 'multi'; } }
   get solo() { return this.net?.kind === 'none' && this.playMode === 'solo'; }
   async attachNet(net) {
+    setClockNow(net.now ? () => net.now() : null); // v1.17.19 the server's clock online (BaseNet's default is Date.now)
     net.isBlocked = (peer) => this.mod.blockedPeer(peer);
     this.remotes.attach(net);
     // while you're in a side room (a group's), the lake's own net stays connected in the background;

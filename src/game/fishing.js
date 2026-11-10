@@ -214,12 +214,13 @@ export class Fishing {
     g.ui.hideBang();
     const c = this.ctx();
     // a crewmate handing you the rod mid-fight passes their fish (forcedBite)
-    this.bite = this.forcedBite || (g.answerPending ? this.answerBite(c) : g.x.first('biteFor', c) || rollBite(c));
+    // (the save rolls the fish: here for a save kept on this device, by its keeper for one kept elsewhere, which marks it `server`)
+    this.bite = this.forcedBite || (g.answerPending ? this.answerBite(c) : g.x.first('biteFor', c) || (g.save.rollBite ? g.save.rollBite(c) : rollBite(c)));
     const handed = !!this.forcedBite; this.forcedBite = null;
     // a fish jumped near your bobber? good chance it's the one that bites
-    const hs = !this.bite.answer && !c.firstEver && this.bite.kind === 'fish' ? g.living?.hintBite(this.bobber) : null; // your very first fish is always the promised bluegill
+    const hs = !this.bite.answer && !this.bite.server && !c.firstEver && this.bite.kind === 'fish' ? g.living?.hintBite(this.bobber) : null; // your very first fish is always the promised bluegill
     if (hs && eligibleSpecies(null, c).some((x) => x.id === hs)) { this.bite.speciesId = hs; this.bite.weight = rollWeight(SPECIES_BY_ID[hs]); this.bite.hinted = true; }
-    if (!g.answerPending && !handed) this.bite = easeOverweight(this.bite, c, g.x.first('lineRating') ?? lineRating(g.profile.equipped.rod, g.ext?.d?.upgrades));
+    if (!g.answerPending && !handed && !this.bite.server) this.bite = easeOverweight(this.bite, c, g.x.first('lineRating') ?? lineRating(g.profile.equipped.rod, g.ext?.d?.upgrades));
     // one bait per hooked fish
     if (c.bait && !handed) this.bite.bait = g.tackle.consume();
     this.biteCtx = c;
@@ -330,7 +331,11 @@ export class Fishing {
           }
           this.state = 'waiting';
           const c = this.ctx();
-          this.timer = FAST_BITE ? 2 : biteDelay(c) * (g.x.first('biteMult', c) ?? 1);
+          const mult = g.x.first('biteMult', c) ?? 1;
+          this.timer = FAST_BITE ? 2 : biteDelay(c) * mult;
+          // a save kept elsewhere rolls this cast's fish now, and says when it bites
+          const bob = this.bobber;
+          g.save.openCast?.(c, { mult, rating: g.x.first('lineRating'), timer: (secs) => { if (!FAST_BITE && this.state === 'waiting' && this.bobber === bob && !this.iceHole) this.timer = secs; } });
           this.zoneShown = c.rawZone;
           g.onBobberLanded(c);
         }

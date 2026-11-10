@@ -35,7 +35,7 @@ export const TIPS = [
   'Catch every fish on a lake’s list (Fishpedia > Collections) for a title and a statue.',
 ];
 // Tips about other anglers, left out in single player: chat, whispers, and fishing near friends.
-const SOCIAL_TIPS = new Set([TIPS[0], TIPS[1], 'Fishing near friends makes bites come a little faster.']);
+const SOCIAL_TIPS = new Set([TIPS[0], TIPS[1], 'Fishing near friends makes bites come a little faster.', 'Every hour on the hour there is a 10-minute derby. Heaviest fish wins!']); // (no derbies in single player)
 
 const safe = {
   get(k, d) { try { const v = JSON.parse(localStorage.getItem(k)); return v ?? d; } catch { return d; } },

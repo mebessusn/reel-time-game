@@ -162,7 +162,7 @@ export class Social {
     const ev = g.events?.current;
     if (ev) lines.push(`SKY: ${ev === 'meteor' ? 'Shooting stars tonight: anglers report bolder rare fish.' : ev === 'fog' ? 'Fog over the cove and a glow over the old ruins.' : 'Fish are pouring through the cove this morning.'}`);
     const wins = g.ext.d.derby.wins || 0;
-    lines.push(wins ? `DERBIES: You have won ${wins} derb${wins > 1 ? 'ies' : 'y'}. The next one starts on the hour.` : 'DERBIES: A 10-minute derby starts every hour on the hour. Heaviest fish wins.');
+    if (g.derby?.offered !== false) lines.push(wins ? `DERBIES: You have won ${wins} derb${wins > 1 ? 'ies' : 'y'}. The next one starts on the hour.` : 'DERBIES: A 10-minute derby starts every hour on the hour. Heaviest fish wins.');
     if (g.living) lines.push(`SEASON: ${g.living.season[0].toUpperCase()}${g.living.season.slice(1)} on the lake.`);
     lines.push(`GUS SAYS: "${['Bait changes what bites. Crickets for jumpers!', 'Set a crab pot before you head off.', 'Lock your favourite fish so you never sell it by mistake.', 'Fish jumping? Cast right where it splashed.'][Math.floor(Date.now() / 3600000) % 4]}"`);
     return { fotw, tier: TIER_INFO[fotw.tier], lines, caught: !!g.ext.d.fotw?.[weekId()] };

@@ -31,10 +31,16 @@ export function showPrivacy(game) {
     } } }, icon('copy'), h('span', 'Copy link'));
     const open = h('a.btn', { href: PRIVACY_URL, target: '_blank', rel: 'noopener noreferrer' }, icon('link'), h('span', 'Read the full notice'));
     const ok = h('button.btn.primary', { on: { click: done } }, 'Close');
+    // v1.17.19 online accounts (the Reel Time server): a copy of everything stored, or delete it for good
+    const online = !!game.mod?.srv;
+    const mine = online ? h('div.confirm-btns',
+      h('button.btn', { on: { click: () => game.mod.exportMyData() } }, icon('download'), h('span', 'Save a copy of my data')),
+      h('button.btn', { on: { click: () => { done(); game.mod.openDeleteAccount(); } } }, icon('userx'), h('span', 'Delete my online account'))) : null;
     const card = h('div.menu-card.conduct-card.privacy-card', { role: 'dialog', 'aria-modal': 'true', 'aria-label': 'Privacy' },
       h('div.conduct-head', h('span.conduct-badge', icon('eye')), h('div', h('h3', 'Privacy'), h('p', 'What Reel Time keeps, and who can see it.'))),
       h('ul.conduct-list', POINTS.map(([ic, t, d]) => h('li', h('span.cr-ic', icon(ic)), h('div.cr-tx', h('b', t), h('span.cr-d', d))))),
       h('p.conduct-foot', 'We never sell your information or show you ads. The full notice: ', url),
+      mine,
       h('div.confirm-btns', copy, open, ok));
     const el = h('div.menu-screen.confirm-screen.conduct-screen', card);
     root.append(el);

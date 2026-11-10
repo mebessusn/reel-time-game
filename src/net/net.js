@@ -9,6 +9,12 @@ export class BaseNet extends Emitter {
     super();
     this.peers = new Map();
     this.me = null;
+    // Optional services (below). A transport with a server behind it (ServerNet) turns these on; everywhere else
+    // they stay off and the game does what it always did (parties in meta, moderation in the artifact db).
+    this.hasGroups = false; // parties are kept by the transport (server groups)
+    this.hasMod = false; // reports, blocks and staff actions go through the transport
+    this.chatPolicy = null; // { public, off, muteUntil, phrases } when the transport sets chat rules
+    this.role = null; // 'owner' | 'admin' for the game's staff
   }
   // v1.13.7: once you leave (switching to single player), a net goes quiet for good, even if its transport
   // keeps reporting peers (the artifact room's presence listener can't be removed)
@@ -72,6 +78,27 @@ export class BaseNet extends Emitter {
   joinRoom(name) { this.leaveRoom(); this.sub = this._subNet(roomName(name)); return this.sub; }
   leaveRoom() { const s = this.sub; this.sub = null; try { s?.leave(); } catch { /* already gone */ } }
   _subNet() { return new NullNet(); }
+
+  // ---- optional services: safe defaults, so the game can call them on any net ----
+  /** The shared clock: the server's time where there is one, this device's otherwise. */
+  now() { return Date.now(); }
+  // Parties kept by the transport (hasGroups). The leader's game asks for a group and invites through the transport;
+  // the invited game joins with the id from the invite; everyone hears 'server:group' ({ id, ld, m }) when the
+  // roster changes and 'server:invite' ({ id, from, name }) when asked.
+  newGroup() {}
+  groupInvite(_id) {}
+  joinGroup(_groupId) {}
+  leaveGroup() {}
+  groupKick(_id) {}
+  groupPromote(_id) {}
+  // Chat rules, blocks, reports, staff actions and data rights (hasMod). Each resolves to the transport's answer
+  // ({ ok, ... }), or null where there is no such service.
+  setPublicChat(_on) { return Promise.resolve(null); }
+  blockPlayer(_id, _on) { return Promise.resolve(null); }
+  reportPlayer(_report) { return Promise.resolve(null); }
+  modAction(_op, _args) { return Promise.resolve(null); }
+  exportMyData() { return Promise.resolve(null); }
+  deleteMyAccount(_confirm) { return Promise.resolve(null); }
 }
 /** A side room's name: lowercase letters, digits, dot, dash and underscore (the artifact room's rule). */
 export const roomName = (name) => String(name || '').toLowerCase().replace(/[^a-z0-9_.-]/g, '').replace(/^[^a-z0-9]+/, '').slice(0, 44) || 'crew';

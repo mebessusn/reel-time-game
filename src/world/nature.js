@@ -7,6 +7,7 @@ import * as THREE from 'three';
 import { applyDetail } from './detail.js';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { NATURE_MATS, NATURE_NODES } from '../data/natureMesh.js';
+import { indexAttr } from '../core/meshpack.js';
 
 const cache = new Map();
 /** One model as a non-indexed geometry with a `color` attribute (linear RGB from its materials). */
@@ -17,7 +18,7 @@ function model(name) {
   const parts = n.prims.map((p) => {
     const g = new THREE.BufferGeometry();
     g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(p.pos), 3));
-    g.setIndex(p.idx);
+    g.setIndex(indexAttr(p.idx, THREE.BufferAttribute));
     const ng = g.toNonIndexed();
     g.dispose();
     const c = NATURE_MATS[p.m].color, cnt = ng.attributes.position.count, col = new Float32Array(cnt * 3);

@@ -1,6 +1,10 @@
 // Social: lake chat, whispers (DMs), and the system log. Wooden-plank panel in the game's style.
 // Enter opens/sends, / starts a command, Esc leaves the box. Messages travel over whatever net
 // the game uses (the artifact room, or tabs on this device).
+// On the dedicated server (a net with a `chatPolicy`, src/net/net.js) the server sets the rules and this file shows
+// them: lake chat (Say and General) is off until you turn it on, with a row of quick phrases that always work; party
+// chat and whispers are always on; an account with chat off, or muted by a moderator, is told so. Muting someone
+// there also puts them on your block list, which the server keeps and applies. None of that shows anywhere else.
 import { h, clear } from './dom.js';
 import { icon } from './icons.js';
 
@@ -74,6 +78,52 @@ export class Chat {
     this.input.focus();
   }
 
+  // ---------------- the server's chat rules (only on a net that has them) ----------------
+  /** Called once per net (by the party code, which meets a new net first). */
+  bindNet(n) {
+    if (this.snet === n) return;
+    this.snet = n;
+    const mine = (fn) => (e) => { if (this.snet === n) fn(e); };
+    const blocks = () => { for (const id of n.blocks || []) this.muted.add(id); };
+    n.on('server:social', mine(() => { blocks(); this.renderRules(); }));
+    n.on('server:chat', mine(({ text }) => { if (text) this.system(text, 'info'); this.renderRules(); }));
+    n.on('server:refused', mine((e) => { if (e.what === 'chat') this.system(e.text || (e.reason === 'slow down' ? 'Easy there! Wait a few seconds before sending more.' : "That message wasn't sent."), 'error'); }));
+    blocks(); this.renderRules();
+  }
+  /** { public, off, muteUntil, phrases } from the server, or null on every other net. */
+  get policy() { const n = this.snet; return n && !n.left && (this.game.net === n || n.sub === this.game.net) ? n.chatPolicy : null; }
+  async setLakeChat(on) {
+    const r = await this.snet?.setPublicChat?.(on);
+    if (r && !r.ok) this.system(r.text || "Couldn't change that just now.", 'error');
+    else if (r) this.system(this.policy?.public ? 'Lake chat is on: you can type to everyone on the lake, and you see what they type.' : 'Lake chat is off: only quick phrases reach the whole lake. Party chat and whispers still work.', 'info');
+    this.renderRules();
+  }
+  renderRules() {
+    if (!this.rulesRow) return;
+    const pol = this.policy;
+    this.rulesRow.style.display = pol ? 'flex' : 'none';
+    if (!pol) { this.measure?.(); return; }
+    this.lakeBtn.textContent = pol.off ? 'Chat is off' : `Lake chat: ${pol.public ? 'On' : 'Off'}`;
+    this.lakeBtn.disabled = !!pol.off;
+    this.lakeBtn.setAttribute('aria-pressed', String(!!pol.public));
+    this.lakeBtn.title = pol.off ? 'Chat is off for this account. Quick phrases and emotes still work.' : pol.public ? 'You can type to everyone on the lake. Click to turn lake chat off.' : 'Only quick phrases reach the whole lake. Click to turn lake chat on. Party chat and whispers always work.';
+    const list = Array.isArray(pol.phrases) ? pol.phrases.slice(0, 40) : [];
+    if (this.phraseSig !== list.join('|')) {
+      this.phraseSig = list.join('|');
+      clear(this.phraseRow).append(...list.map((p, i) => h('button.btn.ghost.small', { type: 'button', style: { flex: 'none', whiteSpace: 'nowrap' }, on: { click: () => this.sayPhrase(i) } }, String(p).slice(0, 40))));
+    }
+    this.phraseRow.style.display = !pol.public || this.phrasesOpen ? 'flex' : 'none';
+    this.phraseBtn.style.display = pol.public ? '' : 'none';
+    this.measure?.();
+  }
+  /** A quick phrase: the server's own words, sent by number, so it is always allowed in public. */
+  sayPhrase(i) {
+    const text = this.policy?.phrases?.[i];
+    if (typeof text !== 'string') return;
+    const dm = this.tabs.get(this.active)?.userId ? this.tabs.get(this.active) : null;
+    if (dm) this.say(text, { to: dm.userId, toName: dm.label, ph: i }); else this.say(text, { channel: this.channel, ph: i });
+  }
+
   // ---------------- tabs ----------------
   addTab(key, label, userId = null) {
     if (!this.tabs.has(key)) this.tabs.set(key, { key, label, msgs: [], unread: 0, userId });
@@ -145,9 +195,15 @@ export class Chat {
     const sendBtn = h('button.btn.green.small', { type: 'button', on: { click: () => this.submit() } }, 'Send');
     this.chanBtn = h('button.chat-chan', { type: 'button', title: 'Channel (click to switch, or type /s, /g, /p)', on: { click: () => this.cycleChannel() } });
     this.target = h('div.chat-target.hidden');
+    // the server's chat rules (hidden on every other net): the lake chat switch and the quick phrases
+    this.lakeBtn = h('button.chat-chan', { type: 'button', style: { '--cc': '#8fd0ff' }, 'aria-pressed': 'false', on: { click: () => this.setLakeChat(!this.policy?.public) } }, 'Lake chat: Off');
+    this.phraseBtn = h('button.chat-chan', { type: 'button', title: 'Quick phrases', on: { click: () => { this.phrasesOpen = !this.phrasesOpen; this.renderRules(); } } }, 'Phrases');
+    this.phraseRow = h('div.chat-phrases', { role: 'group', 'aria-label': 'Quick phrases', style: { display: 'none', gap: '4px', overflowX: 'auto', flex: '1 1 100%', paddingBottom: '2px' } });
+    this.rulesRow = h('div.chat-rules', { style: { display: 'none', flexWrap: 'wrap', gap: '4px', alignItems: 'center', padding: '2px 0 4px' } }, this.lakeBtn, this.phraseBtn, this.phraseRow);
     this.panel = h('div.chat-panel.plank',
       h('div.chat-head', icon('chat'), this.tabRow, this.resizeGrip(), h('button.chat-min', { type: 'button', title: 'Collapse chat (Enter opens it)', 'aria-label': 'Collapse chat', on: { click: () => this.setOpen(false) } }, icon('down'))),
       h('div.chat-body.paper', this.list, this.target),
+      this.rulesRow,
       h('div.chat-row', this.chanBtn, emojiBtn, this.input, this.counter, sendBtn),
       this.emojiBox);
     this.peek = h('div.chat-peek');
@@ -235,6 +291,7 @@ export class Chat {
     if (this.channel === 'party' && !this.game.party?.inParty) this.channel = 'say';
     const ch = CHANNELS[this.channel];
     if (this.chanBtn) { this.chanBtn.textContent = dm ? 'Whisper' : ch.label; this.chanBtn.style.setProperty('--cc', dm ? '#e8a6ff' : ch.color); }
+    this.renderRules();
     this.input.placeholder = dm ? `Whisper to ${dm.label}…` : this.active === 'system' ? 'Type /help for commands' : this.channel === 'say' ? 'Say something to anglers nearby…' : this.channel === 'general' ? 'Talk to the whole lake…' : 'Talk to your party…';
   }
 
@@ -351,10 +408,12 @@ export class Chat {
   }
 
   mute(userId, name) {
+    this.snet?.blockPlayer?.(userId, true); // (on the server: your block list, so nothing of theirs is even sent to you)
     this.muted.add(userId); safe.set('rt_muted', [...this.muted]);
     this.system(`Muted ${name}. You won't see their messages or bubbles. /unmute ${name} to undo.`);
   }
   unmute(userId, name) {
+    this.snet?.blockPlayer?.(userId, false);
     this.muted.delete(userId); safe.set('rt_muted', [...this.muted]);
     this.system(`Unmuted ${name}.`);
   }
@@ -381,14 +440,21 @@ export class Chat {
     return true;
   }
 
-  say(text, { to = null, toName = null, action = false, local = false, channel = null } = {}) {
+  say(text, { to = null, toName = null, action = false, local = false, channel = null, ph = null } = {}) {
+    const ch = to ? 'whisper' : channel || (local ? 'say' : 'general');
+    // the server's rules, said up front (it enforces them either way)
+    const pol = this.policy;
+    if (pol && ph == null) {
+      if (pol.off) { this.system('Chat is off for this account. The quick phrases and emotes still work.', 'error'); return; }
+      if ((ch === 'say' || ch === 'general') && !pol.public) { this.system('Lake chat is off, so only quick phrases reach everyone. Turn it on with the Lake chat button; party chat (/p) and whispers (/w) always work.', 'error'); return; }
+    }
     if (!this.rateOk()) return;
     const at = Date.now();
     const pp = this.game.player?.pos;
-    const ch = to ? 'whisper' : channel || (local ? 'say' : 'general');
     const P = this.game.party;
     if (ch === 'party' && !P?.inParty) { this.system("You're not in a party.", 'error'); this.channel = 'say'; this.updateCounter(); return; }
     const m = { n: ++this.n, x: text, to, me: action || undefined, at, nm: this.myName };
+    if (ph != null) m.ph = ph;
     // Say: spoken out loud, only anglers within earshot hear it (a bubble pops over your head)
     if (ch === 'say' && pp) { m.say = 1; m.p = [Math.round(pp.x), Math.round(pp.z)]; }
     if (ch === 'general') m.g = 1;
@@ -416,6 +482,17 @@ export class Chat {
       case 'privacy':
         import('./privacy.js').then((m) => m.showPrivacy(this.game));
         break;
+      // the dedicated server only: lake chat on or off, and your data (export it, or delete the account)
+      case 'lakechat': case 'publicchat':
+        if (!this.policy) { this.system(`Unknown command /${cmd}. Type /help.`, 'error'); break; }
+        this.setLakeChat(rest ? /^(on|yes|1)$/i.test(rest) : !this.policy.public);
+        break;
+      case 'mydata': case 'exportdata':
+        if (this.game.mod?.exportMyData) this.game.mod.exportMyData(); else this.system(`Unknown command /${cmd}. Type /help.`, 'error');
+        break;
+      case 'deleteaccount':
+        if (this.game.mod?.openDeleteAccount) this.game.mod.openDeleteAccount(); else this.system(`Unknown command /${cmd}. Type /help.`, 'error');
+        break;
       case 'bug': case 'bugs':
         import('../game/reports.js').then((m) => m.openBugReport(this.game));
         break;
@@ -433,6 +510,7 @@ export class Chat {
       case 'help': case '?':
         this.system('Chat: /s msg (Say, anglers within about 40 metres; the default) · /g msg (General, the whole lake) · /p msg (Party) · /w name msg (whisper) · /r msg (reply). /s, /g and /p alone switch where you type.');
         this.system('Party & friends: /invite name · /leave · /kick name · /friend name · /friends. Other: /rules · /report name · /bug · /me action · /who · /roll [max] · /mute name · /unmute name · /muted · /clear · /shrug. Tab completes names, ↑ recalls.');
+        if (this.policy) this.system('Online: lake chat (Say and General) is off until you turn it on with the Lake chat button (or /lakechat on); quick phrases, party chat and whispers always work. /mydata saves a copy of everything stored for your account · /deleteaccount removes it.');
         if (this.game.net?.kind === 'room') this.system('Whispers only show for you and the other angler, but they travel through the shared lake, so keep secrets out of them.');
         break;
       case 'w': case 'whisper': case 'dm': case 'msg': case 'tell': {

@@ -13,6 +13,12 @@
 // Parties hold up to PARTY_MAX. If the leader leaves, the next member on the roster takes over. Everything
 // read from other anglers' meta is untrusted: rosters are capped, ids are strings, and nobody can put you in a
 // party you didn't accept.
+//
+// On the dedicated server (a net with `hasGroups`, src/net/net.js) a party is the server's instead: it makes the
+// party's id, keeps the roster and the leader, carries the invite to the one angler it is for, and is the only way
+// in. This file then asks the net (groupInvite / joinGroup / leaveGroup / groupKick / groupPromote) and follows the
+// roster it sends ('server:group'); nothing about parties rides in meta from this side, and party chat is sent by the
+// server to the party's members only. Friends work the same everywhere.
 export const PARTY_MAX = 4;
 export const NEAR_RANGE = 37; // metres: about 40 yards. Say chat and other people's nameplates reach this far.
 export const INVITE_MS = 60000;
@@ -90,12 +96,54 @@ export class Party {
   get d() { return this.game.ext.d; }
   get friends() { return this.d.friends || {}; }
 
+  // ---------------- the server's parties (a net with hasGroups) ----------------
+  /** The net that keeps parties itself, when that's what the game is on (or in a side room of). */
+  get srv() {
+    const n = this.game.net;
+    if (n?.hasGroups) { if (this.gnet !== n) this.bind(n); return n; }
+    return this.gnet && !this.gnet.left && this.gnet.sub === n ? this.gnet : null;
+  }
+  bind(n) {
+    this.gnet = n; this.state = null; this.invites = []; this.acc = null;
+    const mine = (fn) => (e) => { if (this.gnet === n) fn(e); };
+    n.on('server:group', mine((e) => this.onRoster(e)));
+    n.on('server:invite', mine((e) => this.onInvite(e)));
+    n.on('server:refused', mine((e) => { if (e.what === 'group') { this.joining = null; this.game.chat?.system(e.text || "That party isn't around any more.", 'error'); } }));
+    this.game.chat?.bindNet?.(n); this.game.mod?.bindNet?.(n); // (they hear the server's word on chat and moderation the same way)
+    // what the server said before we were listening (the first moments after joining): the party we're in, an invite waiting
+    if (n.roster?.id) this.onRoster({ ...n.roster, kicked: false });
+    for (const i of n.invited || []) if (Date.now() - i.at < INVITE_MS) this.onInvite(i);
+  }
+  /** The server's roster for my party (or none): the only source of who is in it. */
+  onRoster({ id, ld, m, kicked }) {
+    const g = this.game, me = this.me, was = this.inParty, oldM = this.members();
+    const list = [...new Set(ids(m))];
+    this.state = id && list.includes(me) ? { id, ld: str(ld) || me, m: list, ...(list.length < 2 ? { solo: true } : {}) } : null;
+    const nowM = this.members();
+    if (!was && this.inParty && this.state.ld !== me) { g.chat?.system(`You joined ${this.nameOf(this.state.ld)}'s party. Type /p to talk to your party.`, 'join'); g.audio?.sfx('achievement'); }
+    for (const x of nowM) if (x !== me && was && !oldM.includes(x)) g.chat?.system(`${this.nameOf(x)} joined the party.`, 'join');
+    for (const x of oldM) if (x !== me && !nowM.includes(x) && this.inParty) g.chat?.system(`${this.nameOf(x)} left the party.`, 'leave');
+    if (was && !this.inParty && !this.leaving) { g.chat?.system(kicked ? 'You were removed from the party.' : 'Your party broke up.', 'leave'); if (g.riding) g.hopOut(kicked ? 'You were removed from the party, so you hopped out.' : 'Your party broke up, so you hopped out.'); }
+    this.leaving = false; this.joining = null;
+    this.invites = this.invites.filter((i) => !nowM.includes(i.to));
+    g.ui?.renderParty?.();
+  }
+  /** The server passed on an invite meant for me (nobody else was told). */
+  onInvite({ id, from, name }) {
+    const g = this.game, key = `inv:${from}:${id}`;
+    if (!id || !from || this.prompted.has(key) || this.state?.id === id || g.chat?.isMuted?.(from)) return;
+    this.prompted.add(key);
+    g.ui?.askInvite?.({ kind: 'party', from, name: this.peerById(from) ? this.nameOf(from) : str(name, 24) || 'An angler', pid: id, yes: () => this.accept(from, id) });
+  }
+
   // ---------------- meta ----------------
   meta() {
     const now = Date.now();
     this.invites = this.invites.filter((i) => now - i.at < INVITE_MS);
     this.fr = this.fr.filter((i) => now - i.at < INVITE_MS * 5);
     this.fra = this.fra.filter((i) => now - i.at < INVITE_MS * 5);
+    // (on the server the party isn't ours to announce: the server stamps everyone's meta from its own roster)
+    if (this.srv) return { pty: null, inv: null, acc: null, fr: this.fr.length ? this.fr : null, fra: this.fra.length ? this.fra : null };
     return {
       pty: this.state ? { id: this.state.id, ld: this.state.ld, m: this.state.m } : null,
       inv: this.invites.length ? this.invites : null,
@@ -135,6 +183,15 @@ export class Party {
     if (this.inParty && this.state.m.length >= PARTY_MAX) { g.ui.toast(`Parties hold up to ${PARTY_MAX} anglers.`); return; }
     const theirs = readParty(this.peerById(id)?.meta);
     if (theirs && theirs.m.length > 1) { g.ui.toast(`${name} is already in a party.`); return; }
+    const srv = this.srv;
+    if (srv) {
+      // the server makes the party (if there isn't one yet) and carries the invite to that angler alone
+      srv.groupInvite(id);
+      this.invites = [...this.invites.filter((i) => i.to !== id), { to: id, pid: this.state?.id || null, at: Date.now() }];
+      g.chat?.system(`You invited ${name} to your party.`, 'join');
+      g.audio?.sfx('click');
+      return;
+    }
     if (!this.state) this.state = { id: `${this.me}-${Date.now().toString(36)}`.slice(0, 80), ld: this.me, m: [this.me], solo: true };
     this.invites = [...this.invites.filter((i) => i.to !== id), { to: id, pid: this.state.id, at: Date.now() }];
     this.push();
@@ -143,6 +200,8 @@ export class Party {
   }
   accept(from, pid) {
     const g = this.game;
+    const srv = this.srv;
+    if (srv) { this.joining = { pid, from, at: Date.now() }; srv.joinGroup(pid); return; } // (the server's roster says when you're in, and moves you off your old party)
     if (this.inParty) this.leave(true);
     this.acc = { pid, ld: from, at: Date.now() };
     this.state = { id: pid, ld: from, m: [from, this.me] }; // until the leader's roster arrives
@@ -153,6 +212,8 @@ export class Party {
   leave(quiet = false) {
     if (!this.state) return;
     const was = this.inParty;
+    const srv = this.gnet && !this.gnet.left ? this.gnet : null;
+    if (srv) { this.leaving = true; srv.leaveGroup(); }
     this.state = null; this.acc = null; this.invites = [];
     this.push();
     if (was && !quiet) { this.game.chat?.system('You left the party.', 'leave'); this.game.ui?.renderParty?.(); }
@@ -160,6 +221,7 @@ export class Party {
   }
   kick(id) {
     if (!this.isLeader || !this.has(id)) return;
+    this.srv?.groupKick(id);
     this.state = { ...this.state, m: this.state.m.filter((x) => x !== id) };
     this.kicked = { id, at: Date.now() };
     this.push();
@@ -167,6 +229,7 @@ export class Party {
   }
   promote(id) {
     if (!this.isLeader || !this.has(id)) return;
+    this.srv?.groupPromote(id);
     this.state = { ...this.state, ld: id, m: [id, ...this.state.m.filter((x) => x !== id)] };
     this.push();
     this.game.chat?.system(`${this.nameOf(id)} leads the party now.`, 'join');
@@ -312,7 +375,37 @@ export class Party {
     this.t = 0;
     if (this.mailOn && (this.listT = (this.listT || 0) + 1) % 20 === 0) this.listMe(); // name or level changed
     const g = this.game, me = this.me, peers = this.peers(), now = Date.now();
-    // 1. my party, following the leader (or leading)
+    const srv = this.srv; // (on the server the roster arrives by itself: onRoster)
+    if (srv) this.invites = this.invites.filter((i) => now - i.at < INVITE_MS);
+    else this.follow(peers, now);
+    this.frameT = (this.frameT || 0) + 1;
+    if (this.frameT % 2 === 0) g.ui?.renderParty?.(); // distances and places, once a second
+    // 2. invites and friend requests addressed to me
+    for (const p of peers) {
+      for (const inv of !srv && Array.isArray(p.meta.inv) ? p.meta.inv.slice(0, 4) : []) {
+        if (inv?.to !== me || now - (Number(inv.at) || 0) > INVITE_MS) continue;
+        const key = `inv:${p.id}:${str(inv.pid)}`;
+        if (this.prompted.has(key) || this.state?.id === str(inv.pid)) continue;
+        this.prompted.add(key);
+        g.ui?.askInvite?.({ kind: 'party', from: p.id, name: this.nameOf(p.id), pid: str(inv.pid), yes: () => this.accept(p.id, str(inv.pid)) });
+      }
+      for (const r of Array.isArray(p.meta.fr) ? p.meta.fr.slice(0, 8) : []) {
+        if (r?.to !== me || this.isFriend(p.id, p.peer.by)) continue;
+        const key = `fr:${p.id}:${r.at}`;
+        if (this.prompted.has(key)) continue;
+        this.prompted.add(key);
+        g.ui?.askInvite?.({ kind: 'friend', from: p.id, name: this.nameOf(p.id), yes: () => this.acceptFriend(p.id) });
+      }
+      // they accepted my friend request
+      if ((Array.isArray(p.meta.fra) ? p.meta.fra : []).some((r) => r?.to === me) && this.fr.some((r) => r.to === p.id) && !this.isFriend(p.id, p.peer.by)) {
+        this.addFriend(p.id); this.fr = this.fr.filter((r) => r.to !== p.id); this.push();
+        g.chat?.system(`${this.nameOf(p.id)} accepted your friend request.`, 'join');
+      }
+    }
+  }
+  /** Parties in meta (the artifact room, tabs on one device): my party, following the leader (or leading). */
+  follow(peers, now) {
+    const g = this.game, me = this.me;
     const before = JSON.stringify(this.state && { ld: this.state.ld, m: this.state.m });
     const wasIn = this.inParty, oldM = this.members();
     this.invites = this.invites.filter((i) => now - i.at < INVITE_MS);
@@ -334,30 +427,6 @@ export class Party {
       this.invites = this.invites.filter((i) => !this.members().includes(i.to));
       this.push();
       g.ui?.renderParty?.();
-    }
-    this.frameT = (this.frameT || 0) + 1;
-    if (this.frameT % 2 === 0) g.ui?.renderParty?.(); // distances and places, once a second
-    // 2. invites and friend requests addressed to me
-    for (const p of peers) {
-      for (const inv of Array.isArray(p.meta.inv) ? p.meta.inv.slice(0, 4) : []) {
-        if (inv?.to !== me || now - (Number(inv.at) || 0) > INVITE_MS) continue;
-        const key = `inv:${p.id}:${str(inv.pid)}`;
-        if (this.prompted.has(key) || this.state?.id === str(inv.pid)) continue;
-        this.prompted.add(key);
-        g.ui?.askInvite?.({ kind: 'party', from: p.id, name: this.nameOf(p.id), pid: str(inv.pid), yes: () => this.accept(p.id, str(inv.pid)) });
-      }
-      for (const r of Array.isArray(p.meta.fr) ? p.meta.fr.slice(0, 8) : []) {
-        if (r?.to !== me || this.isFriend(p.id, p.peer.by)) continue;
-        const key = `fr:${p.id}:${r.at}`;
-        if (this.prompted.has(key)) continue;
-        this.prompted.add(key);
-        g.ui?.askInvite?.({ kind: 'friend', from: p.id, name: this.nameOf(p.id), yes: () => this.acceptFriend(p.id) });
-      }
-      // they accepted my friend request
-      if ((Array.isArray(p.meta.fra) ? p.meta.fra : []).some((r) => r?.to === me) && this.fr.some((r) => r.to === p.id) && !this.isFriend(p.id, p.peer.by)) {
-        this.addFriend(p.id); this.fr = this.fr.filter((r) => r.to !== p.id); this.push();
-        g.chat?.system(`${this.nameOf(p.id)} accepted your friend request.`, 'join');
-      }
     }
   }
 }

@@ -48,6 +48,18 @@ function merge(base, over) {
   return out;
 }
 
+/** Make `target` equal `source` without replacing it or the objects inside it. */
+function restoreInto(target, source) {
+  for (const k of Object.keys(target)) if (!(k in source)) delete target[k];
+  for (const [k, v] of Object.entries(source)) {
+    const t = target[k];
+    if (Array.isArray(v) && Array.isArray(t)) { t.length = 0; t.push(...v); }
+    else if (v && typeof v === 'object' && !Array.isArray(v) && t && typeof t === 'object' && !Array.isArray(t)) restoreInto(t, v);
+    else target[k] = v;
+  }
+  return target;
+}
+
 export class Ext extends Emitter {
   constructor() {
     super();
@@ -56,9 +68,12 @@ export class Ext extends Emitter {
   }
 
   load(save) {
+    clearTimeout(this.localT); clearTimeout(this.cloudT);
     this.save = save;
-    this.key = `rt_ext_${save.userId}`;
-    const { value: local, status } = loadSafe(this.key); // v1.17.18: a damaged ext is kept, never written over
+    // a save that keeps its state somewhere else entirely (save.cloudOnly) has no copy on this device: nothing is
+    // read from here and nothing is written here, so it can never mix with the angler this device does keep
+    this.key = save.cloudOnly ? null : `rt_ext_${save.userId}`;
+    const { value: local, status } = this.key ? loadSafe(this.key) : { value: null, status: 'ok' }; // v1.17.18: a damaged ext is kept, never written over
     this.loadStatus = status;
     const cloud = save.ext;
     const pick = cloud && (!local || (cloud.updatedAt || 0) > (local.updatedAt || 0)) ? cloud : local;
@@ -73,14 +88,24 @@ export class Ext extends Emitter {
     this.emit('change', this.d);
     clearTimeout(this.localT);
     if (this.frozen) return;
-    this.localT = setTimeout(() => writeJSON(this.key, this.d), 150);
+    if (this.key) this.localT = setTimeout(() => writeJSON(this.key, this.d), 150);
     if (this.save?.saveExt) {
       clearTimeout(this.cloudT);
-      this.cloudT = setTimeout(() => this.save.saveExt(this.d), 4000);
+      this.cloudDue = true;
+      this.cloudT = setTimeout(() => { this.cloudDue = false; this.save.saveExt(this.d); }, 4000);
     }
   }
 
-  flush() { clearTimeout(this.localT); if (this.key && !this.frozen) writeJSON(this.key, this.d); }
+  flush() {
+    clearTimeout(this.localT);
+    if (this.frozen) return;
+    if (this.key) writeJSON(this.key, this.d);
+    if (this.cloudDue && this.save?.saveExt) { clearTimeout(this.cloudT); this.cloudDue = false; this.save.saveExt(this.d); } // (don't leave the last few seconds behind)
+  }
+  /** The save's own copy replaces this one (its keeper said so), in place: the game holds on to the objects in it. */
+  replace(data, into = restoreInto) { into(this.d, merge(extDefaults(), data || {})); this.emit('change', this.d); }
+  /** The same for a few sections only ({ section: value }). */
+  patch(part, into = restoreInto) { for (const [k, v] of Object.entries(part || {})) { if (this.d[k] && typeof this.d[k] === 'object' && v && typeof v === 'object') into(this.d[k], v); else this.d[k] = v; } this.emit('change', this.d); }
   /** v1.17.18: stop writing (a save is being imported over this one; the game restarts straight after). */
   freeze(on = true) { this.frozen = on; clearTimeout(this.localT); clearTimeout(this.cloudT); }
   bump(stat, n = 1) { this.change((d) => { d.stats[stat] = (d.stats[stat] || 0) + n; }); }

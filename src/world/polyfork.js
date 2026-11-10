@@ -14,6 +14,7 @@ import { natureMaterial } from './nature.js';
 import { nightWindows } from './nightwindows.js';
 import { addBox, addCircle } from './colliders.js';
 import { CLEARINGS, heightAt } from './terrain.js';
+import { indexAttr } from '../core/meshpack.js';
 
 const toLinear = (u) => (u <= 0.04045 ? u / 12.92 : ((u + 0.055) / 1.055) ** 2.4);
 const cache = new Map();
@@ -26,7 +27,7 @@ export function polyforkModel(name) {
   for (const p of n.prims) {
     const g = new THREE.BufferGeometry();
     g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(p.pos), 3));
-    g.setIndex(p.idx);
+    g.setIndex(indexAttr(p.idx, THREE.BufferAttribute));
     const ng = g.toNonIndexed();
     g.dispose();
     if (POLYFORK_MATS[p.m].name === 'pane') { glass.push(ng); continue; }

@@ -2,6 +2,7 @@
 //   Meteor shower (some nights): shooting stars, rare fish up 30%.
 //   Fog night: thick fog rolls in and the Sunken Ruins glow; the Lanternfish is twice as likely.
 //   Migration morning (some dawns): schools of fish leap across the cove; bites come much faster.
+// They run in single player too (nobody competes in them). A new angler's first 15 minutes have none.
 // ?event=meteor|fog|migration forces one (for testing).
 import * as THREE from 'three';
 import { mulberry32 } from '../core/rng.js';
@@ -91,7 +92,10 @@ export class WorldEvents {
 
   tick() {
     const g = this.game;
-    const ev = eventFor(g.engine.sky.state);
+    let ev = eventFor(g.engine.sky.state);
+    // A timed event never opens on a new angler's first 15 minutes, or on top of a card, a menu or Gus's tour
+    // (derby.js holdEvents): it is announced when that is over, if it is still going. One already under way carries on.
+    if (ev && ev !== this.current && !FORCED && g.derby?.holdEvents?.()) ev = null;
     if (ev !== this.current) {
       this.current = ev;
       if (ev) {
