@@ -88,8 +88,11 @@ export function wearThumb(item, avatar) {
 const EMOTE_POSE = { emote_clap: 'clap', emote_dance: 'dance' };
 export function emoteThumb(item, avatar) {
   const pose = EMOTE_POSE[item.id];
-  if (!pose) return null;
-  return objectThumb(`emote:${item.id}:${JSON.stringify(avatar || {})}`, () => {
+  return pose ? poseThumb(pose, avatar) : null;
+}
+/** Your angler striking any emote pose (v1.17.22: the Store's emotes use it too). */
+export function poseThumb(pose, avatar) {
+  return objectThumb(`emote:${pose}:${JSON.stringify(avatar || {})}`, () => {
     const av = buildAvatar(avatar || defaultAvatar('nonbinary'));
     try { animateAvatar(av, pose, 0.35, {}); } catch { /* pose missing: stand */ }
     return av.group;

@@ -3,7 +3,7 @@
 // picks, Esc / B backs out.
 import { h, clear } from './dom.js';
 import { STANDALONE } from '../standalone.js';
-import { TAGLINE } from './edition.js';
+import { TAGLINE, IN_CLAUDE } from './edition.js';
 import { icon } from './icons.js';
 import { randomFact } from '../data/facts.js';
 import { CHANGELOG, CHANGE_KINDS, GAME_VERSION } from '../data/changelog.js';
@@ -115,25 +115,17 @@ export class Menus {
     const item = (label, ic, fn, cls = '') => h(`button.pause-item${cls}`, { on: { click: () => { g.audio.sfx('click'); fn(); } } }, icon(ic), h('span', label));
     const list = h('nav.pause-list', { 'aria-label': 'Menu' },
       item('Resume', 'play', () => this.close(), '.main'),
-      item('Dress your angler', 'shirt', () => { this.close(); g.openCreator(); }),
+      // (v1.17.21: four items, like most games. Everything else lives where it belongs: Help, the tutorial, feedback,
+      // reports, changelog, credits and privacy in Settings > Help; your look in Settings > Account and the cabin
+      // wardrobe; friends, party and invites in Friends & Party (O); the photo album in the camera and the Journal)
       item('Settings', 'gear', () => { this.close(); g.ui.sheets.open('settings'); }),
-      item('Friends & party', 'users', () => { this.close(); g.ui.sheets.open('social'); }),
-      item('Play with friends (invites)', 'link', () => { this.close(); this.friends(); }),
-      item('How to play', 'help', () => { this.close(); g.ui.sheets.state.settingsTab = 'controls'; g.ui.sheets.open('settings'); }),
-      item('Replay the tutorial', 'bell', () => { this.close(); g.tutorial.replay(); }), // v1.14.10
-      item('Photo album', 'camera', () => { this.close(); g.ui.sheets.open('album'); }),
-      item('Changelog', 'history', () => { this.close(); this.changelog(); }),
-      item('Credits', 'star', () => { this.close(); this.credits(); }),
-      item('Send feedback', 'chat', () => { this.close(); import('../game/reports.js').then((m) => m.openFeedback(g)); }),
-      item('Report a bug', 'bug', () => { this.close(); import('../game/reports.js').then((m) => m.openBugReport(g)); }),
-      item('Report a player', 'shield', () => { this.close(); import('../game/reports.js').then((m) => m.openPlayerPicker(g)); }),
-      item('Privacy', 'eye', () => { this.close(); import('./privacy.js').then((m) => m.showPrivacy(g)); }),
+      item('Help & feedback', 'help', () => { this.close(); g.ui.sheets.state.settingsTab = 'help'; g.ui.sheets.open('settings'); }),
       item('Back to title', 'exit', () => { this.close(); this.backToTitle(); }));
     // Everything from the hotbar, for narrow windows where the hotbar folds away.
     const quick = (label, ic, fn) => h('button.quick-btn', { on: { click: () => { this.close(); fn(); } } }, icon(ic), h('span', label));
     const grid = h('div.quick-grid', { role: 'group', 'aria-label': 'Quick menu' },
       quick('Inventory', 'backpack', () => g.ui.sheets.open('creel')), quick('Tackle box', 'package', () => g.ui.sheets.open('tackle')), quick('Fishpedia', 'book', () => g.ui.sheets.open('fishpedia')), quick('Journal', 'star', () => g.ui.sheets.open('journal')),
-      quick('Map', 'map', () => g.ui.sheets.open('map')), quick('Board', 'scroll', () => g.ui.sheets.open('board')), h('button.quick-btn.nav-off', { 'aria-disabled': 'true', title: 'Shop' }, icon('shop'), h('span', 'Shop')),
+      quick('Map', 'map', () => g.ui.sheets.open('map')), quick('Board', 'scroll', () => g.ui.sheets.open('board')), IN_CLAUDE ? h('button.quick-btn.nav-off', { 'aria-disabled': 'true', title: 'Store' }, icon('shop'), h('span', 'Store')) : quick('Store', 'shop', () => g.ui.sheets.open('store')),
       quick('Cabin', 'home', () => g.home.open()), quick('Emotes', 'smile', () => g.ui.toggleWheel()), quick('Selfie', 'camera', () => g.selfie.start()),
       quick(g.rodStowed ? 'Rod out' : 'Stow rod', 'rod', () => g.toggleRod()), quick('Chat', 'chat', () => g.chat?.focus()));
     const card = h('div.menu-card.pause-card', { role: 'dialog', 'aria-label': 'Menu' },

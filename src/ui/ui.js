@@ -21,6 +21,7 @@ import { EVENT_INFO } from '../game/worldevents.js';
 import { SEASONS } from '../data/seasons.js';
 import { regionName } from '../world/terrain.js';
 import { aan } from '../core/text.js';
+import { IN_CLAUDE } from './edition.js';
 
 export const EMOTES = [
   { id: 'wave', label: 'Wave', sym: '\u{1F44B}', icon: 'hand' },
@@ -129,12 +130,13 @@ export class UI {
     const group = (label, ...btns) => h('div.hb-group', { role: 'group', 'aria-label': label }, btns);
     this.iconRow = h('div.icon-row.hotbar.plank', { role: 'toolbar', 'aria-label': 'Game menu' },
       group('Inventory', creelBtn, ib('package', 'Tackle box', 'tackle', () => this.sheets.open('tackle')), ib('book', 'Fishpedia', 'pedia', () => this.sheets.open('fishpedia')), journalBtn),
-      group('World', ib('map', 'Map', 'map', () => this.sheets.open('map')), ib('scroll', 'Notice board', 'board', () => this.sheets.open('board')), this.shopOff = ib('shop', 'Shop', 'shop-off', () => {}), ib('home', 'Your cabin', 'home', () => this.game.home.open()), (this.rideBtn = ib('bike', 'Bike (hop on / off)', 'bike', () => this.game.toggleRide())), (this.swapBtn = ib('rotL', 'Swap rides', 'ride-swap', () => this.game.swapRide()))),
+      group('World', ib('map', 'Map', 'map', () => this.sheets.open('map')), ib('scroll', 'Notice board', 'board', () => this.sheets.open('board')), this.shopOff = ib('shop', 'Store', 'store', () => { if (!IN_CLAUDE) this.sheets.open('store'); }), ib('home', 'Your cabin', 'home', () => this.game.home.open()), (this.rideBtn = ib('bike', 'Bike (hop on / off)', 'bike', () => this.game.toggleRide())), (this.swapBtn = ib('rotL', 'Swap rides', 'ride-swap', () => this.game.swapRide()))),
       group('Social', chatBtn, ib('users', 'Friends & party (O)', 'social', () => this.sheets.open('social')), ib('smile', 'Emotes', 'emotes', () => this.toggleWheel()), ib('camera', 'Camera (selfies and group shots)', 'selfie', () => this.game.selfie.start())),
       group('System', this.rodBtn, (this.adminBtn = ib('shield', 'Admin', 'admin', () => this.sheets.open('admin'))), ib('menu', 'Menu', 'pause', () => this.openPause())));
     this.adminBtn.hidden = true; // v1.10: shown to the lake's admins only (see showAdmin)
-    // v1.10: the Shop button is switched off for now (a future shop lives here); buying happens at Gus's counter
-    this.shopOff.classList.add('nav-off'); this.shopOff.setAttribute('aria-disabled', 'true');
+    // v1.17.22: the Shop button opens the Store (cosmetics, placeholder items for now). The free Five Lakes artifact
+    // sells nothing, so there it stays switched off; buying with coins still happens at Gus's counter.
+    if (IN_CLAUDE) { this.shopOff.classList.add('nav-off'); this.shopOff.setAttribute('aria-disabled', 'true'); }
     // ---- hover cards for the status chips (v1.8.2): what a buff or streak actually does
     this.chipTip = h('div.chip-tip.hidden', { role: 'tooltip' });
     const fmtLeft = (sec) => `${Math.floor(sec / 60)}:${String(Math.floor(sec % 60)).padStart(2, '0')}`;

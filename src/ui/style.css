@@ -856,6 +856,28 @@ body.reduced .pop-word { animation: none; }
 .id-price .price { font-size: 13px; }
 .id-price .price img { width: 18px; height: 18px; }
 .shop-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 8px; }
+/* v1.17.22: the Store (src/ui/storeui.js): Gus's cards and detail panel, plus a featured banner and bundle pieces */
+.store-note { margin-bottom: 10px; background: #e9f4ef; }
+.store-note > svg { color: var(--lake-500); }
+.store-hero { position: relative; display: grid; grid-template-columns: 132px 1fr; gap: 16px; align-items: center; width: 100%; margin-bottom: 12px; padding: 14px 16px; text-align: left; font: inherit; color: var(--on-dark); border: 0; border-radius: var(--r-lg); overflow: hidden; cursor: pointer;
+  background: linear-gradient(120deg, #17332c 0%, color-mix(in srgb, var(--c) 55%, #17332c) 100%); box-shadow: 0 3px 0 rgba(6, 18, 15, 0.35); transition: transform var(--fast) var(--ease); }
+.store-hero:hover { transform: translateY(-2px); }
+.sh-pic { width: 132px; height: 104px; display: grid; place-items: center; border-radius: var(--r); background: rgba(255, 255, 255, 0.12); }
+.sh-pic img { max-width: 100%; max-height: 100%; }
+.sh-main { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.sh-kicker { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; opacity: 0.8; }
+.sh-name { font-size: 22px; font-weight: 900; line-height: 1.1; }
+.sh-desc { font-size: var(--t-s); opacity: 0.9; }
+.sh-price { display: flex; align-items: center; gap: 8px; margin-top: 4px; }
+.sh-price b { font-family: var(--font-pixel); font-size: 15px; }
+.sh-price s { color: rgba(255, 255, 255, 0.7); }
+.store-price { font-family: var(--font-pixel); font-size: 12px; font-weight: 700; color: var(--ink-900, #1b2a26); }
+.id-price.store-price { font-size: 15px; }
+.store-inside { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.store-piece { display: inline-flex; align-items: center; gap: 6px; padding: 3px 9px 3px 3px; font-size: var(--t-s); font-weight: 700; background: color-mix(in srgb, var(--c) 10%, var(--birch-50)); border: 1px solid color-mix(in srgb, var(--c) 35%, var(--birch-200)); border-radius: var(--r-pill); }
+.sp-pic { width: 26px; height: 26px; display: grid; place-items: center; border-radius: 50%; background: #fff; overflow: hidden; }
+.sp-pic img, .sp-pic svg { width: 24px; height: 24px; }
+@media (max-width: 560px) { .store-hero { grid-template-columns: 84px 1fr; gap: 10px; } .sh-pic { width: 84px; height: 72px; } .sh-name { font-size: 18px; } }
 .item-card { position: relative; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 10px 8px 9px; background: #fff; border: 1px solid var(--birch-200); border-radius: var(--r); box-shadow: 0 2px 0 var(--birch-200); font: inherit; text-align: center; overflow: hidden; transition: transform var(--fast) var(--ease), box-shadow var(--fast) var(--ease); }
 .item-card::before { content: ''; position: absolute; left: 0; right: 0; top: 0; height: 3px; background: var(--c); }
 .item-card:hover { transform: translateY(-2px); box-shadow: 0 4px 0 var(--birch-200), 0 8px 18px rgba(6, 18, 15, 0.08); }

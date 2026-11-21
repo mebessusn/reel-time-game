@@ -53,7 +53,7 @@ export const extraAction = () => ACTIONS[BASE_ACTIONS]?.id || null;
 /** Another map's own key actions ({ id, label, key }), handled by its keyDown hook. */
 export function addActions(list) { for (const a of list) { ACTIONS.push(a); ACTION_BY_ID[a.id] = a; } }
 
-export const keyName = (k) => (k === ' ' ? 'Space' : k === 'shift' ? 'Shift' : k.startsWith('arrow') ? `${k[5].toUpperCase()}${k.slice(6)} arrow` : k.length === 1 ? k.toUpperCase() : k[0].toUpperCase() + k.slice(1));
+export const keyName = (k) => (!k ? '' : k === ' ' ? 'Space' : k === 'shift' ? 'Shift' : k.startsWith('arrow') ? `${k[5].toUpperCase()}${k.slice(6)} arrow` : k.length === 1 ? k.toUpperCase() : k[0].toUpperCase() + k.slice(1));
 
 export class Keymap {
   constructor(ext) { this.ext = ext; this.rebuild(); }

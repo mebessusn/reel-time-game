@@ -5,6 +5,8 @@
 // It's a table, not code: REVEALS maps a button's action (its data-act in ui.js) to "when does this show up". A button
 // with no row is always there. Buttons for multiplayer only (LIVE) follow the play mode instead of being remembered.
 // Kept in the save (ext.d.hotbar): { all: true } for a save with history, or { on: { action: 0 | 1 } } (0 = new, 1 = clicked).
+import { IN_CLAUDE } from './edition.js';
+
 const caught = (g) => g.profile.catchCount || 0;
 const online = (g) => !g.solo;
 
@@ -18,7 +20,7 @@ export const REVEALS = {
   selfie: (g) => caught(g) >= 3 || !!g.selfie?.active,
   emotes: (g) => online(g) || g.profile.level >= 2 || !!g.ui.wheel,
   social: (g) => online(g),
-  'shop-off': () => false, // (a placeholder for a future shop: no use to a new angler)
+  store: (g) => !IN_CLAUDE && g.profile.level >= 2, // v1.17.22: the Store joins with the notice board; the free Claude edition sells nothing, so a new angler there never sees it
 };
 /** Shown while there's someone to talk to, hidden in single player; never remembered. */
 export const LIVE = { chat: online };

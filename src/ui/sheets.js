@@ -31,6 +31,8 @@ import { regionName } from '../world/terrain.js';
 import { PETS } from '../game/pet.js';
 import { openCatchCard } from './catchcard.js';
 import { exportSave, parseSave, applySave } from '../save/transfer.js';
+import { GAME_VERSION as VERSION } from '../data/changelog.js';
+import { renderStore } from './storeui.js';
 import { fishOfWeek } from '../game/social.js';
 import { dayIndex } from '../core/clock.js';
 import { SEASONS } from '../data/seasons.js';
@@ -52,7 +54,7 @@ const perkText = (item, { up, cap = true } = {}) => {
   if (cap && item.kind === 'rod' && ROD_LB[item.id]) perks.unshift(`Lands fish up to ${rodCap(item.id, up)} lb`);
   return perks.length ? perks.join(', ') : cap || item.kind !== 'rod' ? 'Cosmetic' : '';
 };
-const SHEET_ICON = { fieldguide: 'camera', valleyjournal: 'scroll', wagon: 'shop', loop: 'bike', social: 'users', admin: 'shield', settings: 'gear', creel: 'backpack', tackle: 'package', fishpedia: 'book', shop: 'shop', board: 'scroll', journal: 'star', map: 'map', legends: 'trophy', album: 'camera', bikes: 'bike' };
+const SHEET_ICON = { fieldguide: 'camera', valleyjournal: 'scroll', wagon: 'shop', loop: 'bike', social: 'users', admin: 'shield', settings: 'gear', creel: 'backpack', tackle: 'package', fishpedia: 'book', shop: 'shop', store: 'shop', board: 'scroll', journal: 'star', map: 'map', legends: 'trophy', album: 'camera', bikes: 'bike' };
 const TIME_LABEL = { any: 'Any time', dawn: 'Dawn', day: 'Day', dusk: 'Dusk', night: 'Night' };
 // Colour-blind markers: a shape per tier, shown next to the colour when the setting is on.
 export const TIER_MARK = { common: '●', uncommon: '▲', rare: '◆', epic: '★', legendary: '♛', mythic: '✦', trophy: '⚑' };
@@ -638,6 +640,7 @@ export class Sheets {
   }
 
   // ---------------- Leaderboard ----------------
+  render_store(c) { renderStore(this, c); } // v1.17.22: the Store (src/ui/storeui.js)
   render_admin(c) { this.game.mod.render(c, this); }
 
   // ---------------- v1.11 Friends & party ----------------
@@ -647,6 +650,8 @@ export class Sheets {
     const fl = P.friendList();
     for (const [id, label] of [['party', P.inParty ? `Party ${P.members().length}/${PARTY_MAX}` : 'Party'], ['friends', `Friends${fl.length ? ` (${fl.filter((f) => f.online).length}/${fl.length})` : ''}${P.pending?.length ? ` · ${P.pending.length} new` : ''}`], ['nearby', 'On the lake']]) this.tab(c, id, label, 'socialTab');
     const tab = this.state.socialTab || 'party';
+    // v1.17.21: inviting friends into the game lives here now, not in the pause menu
+    c.foot.append(h('button.btn.ghost.on-dark', { on: { click: () => { this.close(); g.menus.friends(); } } }, icon('link'), 'Invite friends to play'));
     const me = g.player.pos;
     const where = (peer) => { const r = peer ? g.remotes.list.get(peer.id) : null; return r?.peer.state ? `${regionName(r.pos.x, r.pos.z)} · ${Math.round(Math.hypot(r.pos.x - me.x, r.pos.z - me.z))} m` : 'On the lake'; };
     const btn = (cls, ic, label, fn, title) => h(`button.btn.small${cls}`, { title: title || label, on: { click: () => { fn(); setTimeout(() => this.render(), 600); } } }, ic ? icon(ic) : null, label);
@@ -718,7 +723,8 @@ export class Sheets {
         h('div.grow', h('div.ttl', name, friend ? h('span.pill', { style: { '--c': '#d8507a', marginLeft: '6px' } }, 'Friend') : null), h('div.meta', `${p.meta.lvl ? `Lv ${p.meta.lvl} · ` : ''}${where(p.peer)}`)),
         inP ? h('span.pill', { style: { '--c': '#5eae3e' } }, 'Party') : btn(invited ? '.ghost' : '.green', 'users', invited ? 'Invited' : 'Invite', () => P.invite(p.id)),
         friend ? null : btn('.ghost', 'heart', asked ? 'Asked' : 'Add friend', () => P.friendRequest(p.id)),
-        btn('.ghost', 'chat', '', () => g.chat.openDm(p.id, name), 'Whisper'));
+        btn('.ghost', 'chat', '', () => g.chat.openDm(p.id, name), 'Whisper'),
+        g.mod ? h('button.btn.small.ghost', { title: `Report ${name}`, 'aria-label': `Report ${name}`, on: { click: () => { this.close(); g.mod.openReport({ id: g.mod.idOf(p.peer), peer: p.peer.id, name }); } } }, icon('shield')) : null); // (not btn(): that redraws a sheet this has closed)
     })));
   }
 
@@ -1068,7 +1074,7 @@ export class Sheets {
   render_settings(c) {
     const g = this.game, p = g.profile, s = p.settings;
     c.title.textContent = 'Settings';
-    const TABS = [['graphics', 'Graphics', 'monitor'], ['audio', 'Audio', 'volume'], ['controls', 'Controls', 'keyboard'], ['access', 'Accessibility', 'access'], ['play', 'Gameplay', 'fish'], ['account', 'Account', 'user']];
+    const TABS = [['graphics', 'Graphics', 'monitor'], ['audio', 'Audio', 'volume'], ['controls', 'Controls', 'keyboard'], ['access', 'Accessibility', 'access'], ['play', 'Gameplay', 'fish'], ['account', 'Account', 'user'], ['help', 'Help', 'help']];
     const cur = this.state.settingsTab || 'graphics';
     for (const [id, label, ic] of TABS) {
       const on = cur === id;
@@ -1148,8 +1154,23 @@ export class Sheets {
         h('div.list-row', h('img', { src: avatarThumb(p.avatar), style: { width: '44px', height: '44px' } }), h('div.grow', h('div.ttl', p.name), h('div.meta', g.net?.kind === 'room' ? 'Your progress saves to this lake.' : 'Progress saves on this device.')),
           h('button.btn.small', { on: { click: () => { this.close(); g.openCreator(); } } }, icon('shirt'), 'Edit look')),
         h('div.set-name-row', nameIn)),
-        this.saveFileGroup(),
-        h('div.set-group', h('h3', 'About'), h('div.muted', `Reel Time · ${g.net?.kind === 'local' ? 'Local lake (tabs on this device)' : g.net?.kind === 'room' ? 'Shared lake (everyone viewing this page)' : 'Offline'} · Now playing: ${g.audio.trackName || 'nothing'}`)));
+        this.saveFileGroup());
+    } else if (cur === 'help') {
+      // v1.17.21: what used to crowd the pause menu
+      const act = (ic, label, desc, fn) => row(label, desc, h('button.btn.small.ghost', { type: 'button', on: { click: (e) => { e.preventDefault(); this.close(); fn(); } } }, icon(ic), 'Open'));
+      const reports = (fn) => () => import('../game/reports.js').then((m) => m[fn](g));
+      B.append(h('div.set-group', h('h3', 'Learning'),
+        row('How to play', 'Casting, hooking, reeling and every key and button.', h('button.btn.small.ghost', { type: 'button', on: { click: (e) => { e.preventDefault(); this.state.settingsTab = 'controls'; this.swapIn = true; this.render(); } } }, icon('keyboard'), 'Show')),
+        act('bell', 'Replay the tutorial', 'Gus walks you through the basics again.', () => g.tutorial.replay())),
+        h('div.set-group', h('h3', 'Feedback'),
+          act('chat', 'Send feedback', 'Ideas, likes and dislikes.', reports('openFeedback')),
+          act('bug', 'Report a bug', 'Something broken or odd.', reports('openBugReport')),
+          act('shield', 'Report a player', 'Misconduct, cheating or an inappropriate name. They are never told who reported them.', reports('openPlayerPicker'))),
+        h('div.set-group', h('h3', 'About'),
+          act('history', 'Changelog', `What's new. This is ${VERSION}.`, () => g.menus.changelog()),
+          act('star', 'Credits', 'Who made the game and what it is made with.', () => g.menus.credits()),
+          act('eye', 'Privacy', 'What the game keeps and sends, and how to reach us.', () => import('./privacy.js').then((m) => m.showPrivacy(g))),
+          h('div.muted', { style: { marginTop: '8px' } }, `Reel Time ${VERSION} · ${g.net?.kind === 'local' ? 'Local lake (tabs on this device)' : g.net?.kind === 'room' ? 'Shared lake (everyone viewing this page)' : g.playMode === 'solo' ? 'Single player' : 'Online'} · Now playing: ${g.audio.trackName || 'nothing'}`)));
     }
     this.revertBtn = h('button.btn.ghost.on-dark', { disabled: true, on: { click: () => { if (this.settingsSnap) { g.saveSettings(JSON.parse(JSON.stringify(this.settingsSnap))); g.ui.captions.on = !!this.settingsSnap.captions; this.render(); } } } }, icon('undo'), 'Revert changes');
     c.foot.append(this.revertBtn, h('button.btn.primary', { on: { click: () => { this.game.audio.sfx('close'); this.close(); } } }, icon('check'), 'Done'));

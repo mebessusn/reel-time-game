@@ -1,7 +1,7 @@
 // Gus's guided tour (v1.14.10): on a brand-new game a welcome card asks whether you'd like to be shown around (about
 // three minutes) or skip it. Then short steps, one at a time, from looking around to your first fish, your backpack,
 // the map and the journal. The HUD button a step talks about glows; the dock gets a beam of light to walk to.
-// Skippable at any step; replay it from the menu (Menu > Replay the tutorial).
+// Skippable at any step; replay it from Settings > Help > Replay the tutorial.
 import { h, clear } from './dom.js';
 import { icon } from './icons.js';
 import { DOCK } from '../world/terrain.js';
