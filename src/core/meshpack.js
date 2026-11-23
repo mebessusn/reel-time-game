@@ -95,6 +95,8 @@ export function unpackNodes(nodes, { plain = false } = {}) {
     return out;
   });
 }
+/** Let go of the unpacked arrays unpackNodes keeps (Nov 2026: a map you've left); a node unpacks again when next read. */
+export function forgetUnpacked(nodes) { for (const n of nodes || []) if (Object.getOwnPropertyDescriptor(n, 'prims')?.get) n.prims = null; }
 /** An index array (plain or typed) as the BufferAttribute geometry.setIndex() wants. */
 export function indexAttr(idx, BA) {
   if (idx instanceof Uint32Array || idx instanceof Uint16Array) return new BA(idx, 1);

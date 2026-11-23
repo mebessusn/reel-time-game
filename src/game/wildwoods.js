@@ -22,6 +22,7 @@ import { POOLS, CREEKS, HALF, groundY, surfaceY, isWater, trailDist, heightAt, g
 import { shoot } from '../ui/polaroid.js';
 import { placeModels } from '../world/polyfork.js';
 import { addCircle, addSolidFn } from '../world/colliders.js';
+import { buildWagonModel, WAGON_SOLIDS } from '../entities/wagonModel.js';
 import { PLACES } from './places.js';
 import { FORAGE, PANTRY, STEW, GUIDE, GUIDE_SETS, GUIDE_ALL, PAGES, PAGES_ALL, SECRET_WATERS, RANGER_TASKS, WAGON_HOURS, WAGON_DISCOUNT, RHEA, HOLLIS, WREN, RHEA_LOOK, HOLLIS_LOOK, WREN_LOOK } from '../data/woodsdata.js';
 import { defaultAvatar } from '../data/avatarOptions.js';
@@ -252,25 +253,16 @@ export class WildWoods {
   }
 
   buildWagon(scene) {
-    const wood = wmat('#8a5a34'), woodD = wmat('#5e3a20'), canvas = wmat('#e8dcc0'), stripe = wmat('#c0483a'), wheel = wmat('#3a2a1e'), gold = wmat('#d8a840');
-    const w = new THREE.Group();
-    const add = (geo, mat, x, y, z, rx = 0, ry = 0, rz = 0) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.rotation.set(rx, ry, rz); m.castShadow = true; w.add(m); };
-    add(new THREE.BoxGeometry(3.4, 0.9, 1.8), wood, 0, 1.05, 0);
-    add(new THREE.CylinderGeometry(1.05, 1.05, 3.4, 10, 1, true, 0, Math.PI), canvas, 0, 1.5, 0, 0, 0, Math.PI / 2);
-    for (const x of [-1.2, 0, 1.2]) add(new THREE.BoxGeometry(0.18, 0.02, 2.1), stripe, x, 2.53, 0, 0, 0, 0);
-    for (const [x, z] of [[-1.1, 0.95], [1.1, 0.95], [-1.1, -0.95], [1.1, -0.95]]) add(new THREE.TorusGeometry(0.42, 0.07, 5, 12), wheel, x, 0.45, z);
-    add(new THREE.BoxGeometry(2.2, 0.08, 0.6), woodD, 0, 1.0, 1.15, -0.3, 0, 0); // the shop counter flap
-    add(new THREE.BoxGeometry(1.4, 0.36, 0.06), gold, 0, 1.75, 0.92); // the sign
-    add(new THREE.BoxGeometry(0.1, 0.1, 1.6), woodD, 2.2, 0.75, 0, 0, 0, 0.3); // the shafts
-    const lamp = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.28, 0.2), wmat('#ffd27a', { emissive: '#c88a2a' })); lamp.position.set(-1.8, 1.8, 0.9); w.add(lamp);
-    this.wagon = bakeLoose(w); // one mesh per material
+    // v1.17.23: a canvas-covered wooden wagon built in Blender (art/src/wagon.py, src/entities/wagonModel.js); Wren
+    // stands at (0, 2.4) in its frame, in front of the counter and under the awning's edge
+    this.wagon = buildWagonModel();
     scene.add(this.wagon);
-    // v1.17.12: solid wherever it has stopped (its body, wheels and shafts, in its own frame)
+    // solid wherever it has stopped: the bed and wheels, barrel, counter, awning poles, tongue, crates and sacks
     addSolidFn((x, z, r) => {
       const W = this.wagon; if (!W?.visible) return false;
       const dx = x - W.position.x, dz = z - W.position.z, c = Math.cos(W.rotation.y), sn = Math.sin(W.rotation.y);
       const lx = dx * c - dz * sn, lz = dx * sn + dz * c;
-      return lx > -1.8 - r && lx < 2.9 + r && lz > -1.1 - r && lz < 1.2 + r;
+      return WAGON_SOLIDS.some(([x0, x1, z0, z1]) => lx > x0 - r && lx < x1 + r && lz > z0 - r && lz < z1 + r);
     });
   }
   /** Where the wagon is right now (the same for everyone): a new stop every few hours, in a shuffled order. */

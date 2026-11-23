@@ -79,10 +79,11 @@ export class Actor {
       this.bobberObj = buildBobber(equipped.lure);
       this.bobberObj.visible = false;
       this.scene.add(this.bobberObj);
-      if (this.boatObj) this.root.remove(this.boatObj);
-      this.boatObj = buildBoat(equipped.boat);
-      this.boatObj.visible = this.mode === 'boat';
-      this.root.add(this.boatObj);
+      // Nov 2026: the boat is built the first time it's wanted (a megabyte of painted texture each: most villagers never
+      // row), and the old one is let go of properly
+      this.dropBoat();
+      this.boatId = equipped.boat;
+      if (this.mode === 'boat') this.ensureBoat();
       this.gearKey = gkey;
       this.equipped = { ...equipped };
     }
@@ -150,7 +151,18 @@ export class Actor {
 
   setMode(mode) {
     this.mode = mode;
+    if (mode === 'boat') this.ensureBoat();
     if (this.boatObj) this.boatObj.visible = mode === 'boat';
+  }
+  /** This one's boat (built now if it hasn't been). */
+  ensureBoat() {
+    if (!this.boatObj) { this.boatObj = buildBoat(this.boatId); this.boatObj.visible = this.mode === 'boat'; this.root.add(this.boatObj); }
+    return this.boatObj;
+  }
+  dropBoat() {
+    const b = this.boatObj; if (!b) return;
+    this.root.remove(b); this.boatObj = null;
+    b.traverse((o) => { if (!o.isMesh) return; o.geometry?.dispose(); for (const m of [].concat(o.material || [])) { m.map?.dispose(); m.dispose(); } });
   }
 
   /** Bend the rod toward the line under tension (k: 0 straight .. 1 doubled over; toward: the bobber, in the world).
@@ -237,6 +249,7 @@ export class Actor {
     this.root.rotation.y = s.yaw;
     let pose = s.pose || 'idle';
     if (this.mode === 'boat') {
+      this.ensureBoat();
       const bob = Math.sin(t * 1.4 + s.x) * 0.04;
       const sw = waveAt(s.x, s.z);
       this.root.position.y = WATER_Y - 0.1 + bob + sw;
@@ -364,6 +377,7 @@ export class Actor {
     if (this.lantern) this.scene.remove(this.lantern.userData.pool);
     this.freeRodBend();
     this.avatar?.dispose?.();
+    this.dropBoat();
     this.scene.remove(this.root);
     this.scene.remove(this.line.line);
     if (this.bobberObj) this.scene.remove(this.bobberObj);
